@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const API = 'http://localhost:4000/api';
+  const API = window.location.origin + '/api';
   const app = document.getElementById('app');
 
   // ─── State ───
@@ -534,7 +534,7 @@
           <tr style="${m.status === 'unread' ? 'background:rgba(6,182,212,0.03)' : ''}">
             <td><strong>${escapeHtml(m.name)}</strong></td>
             <td><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a></td>
-            <td style="max-width:250px;color:var(--text-secondary)">${escapeHtml((m.message||'').substring(0, 80))}...</td>
+            <td style="max-width:250px;color:var(--text-secondary)">${escapeHtml((m.message || '').substring(0, 80))}...</td>
             <td><span class="badge ${m.status === 'unread' ? 'badge-orange' : 'badge-green'}">${m.status}</span></td>
             <td>${new Date(m.createdAt).toLocaleDateString()}</td>
             <td>
