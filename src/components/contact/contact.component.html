@@ -1,0 +1,49 @@
+
+<section id="contact" class="py-20 md:py-32">
+  <div class="container mx-auto px-4">
+    <div class="text-center mb-12">
+      <h2 class="font-orbitron text-3xl md:text-4xl font-bold text-white">GET IN TOUCH</h2>
+      <div class="w-24 h-1 bg-gradient-to-r from-cyan-500 to-emerald-600 mx-auto mt-4"></div>
+      <p class="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">Interested in cybersecurity collaboration or have a project in mind? Let's connect.</p>
+    </div>
+
+    <div class="max-w-xl mx-auto">
+      @if (status() === 'success' || status() === 'error') {
+        <div class="text-center p-8 glass-panel animate-fade-in">
+          @if(status() === 'success') {
+            <app-lottie-player path="https://lottie.host/8a73359a-2895-4675-9b7a-9f57849d0124/mAjS2jSmA8.json" width="120px" height="120px" [loop]="false" class="mx-auto" />
+            <h3 class="text-2xl font-bold text-white mt-4">Message Sent!</h3>
+            <p class="text-gray-300 mt-2">Thanks for reaching out. I'll get back to you within 24 hours.</p>
+          } @else {
+            <app-lottie-player path="https://lottie.host/79015383-0943-4e4b-8575-103362a22055/uYQYn2RoUE.json" width="120px" height="120px" [loop]="false" class="mx-auto" />
+            <h3 class="text-2xl font-bold text-red-400 mt-4">Submission Failed</h3>
+            <p class="text-gray-300 mt-2">Something went wrong. Please try again later.</p>
+          }
+        </div>
+      } @else {
+        <form [formGroup]="contactForm" (ngSubmit)="onSubmit()" class="space-y-6">
+          <div>
+            <input formControlName="name" type="text" placeholder="Your Name" class="form-input" [class.border-red-500]="contactForm.controls.name.touched && contactForm.controls.name.invalid">
+          </div>
+          <div>
+            <input formControlName="email" type="email" placeholder="Your Email" class="form-input" [class.border-red-500]="contactForm.controls.email.touched && contactForm.controls.email.invalid">
+          </div>
+          <div>
+            <textarea formControlName="message" placeholder="Your Message" rows="5" class="form-input" [class.border-red-500]="contactForm.controls.message.touched && contactForm.controls.message.invalid"></textarea>
+          </div>
+          <div>
+            <button type="submit" [disabled]="status() === 'submitting'" class="w-full submit-btn">
+                <span>{{ status() === 'submitting' ? 'SENDING...' : 'SEND MESSAGE' }}</span>
+            </button>
+          </div>
+        </form>
+      }
+
+      <div class="mt-8 text-center text-gray-500 text-sm space-y-1">
+        <p>\ud83d\udce7 dobariyadhurvvipulbhai&#64;gmail.com</p>
+        <p>\ud83d\udccd Surat, Gujarat, India</p>
+        <p>\ud83d\udd17 <a href="https://www.linkedin.com/in/dhruvdobariya" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300">linkedin.com/in/dhruvdobariya</a></p>
+      </div>
+    </div>
+  </div>
+</section>

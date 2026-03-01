@@ -1,0 +1,18 @@
+
+@if (isLoading()) {
+  <div class="fixed inset-0 z-50 transition-opacity duration-500 ease-in-out">
+    <app-loading-screen />
+  </div>
+}
+
+<main [class.opacity-0]="!isContentLoaded()" [class.opacity-100]="isContentLoaded()" class="transition-opacity duration-1000 ease-in">
+  <app-hero />
+  <app-about />
+  <app-services />
+  <app-projects />
+  <app-partners />
+  <app-contact />
+  <footer class="py-8 text-center text-gray-500 border-t border-white/10">
+    <p>&copy; 2026 Dhruv Dobariya. All Rights Reserved.</p>
+  </footer>
+</main>

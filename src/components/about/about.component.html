@@ -1,0 +1,30 @@
+
+<section id="about" class="py-20 md:py-32">
+  <div class="container mx-auto px-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <div class="glass-panel p-8">
+        <h2 class="font-orbitron text-3xl md:text-4xl font-bold mb-4 text-white">
+          ABOUT ME
+        </h2>
+        <div class="w-24 h-1 bg-gradient-to-r from-cyan-500 to-emerald-600 mb-6"></div>
+        <p class="text-gray-300 leading-relaxed">
+          I'm an aspiring <strong class="text-cyan-400">SOC Analyst</strong> and B.Sc. IT student with a deep passion for cybersecurity. I specialize in SIEM investigations, security alert analysis, and incident response workflows. My focus is on detecting threats before they become breaches.
+        </p>
+        <p class="text-gray-300 leading-relaxed mt-4">
+          From log analysis and phishing detection to cloud security fundamentals and AI-driven threat analysis, I'm building the skills to protect organizations at scale. Google Cybersecurity Certified and constantly learning.
+        </p>
+      </div>
+      <div class="glass-panel p-8">
+        <h3 class="font-orbitron text-2xl font-bold mb-6 text-white">Core Expertise</h3>
+        <ul class="space-y-4">
+          @for (item of expertise; track item.name) {
+            <li class="flex items-center text-gray-300">
+              <span [innerHTML]="item.icon"></span>
+              <span>{{ item.name }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

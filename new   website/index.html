@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#050508" />
+
+  <!-- SEO -->
+  <title>Dhruv Dobariya — Cybersecurity Analyst | SOC Enthusiast | Cloud & AI Security</title>
+  <meta name="description"
+    content="Dhruv Dobariya is an aspiring SOC Analyst specializing in SIEM investigation, incident response, threat detection, cloud security, and AI-driven security analysis. Google Cybersecurity Certified." />
+  <meta name="keywords"
+    content="Cybersecurity Analyst, SOC Analyst, SIEM, Incident Response, Threat Detection, Cloud Security, AI Security, Dhruv Dobariya, Network Security, Log Analysis" />
+  <meta name="author" content="Dhruv Dobariya" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Dhruv Dobariya — Cybersecurity Analyst & SOC Enthusiast" />
+  <meta property="og:description"
+    content="Aspiring SOC Analyst. SIEM investigation, incident response, cloud security & AI-driven threat detection." />
+
+  <!-- Robots -->
+  <meta name="robots" content="index, follow" />
+
+  <!-- Preconnect Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- JSON-LD Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Dhruv Dobariya",
+    "jobTitle": "Aspiring SOC Analyst & Cybersecurity Enthusiast",
+    "description": "B.Sc. IT student specializing in SIEM investigation, incident response, cloud security, and AI-driven threat detection",
+    "knowsAbout": ["SIEM", "Incident Response", "Cloud Security", "Threat Detection", "Network Security", "Log Analysis", ".NET Core", "AI Security"]
+  }
+  </script>
+</head>
+
+<body>
+
+  <!-- CANVAS BACKGROUND -->
+  <canvas id="particle-canvas" aria-hidden="true"></canvas>
+
+  <!-- LOADING SEQUENCE -->
+  <div id="loader" role="status" aria-label="Loading">
+    <div class="loader-name-wrap">
+      <div class="loader-logo" aria-hidden="true">DHRUV.SEC</div>
+      <div class="loader-line" aria-hidden="true"></div>
+    </div>
+    <div class="loader-sub" aria-hidden="true">Cybersecurity Analyst &nbsp;&middot;&nbsp; SOC Enthusiast</div>
+  </div>
+
+  <!-- NAVIGATION -->
+  <nav id="navbar" role="navigation" aria-label="Main navigation">
+    <a href="#hero" class="nav-logo" aria-label="Dhruv Dobariya — Home">DHRUV.SEC</a>
+
+    <ul class="nav-links" id="nav-menu" role="list">
+      <li><a href="#about">About</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#why">Why Hire</a></li>
+      <li><a href="#contact" class="nav-cta">Contact Me</a></li>
+    </ul>
+
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section id="hero" aria-labelledby="hero-heading">
+    <div class="hero-glow" aria-hidden="true"></div>
+
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot" aria-hidden="true"></span>
+        Google Cybersecurity Certified
+      </div>
+
+      <div id="arrow-vfx" aria-hidden="true">
+        <div class="arrow-tail"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-impact"></div>
+      </div>
+
+      <h1 class="hero-name vfx-pending" id="hero-heading">Dhruv Dobariya</h1>
+
+      <p class="hero-title">Cybersecurity Analyst &nbsp;&middot;&nbsp; SOC &nbsp;&middot;&nbsp; Cloud &amp; AI Security</p>
+
+      <p class="hero-desc">
+        Specializing in <strong style="color:#eeeeff">SIEM investigation</strong>, incident response &amp; threat detection.
+        Google Certified. Building security skills to protect organizations at scale.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#projects" class="btn-primary" data-scroll-to="#projects">
+          View Security Projects
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </a>
+        <a href="#contact" class="btn-secondary" data-scroll-to="#contact">
+          Contact Me
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+        </a>
+      </div>
+
+      <div class="scroll-indicator" aria-hidden="true">
+        <div class="scroll-mouse">
+          <div class="scroll-wheel"></div>
+        </div>
+        <span>Scroll</span>
+      </div>
+  </section>
+
+  <!-- ABOUT SECTION -->
+  <section id="about" aria-labelledby="about-heading">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-visual reveal">
+          <div class="about-avatar" role="img" aria-label="Dhruv Dobariya avatar">
+            <div class="about-avatar-ring" aria-hidden="true"></div>
+            <span>&#x1f6e1;&#xfe0f;</span>
+          </div>
+          <div class="about-tech-stack">
+            <span class="tech-tag">SIEM / Splunk</span>
+            <span class="tech-tag">Incident Response</span>
+            <span class="tech-tag">Network Security</span>
+            <span class="tech-tag">Cloud Security</span>
+            <span class="tech-tag">Log Analysis</span>
+            <span class="tech-tag">Threat Detection</span>
+            <span class="tech-tag">.NET Core</span>
+            <span class="tech-tag">Python</span>
+            <span class="tech-tag">Wireshark</span>
+            <span class="tech-tag">AI/ML Security</span>
+          </div>
+        </div>
+
+        <div class="about-right">
+          <p class="section-label reveal">About Me</p>
+          <h2 class="section-title reveal reveal-delay-1" id="about-heading">
+            Defending the <span class="gradient-text">Digital</span><br>Frontier
+          </h2>
+          <p class="about-desc reveal reveal-delay-2">
+            I'm an aspiring <strong>SOC Analyst</strong> and B.Sc. IT student with a deep passion for cybersecurity.
+            My focus is on <strong>SIEM investigations</strong>, security alert analysis, and building incident
+            response workflows that detect threats before they become breaches.
+          </p>
+          <p class="about-desc reveal reveal-delay-2">
+            From <strong>log analysis</strong> and phishing detection to cloud security fundamentals and
+            <strong>AI-driven threat analysis</strong>, I'm constantly building hands-on skills through labs,
+            certifications, and real-world simulation projects.
+          </p>
+
+          <div class="expertise-grid">
+            <div class="expertise-card reveal reveal-delay-2">
+              <div class="expertise-icon">&#x1f50d;</div>
+              <div class="expertise-title">SIEM Investigation</div>
+              <div class="expertise-desc">Deep-dive log analysis using Splunk and Chronicle to identify suspicious patterns and security incidents</div>
+            </div>
+            <div class="expertise-card reveal reveal-delay-3">
+              <div class="expertise-icon">&#x1f6a8;</div>
+              <div class="expertise-title">Incident Response</div>
+              <div class="expertise-desc">Alert triage, escalation procedures, and containment strategies following NIST frameworks</div>
+            </div>
+            <div class="expertise-card reveal reveal-delay-3">
+              <div class="expertise-icon">&#x2601;&#xfe0f;</div>
+              <div class="expertise-title">Cloud Security</div>
+              <div class="expertise-desc">Security fundamentals for AWS/Azure/GCP &mdash; IAM, network policies, and compliance monitoring</div>
+            </div>
+            <div class="expertise-card reveal reveal-delay-4">
+              <div class="expertise-icon">&#x1f916;</div>
+              <div class="expertise-title">AI-Driven Security</div>
+              <div class="expertise-desc">Leveraging machine learning for automated threat detection, log correlation, and anomaly identification</div>
+            </div>
+            <div class="expertise-card reveal reveal-delay-4">
+              <div class="expertise-icon">&#x1f310;</div>
+              <div class="expertise-title">Network Security</div>
+              <div class="expertise-desc">Packet analysis, firewall rules, DNS security, and network traffic monitoring with Wireshark</div>
+            </div>
+            <div class="expertise-card reveal reveal-delay-5">
+              <div class="expertise-icon">&#x1f4bb;</div>
+              <div class="expertise-title">Secure Development</div>
+              <div class="expertise-desc">.NET Core backend development with secure coding practices, input validation, and API security</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS SECTION -->
+  <section id="projects" aria-labelledby="projects-heading">
+    <div class="container">
+      <header class="projects-header">
+        <p class="section-label reveal">Security Projects</p>
+        <h2 class="section-title reveal reveal-delay-1" id="projects-heading">
+          Hands-On <span class="gradient-text">Security Labs</span>
+        </h2>
+        <p class="reveal reveal-delay-2" style="color:var(--text-secondary);font-size:1rem;max-width:520px;margin:0 auto;line-height:1.7">
+          Real cybersecurity projects &mdash; not just theory. Built with production-grade tools and real-world attack simulations.
+        </p>
+      </header>
+
+      <div class="projects-grid">
+        <article class="project-card reveal reveal-delay-1" aria-label="SOC Log Analysis Lab">
+          <div class="project-neon-top" aria-hidden="true"></div>
+          <div class="project-img-wrap">
+            <div class="project-img-bg" aria-hidden="true">&#x1f50d;</div>
+          </div>
+          <div class="project-info">
+            <p class="project-num">01 / SIEM</p>
+            <h3 class="project-name">SOC Log Analysis Lab</h3>
+            <p class="project-desc">Built a complete SOC analyst lab using Splunk with custom log ingestion pipelines. Analyzed Windows Event Logs, Sysmon data, and firewall logs to detect brute-force attacks, lateral movement, and data exfiltration.</p>
+            <p class="project-impact">&#x1f3af; Detected 15+ attack patterns across simulated enterprise network</p>
+            <div class="project-tags">
+              <span class="project-tag">Splunk</span>
+              <span class="project-tag">SIEM</span>
+              <span class="project-tag">Windows Event Logs</span>
+              <span class="project-tag">Sysmon</span>
+            </div>
+            <a href="#" class="project-link">View on GitHub &rarr;</a>
+          </div>
+        </article>
+
+        <article class="project-card reveal reveal-delay-2" aria-label="Phishing Email Detection">
+          <div class="project-neon-top" aria-hidden="true"></div>
+          <div class="project-img-wrap">
+            <div class="project-img-bg" aria-hidden="true">&#x1f3a3;</div>
+          </div>
+          <div class="project-info">
+            <p class="project-num">02 / Email Security</p>
+            <h3 class="project-name">Phishing Email Detection</h3>
+            <p class="project-desc">Developed a phishing detection simulation analyzing email headers, URLs, and social engineering indicators. Built classification rules for legitimate, suspicious, and malicious categorization.</p>
+            <p class="project-impact">&#x1f3af; 94% accuracy identifying phishing across 500+ test emails</p>
+            <div class="project-tags">
+              <span class="project-tag">Python</span>
+              <span class="project-tag">Email Analysis</span>
+              <span class="project-tag">Threat Intel</span>
+              <span class="project-tag">Social Engineering</span>
+            </div>
+            <a href="#" class="project-link">View on GitHub &rarr;</a>
+          </div>
+        </article>
+
+        <article class="project-card reveal reveal-delay-3" aria-label="Network Traffic Analyzer">
+          <div class="project-neon-top" aria-hidden="true"></div>
+          <div class="project-img-wrap">
+            <div class="project-img-bg" aria-hidden="true">&#x1f4e1;</div>
+          </div>
+          <div class="project-info">
+            <p class="project-num">03 / Network Security</p>
+            <h3 class="project-name">Network Traffic Analyzer</h3>
+            <p class="project-desc">Network traffic analysis using Wireshark and tcpdump to capture, filter, and analyze packets. Identified suspicious connections, DNS tunneling attempts, and unauthorized data transfers.</p>
+            <p class="project-impact">&#x1f3af; Identified 8 types of network-based attacks in simulated captures</p>
+            <div class="project-tags">
+              <span class="project-tag">Wireshark</span>
+              <span class="project-tag">tcpdump</span>
+              <span class="project-tag">Packet Analysis</span>
+              <span class="project-tag">DNS Security</span>
+            </div>
+            <a href="#" class="project-link">View on GitHub &rarr;</a>
+          </div>
+        </article>
+
+        <article class="project-card reveal reveal-delay-4" aria-label="AI Threat Report Generator">
+          <div class="project-neon-top" aria-hidden="true"></div>
+          <div class="project-img-wrap">
+            <div class="project-img-bg" aria-hidden="true">&#x1f916;</div>
+          </div>
+          <div class="project-info">
+            <p class="project-num">04 / AI Security</p>
+            <h3 class="project-name">AI Threat Report Generator</h3>
+            <p class="project-desc">AI-assisted tool that automatically generates structured threat intelligence reports from raw security logs. Uses NLP to summarize incidents, extract IOCs, and suggest remediation steps.</p>
+            <p class="project-impact">&#x1f3af; Reduced manual report generation time by 70%</p>
+            <div class="project-tags">
+              <span class="project-tag">Python</span>
+              <span class="project-tag">AI/ML</span>
+              <span class="project-tag">NLP</span>
+              <span class="project-tag">Threat Intelligence</span>
+            </div>
+            <a href="#" class="project-link">View on GitHub &rarr;</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES SECTION -->
+  <section id="services" aria-labelledby="services-heading">
+    <div class="container">
+      <header class="services-header">
+        <p class="section-label reveal">What I Do</p>
+        <h2 class="section-title reveal reveal-delay-1" id="services-heading">
+          Services &amp; <span class="gradient-text">Expertise</span>
+        </h2>
+        <p class="reveal reveal-delay-2" style="color:var(--text-secondary);font-size:1rem;max-width:500px;margin:0 auto;line-height:1.7">
+          End-to-end cybersecurity services &mdash; from threat detection to secure architecture.
+        </p>
+      </header>
+
+      <div class="services-grid">
+        <div class="service-card reveal reveal-delay-1">
+          <div class="service-icon" aria-hidden="true">&#x1f50d;</div>
+          <h3 class="service-name">Security Log Investigation</h3>
+          <p class="service-desc">Deep-dive SIEM log analysis to identify anomalies, suspicious patterns, and potential security incidents across enterprise environments.</p>
+          <ul class="service-list" aria-label="Log Investigation features">
+            <li>Splunk &amp; Chronicle analysis</li>
+            <li>Windows Event Log review</li>
+            <li>Firewall log correlation</li>
+            <li>Alert pattern identification</li>
+          </ul>
+        </div>
+
+        <div class="service-card reveal reveal-delay-2">
+          <div class="service-icon" aria-hidden="true">&#x1f6a8;</div>
+          <h3 class="service-name">SOC Alert Review &amp; Triage</h3>
+          <p class="service-desc">Systematic security alert review, prioritization, and triage following industry-standard incident response frameworks.</p>
+          <ul class="service-list" aria-label="SOC Alert features">
+            <li>Alert prioritization</li>
+            <li>Incident escalation</li>
+            <li>NIST framework alignment</li>
+            <li>Containment strategies</li>
+          </ul>
+        </div>
+
+        <div class="service-card reveal reveal-delay-3">
+          <div class="service-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</div>
+          <h3 class="service-name">Vulnerability Assessment</h3>
+          <p class="service-desc">Identifying security weaknesses in systems and networks through scanning, analysis, and actionable remediation recommendations.</p>
+          <ul class="service-list" aria-label="Vulnerability Assessment features">
+            <li>System vulnerability scanning</li>
+            <li>Risk assessment</li>
+            <li>Remediation planning</li>
+            <li>Security posture review</li>
+          </ul>
+        </div>
+
+        <div class="service-card reveal reveal-delay-1">
+          <div class="service-icon" aria-hidden="true">&#x1f4cb;</div>
+          <h3 class="service-name">Security Documentation</h3>
+          <p class="service-desc">Creating comprehensive security policies, incident response playbooks, and compliance documentation aligned with standards.</p>
+          <ul class="service-list" aria-label="Documentation features">
+            <li>Policy development</li>
+            <li>Incident playbooks</li>
+            <li>Compliance reports</li>
+            <li>Technical documentation</li>
+          </ul>
+        </div>
+
+        <div class="service-card reveal reveal-delay-2">
+          <div class="service-icon" aria-hidden="true">&#x1f4bb;</div>
+          <h3 class="service-name">Secure API Development</h3>
+          <p class="service-desc">Building backend APIs with .NET Core implementing authentication, authorization, input validation, and secure coding practices.</p>
+          <ul class="service-list" aria-label="Secure API features">
+            <li>.NET Core / C# backend</li>
+            <li>JWT authentication</li>
+            <li>Input validation &amp; sanitization</li>
+            <li>OWASP best practices</li>
+          </ul>
+        </div>
+
+        <div class="service-card reveal reveal-delay-3">
+          <div class="service-icon" aria-hidden="true">&#x1f916;</div>
+          <h3 class="service-name">AI Security Automation</h3>
+          <p class="service-desc">Leveraging AI and ML to automate threat detection, log correlation, and security report generation for faster response.</p>
+          <ul class="service-list" aria-label="AI Security features">
+            <li>Automated threat detection</li>
+            <li>Log correlation engines</li>
+            <li>IOC extraction</li>
+            <li>Report generation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY HIRE ME SECTION -->
+  <section id="why" aria-labelledby="why-heading">
+    <div class="container">
+      <div class="why-box reveal">
+        <p class="section-label" style="justify-content:center">Why Work With Me</p>
+        <h2 class="section-title why-box-title" id="why-heading">
+          Not Just a Student.<br>A <span class="gradient-text">Security-First Thinker.</span>
+        </h2>
+        <p class="why-box-sub">
+          I don't just study cybersecurity &mdash; I build labs, simulate attacks, and develop tools that solve real security challenges.
+        </p>
+
+        <div class="why-stats">
+          <div class="why-stat">
+            <div class="why-num">4+</div>
+            <div class="why-label">Security Projects</div>
+          </div>
+          <div class="why-stat">
+            <div class="why-num">10+</div>
+            <div class="why-label">Security Tools</div>
+          </div>
+          <div class="why-stat">
+            <div class="why-num">1</div>
+            <div class="why-label">Google Certification</div>
+          </div>
+          <div class="why-stat">
+            <div class="why-num">&infin;</div>
+            <div class="why-label">Passion &amp; Drive</div>
+          </div>
+        </div>
+
+        <div class="why-cta-wrap">
+          <a href="#contact" class="btn-primary" data-scroll-to="#contact">
+            Let's Connect &rarr;
+          </a>
+          <a href="#projects" class="btn-secondary" data-scroll-to="#projects">
+            See My Labs
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT SECTION -->
+  <section id="contact" aria-labelledby="contact-heading">
+    <div class="container">
+      <div class="contact-grid">
+        <div class="contact-left">
+          <p class="section-label reveal">Get In Touch</p>
+          <h2 class="section-title reveal reveal-delay-1" id="contact-heading">
+            Let's Build<br><span class="gradient-text">A Safer Digital World</span>
+          </h2>
+          <p class="contact-intro reveal reveal-delay-2">
+            Interested in cybersecurity collaboration? Looking for a security-minded developer?
+            I'm available for internships, freelance projects, and learning opportunities.
+          </p>
+
+          <div class="contact-items reveal reveal-delay-3">
+            <div class="contact-item">
+              <div class="ci-icon" aria-hidden="true">&#x1f4e7;</div>
+              <div class="ci-text">
+                <strong>Email</strong>
+                dobariyadhurvvipulbhai@gmail.com
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="ci-icon" aria-hidden="true">&#x1f4cd;</div>
+              <div class="ci-text">
+                <strong>Location</strong>
+                Surat, Gujarat, India &mdash; Available Worldwide (Remote)
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="ci-icon" aria-hidden="true">&#x23f1;&#xfe0f;</div>
+              <div class="ci-text">
+                <strong>Response Time</strong>
+                Within 24 hours
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="ci-icon" aria-hidden="true">&#x1f4bc;</div>
+              <div class="ci-text">
+                <strong>Availability</strong>
+                Open to Internships &amp; Projects
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-right reveal reveal-delay-2">
+          <div class="form-box">
+            <form id="contact-form" novalidate aria-label="Contact form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="f-name">Your Name</label>
+                  <input type="text" id="f-name" name="name" placeholder="John Smith" autocomplete="name" />
+                  <span class="form-err" role="alert"></span>
+                </div>
+                <div class="form-group">
+                  <label for="f-email">Email Address</label>
+                  <input type="email" id="f-email" name="email" placeholder="john@company.com" autocomplete="email" />
+                  <span class="form-err" role="alert"></span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="f-project">Inquiry Type</label>
+                <input type="text" id="f-project" name="project" placeholder="e.g. Security Assessment, Internship, Collaboration&hellip;" />
+                <span class="form-err" role="alert"></span>
+              </div>
+
+              <div class="form-group">
+                <label for="f-msg">Tell Me More</label>
+                <textarea id="f-msg" name="message" rows="5" placeholder="Describe your project, requirements, or what you'd like to discuss&hellip;"></textarea>
+                <span class="form-err" role="alert"></span>
+              </div>
+
+              <button type="submit" class="btn-submit" id="submit-btn">
+                Send Message &rarr;
+              </button>
+            </form>
+
+            <div class="form-success" role="status" aria-live="polite" aria-label="Message sent successfully">
+              <div class="success-icon" aria-hidden="true">&#x2705;</div>
+              <div class="success-title">Message Sent!</div>
+              <p class="success-msg">Thanks for reaching out. I'll get back to you within 24 hours.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-logo">DHRUV.SEC</div>
+
+      <ul class="footer-links" role="list">
+        <li><a href="#about">About</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+
+      <div class="footer-right">
+        <div class="socials" aria-label="Social media links">
+          <a href="https://www.linkedin.com/in/dhruvdobariya" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="LinkedIn profile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
+              <circle cx="4" cy="4" r="2" />
+            </svg>
+          </a>
+          <a href="https://github.com/dhruvdobariya" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="GitHub profile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+            </svg>
+          </a>
+          <a href="mailto:dobariyadhurvvipulbhai@gmail.com" class="social-btn" aria-label="Send email">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+          </a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Dhruv Dobariya. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="particles.js" defer></script>
+  <script src="main.js" defer></script>
+
+</body>
+
+</html>
