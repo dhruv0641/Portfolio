@@ -27,3 +27,11 @@ dist-ssr
 .env
 admin-api/.env
 admin-api/data/
+
+node_modules
+.angular
+.env
+
+data
+
+dist
