@@ -78,6 +78,18 @@ a:hover { color: var(--accent-hover); }
   margin-bottom: 2rem;
 }
 
+.forgot-link {
+  color: var(--accent);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.forgot-link:hover {
+  color: var(--emerald);
+  text-decoration: underline;
+}
+
 /* ─── LAYOUT ─── */
 .app-layout {
   display: grid;

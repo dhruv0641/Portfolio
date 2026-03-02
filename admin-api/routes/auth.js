@@ -6,6 +6,7 @@
  */
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { OTPAuth } = require('otpauth');
 const QRCode = require('qrcode');
 const router = express.Router();
@@ -16,7 +17,7 @@ const { logger } = require('../lib/logger');
 const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
 const { encrypt, decrypt } = require('../lib/encryption');
 const { isEnabled } = require('../lib/featureFlags');
-const { validate, loginSchema, changePasswordSchema, totpVerifySchema } = require('../lib/validators');
+const { validate, loginSchema, changePasswordSchema, totpVerifySchema, forgotPasswordSchema, resetPasswordSchema } = require('../lib/validators');
 const { ApiError, asyncHandler } = require('../lib/errorHandler');
 const {
   authenticate,
@@ -365,5 +366,97 @@ router.get('/me', authenticate, (req, res) => {
     tenantId: admin.tenantId || 'default',
   });
 });
+
+// ═══════════════════════════════════════════
+// PASSWORD RESET — In-memory token store
+// ═══════════════════════════════════════════
+const resetTokens = new Map(); // tokenHash -> { username, expiresAt }
+const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+
+function cleanExpiredResetTokens() {
+  const now = Date.now();
+  for (const [hash, record] of resetTokens.entries()) {
+    if (now > record.expiresAt) resetTokens.delete(hash);
+  }
+}
+
+// ═══════════════════════════════════════════
+// POST /api/auth/forgot-password
+// ═══════════════════════════════════════════
+router.post('/forgot-password', validate(forgotPasswordSchema), asyncHandler(async (req, res) => {
+  const { email } = req.validatedBody;
+  const meta = getAuditMeta(req);
+
+  cleanExpiredResetTokens();
+
+  const admin = db.admin.get();
+  const storedEmail = (decrypt(admin.email) || admin.email || '').toLowerCase().trim();
+
+  // Always return success to prevent email enumeration
+  if (storedEmail !== email.toLowerCase().trim()) {
+    logAudit({ ...meta, action: AuditAction.PASSWORD_CHANGE, details: { reason: 'forgot_password_wrong_email', email } });
+    return res.json({ message: 'If an account with that email exists, a reset code has been generated. Check the server console.' });
+  }
+
+  // Generate secure reset token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  // Store hashed token
+  resetTokens.set(tokenHash, {
+    username: admin.username,
+    expiresAt: Date.now() + RESET_TOKEN_EXPIRY_MS,
+  });
+
+  // Log the token to server console (no email service in this setup)
+  logger.info('=== PASSWORD RESET TOKEN ===');
+  logger.info(`Reset token for ${admin.username}: ${resetToken}`);
+  logger.info(`Expires in 15 minutes. Use this token in the Reset Password form.`);
+  logger.info('============================');
+
+  logAudit({ ...meta, action: AuditAction.PASSWORD_CHANGE, details: { reason: 'forgot_password_requested', username: admin.username } });
+
+  res.json({
+    message: 'If an account with that email exists, a reset code has been generated. Check the server console.',
+    // In development, return the token directly for convenience
+    ...(process.env.NODE_ENV !== 'production' && { resetToken }),
+  });
+}));
+
+// ═══════════════════════════════════════════
+// POST /api/auth/reset-password
+// ═══════════════════════════════════════════
+router.post('/reset-password', validate(resetPasswordSchema), asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.validatedBody;
+  const meta = getAuditMeta(req);
+
+  cleanExpiredResetTokens();
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = resetTokens.get(tokenHash);
+
+  if (!record) {
+    logAudit({ ...meta, action: AuditAction.PASSWORD_CHANGE, details: { reason: 'reset_invalid_token' } });
+    throw new ApiError(400, 'Invalid or expired reset token');
+  }
+
+  if (Date.now() > record.expiresAt) {
+    resetTokens.delete(tokenHash);
+    throw new ApiError(400, 'Reset token has expired. Please request a new one.');
+  }
+
+  // Reset the password
+  const admin = db.admin.get();
+  admin.passwordHash = await bcrypt.hash(newPassword, 12);
+  db.admin.set(admin);
+
+  // Invalidate the used token
+  resetTokens.delete(tokenHash);
+
+  logAudit({ ...meta, action: AuditAction.PASSWORD_CHANGE, details: { reason: 'password_reset_completed', username: record.username } });
+  logger.info('Password reset successfully', { username: record.username });
+
+  res.json({ message: 'Password has been reset successfully. You can now log in with your new password.' });
+}));
 
 module.exports = router;

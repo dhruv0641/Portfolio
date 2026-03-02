@@ -12,6 +12,8 @@
   let token = localStorage.getItem('admin_token') || null;
   let currentPage = 'dashboard';
   let pending2FA = null; // Holds { tempToken } during 2FA flow
+  let authView = 'login'; // 'login' | 'forgot' | 'reset'
+  let pendingResetToken = null; // Holds reset token for reset form
 
   // ─── API Helper (supports both cookie & Bearer auth) ───
   async function api(endpoint, options = {}) {
@@ -98,6 +100,8 @@
     } catch { /* ignore logout errors */ }
     token = null;
     pending2FA = null;
+    authView = 'login';
+    pendingResetToken = null;
     localStorage.removeItem('admin_token');
     render();
   }
@@ -115,7 +119,13 @@
     if (pending2FA) {
       render2FAVerify();
     } else if (!isLoggedIn()) {
-      renderLogin();
+      if (authView === 'forgot') {
+        renderForgotPassword();
+      } else if (authView === 'reset') {
+        renderResetPassword();
+      } else {
+        renderLogin();
+      }
     } else {
       renderDashboard();
     }
@@ -146,6 +156,9 @@
               Sign In →
             </button>
             <p id="login-error" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+            <p style="text-align:center;margin-top:1rem">
+              <a href="#" id="forgot-password-link" class="forgot-link">Forgot Password?</a>
+            </p>
           </form>
         </div>
       </div>
@@ -203,6 +216,212 @@
         errEl.style.display = 'block';
         errEl.textContent = 'Connection error. Is the API server running?';
       }
+    });
+
+    // Forgot password link
+    document.getElementById('forgot-password-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      authView = 'forgot';
+      render();
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // FORGOT PASSWORD PAGE
+  // ═══════════════════════════════════════════
+  function renderForgotPassword() {
+    app.innerHTML = `
+      <div class="login-wrapper">
+        <div class="login-card">
+          <div class="login-logo">Dhruvkumar Dobariya</div>
+          <p class="login-subtitle">Forgot Password</p>
+          <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-bottom:1.5rem">
+            Enter your admin email address to receive a reset code
+          </p>
+          <form id="forgot-form">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" class="form-input" id="forgot-email" placeholder="your@email.com" autocomplete="email" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem">
+              Send Reset Code →
+            </button>
+            <p id="forgot-error" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+            <p id="forgot-success" style="color:var(--green);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+          </form>
+          <div class="forgot-actions" style="text-align:center;margin-top:1.5rem;display:flex;gap:1rem;justify-content:center">
+            <a href="#" id="back-to-login" class="forgot-link">← Back to Login</a>
+            <a href="#" id="have-reset-code" class="forgot-link">I have a reset code</a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value.trim();
+      const errEl = document.getElementById('forgot-error');
+      const successEl = document.getElementById('forgot-success');
+      errEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        const res = await fetch(\`\${API}/auth/forgot-password\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.style.display = 'block';
+          errEl.textContent = data.error || 'Something went wrong';
+          return;
+        }
+
+        // If in dev mode, auto-fill the reset token
+        if (data.resetToken) {
+          pendingResetToken = data.resetToken;
+        }
+
+        successEl.style.display = 'block';
+        successEl.textContent = data.message || 'Check your server console for the reset code.';
+
+        // Show "enter reset code" option more prominently
+        setTimeout(() => {
+          authView = 'reset';
+          render();
+        }, 2000);
+      } catch (err) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Connection error. Is the API server running?';
+      }
+    });
+
+    document.getElementById('back-to-login').addEventListener('click', (e) => {
+      e.preventDefault();
+      authView = 'login';
+      render();
+    });
+
+    document.getElementById('have-reset-code').addEventListener('click', (e) => {
+      e.preventDefault();
+      authView = 'reset';
+      render();
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // RESET PASSWORD PAGE
+  // ═══════════════════════════════════════════
+  function renderResetPassword() {
+    app.innerHTML = `
+      <div class="login-wrapper">
+        <div class="login-card">
+          <div class="login-logo">Dhruvkumar Dobariya</div>
+          <p class="login-subtitle">Reset Password</p>
+          <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-bottom:1.5rem">
+            Enter your reset code and choose a new password
+          </p>
+          <form id="reset-form">
+            <div class="form-group">
+              <label class="form-label">Reset Code</label>
+              <input type="text" class="form-input" id="reset-token" placeholder="Paste your reset code" value="\${pendingResetToken || ''}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <div class="password-wrap">
+                <input type="password" class="form-input" id="reset-new-pass" placeholder="Min 8 chars, A-Z, a-z, 0-9" autocomplete="new-password" required>
+                <button type="button" class="toggle-pass" data-target="reset-new-pass" title="Show password">👁️</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <div class="password-wrap">
+                <input type="password" class="form-input" id="reset-confirm-pass" placeholder="Re-enter password" autocomplete="new-password" required>
+                <button type="button" class="toggle-pass" data-target="reset-confirm-pass" title="Show password">👁️</button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem">
+              Reset Password →
+            </button>
+            <p id="reset-error" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+            <p id="reset-success" style="color:var(--green);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+          </form>
+          <p style="text-align:center;margin-top:1.5rem">
+            <a href="#" id="back-to-login-reset" class="forgot-link">← Back to Login</a>
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Password toggle buttons
+    document.querySelectorAll('.toggle-pass').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        if (!input) return;
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        btn.textContent = isHidden ? '🙈' : '👁️';
+        btn.title = isHidden ? 'Hide password' : 'Show password';
+      });
+    });
+
+    document.getElementById('reset-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const resetTokenVal = document.getElementById('reset-token').value.trim();
+      const newPass = document.getElementById('reset-new-pass').value;
+      const confirmPass = document.getElementById('reset-confirm-pass').value;
+      const errEl = document.getElementById('reset-error');
+      const successEl = document.getElementById('reset-success');
+      errEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (newPass !== confirmPass) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Passwords do not match';
+        return;
+      }
+
+      try {
+        const res = await fetch(\`\${API}/auth/reset-password\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: resetTokenVal, newPassword: newPass })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.style.display = 'block';
+          errEl.textContent = data.error || 'Reset failed';
+          if (data.details) {
+            errEl.textContent = data.details.map(d => d.message).join('. ');
+          }
+          return;
+        }
+
+        pendingResetToken = null;
+        successEl.style.display = 'block';
+        successEl.textContent = data.message || 'Password reset successfully!';
+
+        // Redirect to login after success
+        setTimeout(() => {
+          authView = 'login';
+          render();
+        }, 2500);
+      } catch (err) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Connection error. Is the API server running?';
+      }
+    });
+
+    document.getElementById('back-to-login-reset').addEventListener('click', (e) => {
+      e.preventDefault();
+      pendingResetToken = null;
+      authView = 'login';
+      render();
     });
   }
 
