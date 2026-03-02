@@ -242,12 +242,17 @@ app.get('/api/health', (req, res) => {
 // ═══════════════════════════════════════════
 const adminDir = path.join(__dirname, '..', 'admin');
 
-// Redirect /admin → /admin/ so relative paths (admin.js, admin.css) resolve correctly
-app.get('/admin', (req, res) => {
-  res.redirect(301, '/admin/');
+// ─── Startup diagnostics (safe, no sensitive data) ───
+logger.info('Admin directory resolved', {
+  adminDir,
+  exists: fs.existsSync(adminDir),
+  indexExists: fs.existsSync(path.join(adminDir, 'index.html')),
+  jsExists: fs.existsSync(path.join(adminDir, 'admin.js')),
+  cssExists: fs.existsSync(path.join(adminDir, 'admin.css')),
 });
 
-// Serve admin static files (index.html auto-served for /admin/)
+// Serve admin static files
+// express.static handles: /admin → 301 /admin/ → serve index.html (redirect: true default)
 app.use('/admin', express.static(adminDir, { index: 'index.html' }));
 
 // Serve SEO files
@@ -279,9 +284,20 @@ app.get('/', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// ERROR HANDLING (Express 5 — no wildcard in app.use)
+// ERROR HANDLING + CATCH-ALL (Express 5 safe — must be LAST)
 // ═══════════════════════════════════════════
 app.use('/api', notFoundHandler);
+
+// SPA catch-all: any unmatched GET serves the main frontend
+// Must be AFTER /admin static, AFTER /api routes
+app.get('/{*splat}', (req, res) => {
+  // Never override /admin or /api — those are handled above
+  if (req.path.startsWith('/admin') || req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(siteDir, 'index.html'));
+});
+
 app.use(errorHandler);
 
 // ═══════════════════════════════════════════
