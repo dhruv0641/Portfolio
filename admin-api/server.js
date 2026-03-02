@@ -43,16 +43,16 @@ app.use(requestIdMiddleware);
 // 2. Structured request logging
 app.use(requestLoggerMiddleware);
 
-// 3. Security headers (Helmet — strict config)
+// 3. Security headers (Helmet — production-safe CSP)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://esm.sh"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://esm.sh", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://lottie.host", "https://esm.sh"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://lottie.host", "https://esm.sh", "https://dhruvkumar.tech"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -116,6 +116,20 @@ function initData() {
       tenantId: 'default',
     });
     logger.info('Default admin created', { username: 'admin', warning: 'CHANGE PASSWORD IMMEDIATELY' });
+  }
+
+  // ─── Safe admin credential reset via environment variable ───
+  // Set RESET_ADMIN=true in Render env vars, deploy once, then REMOVE the var
+  if (process.env.RESET_ADMIN === 'true') {
+    const current = db.admin.get();
+    const hash = bcrypt.hashSync('admin123', 12);
+    db.admin.set({
+      ...current,
+      username: 'admin',
+      passwordHash: hash,
+    });
+    logger.info('⚠️  Admin credentials reset via RESET_ADMIN env var', { username: 'admin' });
+    logger.info('⚠️  REMOVE RESET_ADMIN env var immediately after deploy!');
   }
 
   if (!db.projects.getAll().length) {
@@ -224,13 +238,17 @@ app.get('/api/health', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// STATIC FILE SERVING
+// STATIC FILE SERVING (order: admin → SEO → frontend → catch-all)
 // ═══════════════════════════════════════════
 const adminDir = path.join(__dirname, '..', 'admin');
-app.use('/admin', express.static(adminDir));
+
+// Redirect /admin → /admin/ so relative paths (admin.js, admin.css) resolve correctly
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(adminDir, 'index.html'));
+  res.redirect(301, '/admin/');
 });
+
+// Serve admin static files (index.html auto-served for /admin/)
+app.use('/admin', express.static(adminDir, { index: 'index.html' }));
 
 // Serve SEO files
 app.get('/robots.txt', (req, res) => {

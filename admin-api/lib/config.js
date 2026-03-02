@@ -42,9 +42,9 @@ const config = {
     algorithm: 'aes-256-gcm',
   },
 
-  // CORS
+  // CORS (includes production domain)
   cors: {
-    origins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:4200,http://127.0.0.1:3000').split(',').map(s => s.trim()),
+    origins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:4200,http://127.0.0.1:3000,https://dhruvkumar.tech').split(',').map(s => s.trim()),
   },
 
   // Rate Limiting
