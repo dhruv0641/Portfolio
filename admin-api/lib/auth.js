@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Authentication & Security Middleware
+ * Dhruvkumar Dobariya — Authentication & Security Middleware
  * ═══════════════════════════════════════════════════════════
  * JWT access + refresh tokens, HTTP-only cookies,
  * brute-force protection, 2FA (TOTP), role-based access.
@@ -67,7 +67,7 @@ function generateAccessToken(user) {
   return jwt.sign(
     { username: user.username, role: user.role || 'admin', tenantId: user.tenantId || 'default' },
     config.jwt.secret,
-    { expiresIn: config.jwt.expiry, issuer: 'dhruv.sec' }
+    { expiresIn: config.jwt.expiry, issuer: 'dhruvkumar.tech' }
   );
 }
 
@@ -161,7 +161,7 @@ function authenticate(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, config.jwt.secret, { issuer: 'dhruv.sec' });
+    const decoded = jwt.verify(token, config.jwt.secret, { issuer: 'dhruvkumar.tech' });
     req.user = decoded;
     next();
   } catch (err) {

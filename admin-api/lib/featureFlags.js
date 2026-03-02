@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Feature Flag System
+ * Dhruvkumar Dobariya — Feature Flag System
  * ═══════════════════════════════════════════════════════════
  * Simple but powerful feature flag system.
  * Supports per-tenant and global flags.

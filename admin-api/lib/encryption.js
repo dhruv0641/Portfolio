@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — AES-256-GCM Encryption Utilities
+ * Dhruvkumar Dobariya — AES-256-GCM Encryption Utilities
  * ═══════════════════════════════════════════════════════════
  * Encrypts/decrypts sensitive data at rest.
  * Uses AES-256-GCM with random IV per encryption.

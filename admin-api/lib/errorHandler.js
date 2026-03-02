@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Centralized Error Handler
+ * Dhruvkumar Dobariya — Centralized Error Handler
  * ═══════════════════════════════════════════════════════════
  * Production-grade error handling middleware.
  * Catches all unhandled errors and returns clean responses.

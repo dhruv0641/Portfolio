@@ -1,7 +1,7 @@
 {
   "name": "dhruv-portfolio-admin-api",
   "version": "2.0.0",
-  "description": "DHRUV.SEC — Production-Grade SaaS Admin API",
+  "description": "Dhruvkumar Dobariya — Production-Grade SaaS Admin API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

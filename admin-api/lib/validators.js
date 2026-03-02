@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Request Validation Schemas (Zod)
+ * Dhruvkumar Dobariya — Request Validation Schemas (Zod)
  * ═══════════════════════════════════════════════════════════
  * Production-grade input validation using Zod.
  * Every API endpoint has strict schema validation.

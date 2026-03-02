@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Production Configuration Module
+ * Dhruvkumar Dobariya — Production Configuration Module
  * ═══════════════════════════════════════════════════════════
  * Centralized, environment-aware configuration.
  * All secrets sourced from environment variables.
@@ -62,7 +62,7 @@ const config = {
 
   // 2FA
   totp: {
-    issuer: process.env.TOTP_ISSUER || 'DHRUV.SEC Admin',
+    issuer: process.env.TOTP_ISSUER || 'Dhruvkumar Dobariya Admin',
   },
 
   // Paths

@@ -1,4 +1,4 @@
-# DHRUV.SEC — Production-Grade Cybersecurity SaaS System
+# Dhruvkumar Dobariya — Production-Grade Cybersecurity SaaS System
 
 ## Transformation Report v2.0
 
@@ -10,7 +10,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                        DHRUV.SEC PLATFORM                          │
+│                   DHRUVKUMAR DOBARIYA PLATFORM                     │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
@@ -62,8 +62,8 @@
 
 | Aspect | BEFORE | AFTER |
 |--------|--------|-------|
-| **Name** | Meet Kothiya | **Dhruv Dobariya** |
-| **Logo** | MK.DEV | **DHRUV.SEC** |
+| **Name** | Meet Kothiya | **Dhruvkumar Dobariya** |
+| **Logo** | MK.DEV | **Dhruvkumar Dobariya** |
 | **Role** | AAA Game Developer | **Cybersecurity Analyst \| SOC Enthusiast \| Cloud & AI Security** |
 | **Tagline** | "Crafting immersive game experiences" | **"Defending the Digital Frontier"** |
 | **Email** | (placeholder) | **dobariyadhurvvipulbhai@gmail.com** |
@@ -168,7 +168,7 @@
 | **Title** | "Dhruv Dobariya — Cybersecurity Analyst \| SOC Enthusiast \| Cloud & AI Security" |
 | **Meta Description** | 156-char keyword-rich description |
 | **Keywords** | 10 targeted cybersecurity terms |
-| **Canonical URL** | `<link rel="canonical" href="https://dhruv.sec" />` |
+| **Canonical URL** | `<link rel="canonical" href="https://dhruvkumar.tech/" />` |
 | **Open Graph** | type, url, title, description, site_name, locale |
 | **Twitter Card** | summary_large_image with title, description, creator |
 | **Robots** | `index, follow, max-snippet:-1, max-image-preview:large` |
@@ -278,7 +278,7 @@ websiteprotefolio/
 │   │   ├── partners/             # Certifications & Learning
 │   │   │   ├── partners.component.ts
 │   │   │   └── partners.component.html
-│   │   ├── loading-screen/       # DHRUV.SEC cyan/emerald loader
+│   │   ├── loading-screen/       # Dhruvkumar Dobariya cyan/emerald loader
 │   │   │   ├── loading-screen.component.ts
 │   │   │   ├── loading-screen.component.html
 │   │   │   └── loading-screen.component.css
@@ -645,5 +645,5 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ---
 
 *Generated: February 2026*
-*System: DHRUV.SEC — Production-Grade Cybersecurity SaaS Platform v2.0.0*
+*System: Dhruvkumar Dobariya — Production-Grade Cybersecurity SaaS Platform v2.0.0*
 *Quality Standard: FAANG Staff Engineer — Production-Ready*

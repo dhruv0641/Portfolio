@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Audit Log System
+ * Dhruvkumar Dobariya — Audit Log System
  * ═══════════════════════════════════════════════════════════
  * Tracks all admin actions for security compliance.
  * Stored in audit_logs.json with rotation support.

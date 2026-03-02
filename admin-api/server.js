@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Production-Grade Admin API Server
+ * Dhruvkumar Dobariya — Production-Grade Admin API Server
  * ═══════════════════════════════════════════════════════════
  * Express + JWT (access+refresh) + HTTP-only cookies + 2FA
  * + Audit Logs + AES-256 Encryption + Zod Validation
@@ -180,15 +180,15 @@ function initData() {
   const settings = db.settings.get();
   if (!settings.siteName) {
     db.settings.set({
-      siteName: 'DHRUV.SEC',
-      fullName: 'Dhruv Dobariya',
-      tagline: 'Cybersecurity Analyst | SOC Enthusiast | Cloud & AI Security',
+      siteName: 'Dhruvkumar Dobariya',
+      fullName: 'Dhruvkumar Dobariya',
+      tagline: 'Cybersecurity Analyst | SOC Engineer | AI Security Specialist',
       email: 'dobariyadhurvvipulbhai@gmail.com',
       location: 'Surat, Gujarat, India',
       linkedIn: 'https://www.linkedin.com/in/dhruvdobariya',
       github: 'https://github.com/dhruvdobariya',
-      seoTitle: 'Dhruv Dobariya — Cybersecurity Analyst | SOC Enthusiast',
-      seoDescription: 'Aspiring SOC Analyst specializing in SIEM, incident response, cloud security, and AI-driven threat detection.',
+      seoTitle: 'Dhruvkumar Dobariya – Cybersecurity Analyst | SOC Engineer | AI Security',
+      seoDescription: 'Dhruvkumar Dobariya — Cybersecurity Analyst & SOC Engineer specializing in SIEM, incident response, cloud security, and AI-driven threat detection. Surat, Gujarat, India.',
     });
   }
 
@@ -307,7 +307,7 @@ server = app.listen(config.port, () => {
     environment: config.nodeEnv,
     version: '2.0.0',
   });
-  console.log(`\n🛡️  DHRUV.SEC API running at http://localhost:${config.port}`);
+  console.log(`\n🛡️  Dhruvkumar Dobariya API running at http://localhost:${config.port}`);
   console.log(`🖥️  Admin Dashboard: http://localhost:${config.port}/admin`);
   console.log(`🔐 Environment: ${config.nodeEnv}`);
   if (!config.isProduction) {

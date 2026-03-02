@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Abstract Data Layer
+ * Dhruvkumar Dobariya — Abstract Data Layer
  * ═══════════════════════════════════════════════════════════
  * Abstracts JSON file storage behind a clean interface.
  * Prepared for future migration to MongoDB/PostgreSQL.

@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Auth Routes
+ * Dhruvkumar Dobariya — Auth Routes
  * ═══════════════════════════════════════════════════════════
  * Login, refresh, logout, change password, 2FA setup/verify.
  */
@@ -103,7 +103,7 @@ router.post('/verify-2fa', validate(totpVerifySchema), asyncHandler(async (req, 
   let decoded;
   try {
     const jwt = require('jsonwebtoken');
-    decoded = jwt.verify(authHeader.split(' ')[1], config.jwt.secret, { issuer: 'dhruv.sec' });
+    decoded = jwt.verify(authHeader.split(' ')[1], config.jwt.secret, { issuer: 'dhruvkumar.tech' });
   } catch {
     throw new ApiError(401, 'Invalid or expired temporary token');
   }

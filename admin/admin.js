@@ -128,7 +128,7 @@
     app.innerHTML = `
       <div class="login-wrapper">
         <div class="login-card">
-          <div class="login-logo">DHRUV.SEC</div>
+          <div class="login-logo">Dhruvkumar Dobariya</div>
           <p class="login-subtitle">Admin Dashboard</p>
           <form id="login-form">
             <div class="form-group">
@@ -213,7 +213,7 @@
     app.innerHTML = `
       <div class="login-wrapper">
         <div class="login-card">
-          <div class="login-logo">DHRUV.SEC</div>
+          <div class="login-logo">Dhruvkumar Dobariya</div>
           <p class="login-subtitle">Two-Factor Authentication</p>
           <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-bottom:1.5rem">
             Enter the 6-digit code from your authenticator app
@@ -291,7 +291,7 @@
       <div class="app-layout">
         <aside class="sidebar">
           <div class="sidebar-logo">
-            DHRUV.SEC
+            Dhruvkumar Dobariya
             <small>Admin Panel</small>
           </div>
           <ul class="sidebar-nav" id="sidebar-nav">

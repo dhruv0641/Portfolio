@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Settings Routes
+ * Dhruvkumar Dobariya — Settings Routes
  * ═══════════════════════════════════════════════════════════
  */
 const express = require('express');

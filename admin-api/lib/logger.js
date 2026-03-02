@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * DHRUV.SEC — Structured Logger with Request ID Tracking
+ * Dhruvkumar Dobariya — Structured Logger with Request ID Tracking
  * ═══════════════════════════════════════════════════════════
  * Production-grade structured logging.
  * Each request gets a unique ID for traceability.
