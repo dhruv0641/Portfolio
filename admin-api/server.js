@@ -82,16 +82,15 @@ app.use(cookieParser());
 // 6. Body parser with size limit
 app.use(express.json({ limit: '1mb' }));
 
-// 7. Global rate limiter
+// 7. Global rate limiter (no custom keyGenerator — Express 5 + express-rate-limit v7 compatible)
 const globalLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.max,
   message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
 });
-app.use('/api/', globalLimiter);
+app.use('/api', globalLimiter);
 
 // 8. Strict auth rate limiter
 const authLimiter = rateLimit({
@@ -262,9 +261,9 @@ app.get('/', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// ERROR HANDLING
+// ERROR HANDLING (Express 5 — no wildcard in app.use)
 // ═══════════════════════════════════════════
-app.use('/api/*', notFoundHandler);
+app.use('/api', notFoundHandler);
 app.use(errorHandler);
 
 // ═══════════════════════════════════════════
