@@ -6,7 +6,15 @@ import { Injectable } from '@angular/core';
 })
 export class ContactService {
 
-  private apiUrl = 'http://localhost:4000/api/messages';
+  // Centralized API base — uses same origin in production, localhost:4000 in dev
+  private get apiUrl(): string {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    // If running on Angular dev server (port 3000/4200), proxy to API on 4000
+    if (origin.includes('localhost:3000') || origin.includes('localhost:4200')) {
+      return 'http://localhost:4000/api/messages';
+    }
+    return `${origin}/api/messages`;
+  }
 
   /**
    * Sanitize input to prevent XSS

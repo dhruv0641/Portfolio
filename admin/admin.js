@@ -11,22 +11,60 @@
   // ─── State ───
   let token = localStorage.getItem('admin_token') || null;
   let currentPage = 'dashboard';
+  let pending2FA = null; // Holds { tempToken } during 2FA flow
 
-  // ─── API Helper ───
+  // ─── API Helper (supports both cookie & Bearer auth) ───
   async function api(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     try {
-      const res = await fetch(`${API}${endpoint}`, { ...options, headers });
+      const res = await fetch(`${API}${endpoint}`, {
+        ...options,
+        headers,
+        credentials: 'include' // Send cookies for HTTP-only JWT
+      });
+      
+      // Handle token refresh on 401
+      if (res.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/refresh') {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) {
+          // Retry original request with new token
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const retry = await fetch(`${API}${endpoint}`, { ...options, headers, credentials: 'include' });
+          const retryData = await retry.json();
+          if (!retry.ok) throw new Error(retryData.error || 'API Error');
+          return retryData;
+        }
+        logout();
+        throw new Error('Session expired');
+      }
+      
       const data = await res.json();
-      if (res.status === 401) { logout(); throw new Error('Session expired'); }
       if (!res.ok) throw new Error(data.error || 'API Error');
       return data;
     } catch (err) {
       if (err.message !== 'Session expired') showToast(err.message, 'error');
       throw err;
     }
+  }
+
+  // ─── Token Refresh ───
+  async function tryRefreshToken() {
+    try {
+      const res = await fetch(`${API}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.accessToken) {
+        token = data.accessToken;
+        localStorage.setItem('admin_token', token);
+      }
+      return true;
+    } catch { return false; }
   }
 
   // ─── Toast ───
@@ -50,8 +88,16 @@
   }
 
   // ─── Auth ───
-  function logout() {
+  async function logout() {
+    try {
+      await fetch(`${API}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+    } catch { /* ignore logout errors */ }
     token = null;
+    pending2FA = null;
     localStorage.removeItem('admin_token');
     render();
   }
@@ -66,7 +112,9 @@
 
   // ─── Main Render ───
   function render() {
-    if (!isLoggedIn()) {
+    if (pending2FA) {
+      render2FAVerify();
+    } else if (!isLoggedIn()) {
       renderLogin();
     } else {
       renderDashboard();
@@ -122,17 +170,115 @@
       const errEl = document.getElementById('login-error');
 
       try {
-        const data = await api('/auth/login', {
+        const res = await fetch(`${API}/auth/login`, {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ username: user, password: pass })
         });
-        token = data.token;
+        const data = await res.json();
+        
+        if (!res.ok) {
+          errEl.style.display = 'block';
+          errEl.textContent = data.error || 'Invalid username or password';
+          if (data.lockoutMinutes) {
+            errEl.textContent += ` Account locked for ${data.lockoutMinutes} minutes.`;
+          }
+          return;
+        }
+
+        // Check if 2FA is required
+        if (data.requires2FA) {
+          pending2FA = { tempToken: data.tempToken };
+          render();
+          return;
+        }
+
+        // Normal login (no 2FA)
+        token = data.accessToken || data.token;
         localStorage.setItem('admin_token', token);
         currentPage = 'dashboard';
         render();
       } catch (err) {
         errEl.style.display = 'block';
-        errEl.textContent = 'Invalid username or password';
+        errEl.textContent = 'Connection error. Is the API server running?';
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // 2FA VERIFICATION PAGE
+  // ═══════════════════════════════════════════
+  function render2FAVerify() {
+    app.innerHTML = `
+      <div class="login-wrapper">
+        <div class="login-card">
+          <div class="login-logo">DHRUV.SEC</div>
+          <p class="login-subtitle">Two-Factor Authentication</p>
+          <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-bottom:1.5rem">
+            Enter the 6-digit code from your authenticator app
+          </p>
+          <form id="totp-form">
+            <div class="form-group">
+              <label class="form-label">Verification Code</label>
+              <input type="text" class="form-input" id="totp-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" required style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem">
+              Verify →
+            </button>
+            <p id="totp-error" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:1rem;display:none"></p>
+          </form>
+          <button id="totp-cancel" style="background:none;border:none;color:var(--text-muted);font-size:0.8rem;cursor:pointer;margin-top:1rem;display:block;width:100%;text-align:center">
+            ← Back to Login
+          </button>
+        </div>
+      </div>
+    `;
+
+    const codeInput = document.getElementById('totp-code');
+    codeInput.focus();
+
+    document.getElementById('totp-cancel').addEventListener('click', () => {
+      pending2FA = null;
+      render();
+    });
+
+    document.getElementById('totp-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = codeInput.value.trim();
+      const errEl = document.getElementById('totp-error');
+      
+      if (!/^\d{6}$/.test(code)) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Please enter a 6-digit code';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/auth/verify-2fa`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ tempToken: pending2FA.tempToken, totpCode: code })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          errEl.style.display = 'block';
+          errEl.textContent = data.error || 'Invalid code';
+          codeInput.value = '';
+          codeInput.focus();
+          return;
+        }
+
+        token = data.accessToken || data.token;
+        localStorage.setItem('admin_token', token);
+        pending2FA = null;
+        currentPage = 'dashboard';
+        render();
+      } catch (err) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Connection error';
       }
     });
   }
@@ -153,6 +299,7 @@
             <li><a href="#" data-page="projects" class="${currentPage === 'projects' ? 'active' : ''}"><span class="nav-icon">🔐</span> Projects</a></li>
             <li><a href="#" data-page="services" class="${currentPage === 'services' ? 'active' : ''}"><span class="nav-icon">⚙️</span> Services</a></li>
             <li><a href="#" data-page="messages" class="${currentPage === 'messages' ? 'active' : ''}"><span class="nav-icon">📬</span> Messages</a></li>
+            <li><a href="#" data-page="audit" class="${currentPage === 'audit' ? 'active' : ''}"><span class="nav-icon">📋</span> Audit Log</a></li>
             <li><a href="#" data-page="settings" class="${currentPage === 'settings' ? 'active' : ''}"><span class="nav-icon">🛠️</span> Settings</a></li>
             <li style="margin-top:auto;border-top:1px solid var(--border);padding-top:0.5rem">
               <button id="logout-btn"><span class="nav-icon">🚪</span> Logout</button>
@@ -181,6 +328,7 @@
       case 'projects': renderProjects(pageContent); break;
       case 'services': renderServices(pageContent); break;
       case 'messages': renderMessages(pageContent); break;
+      case 'audit': renderAuditLog(pageContent); break;
       case 'settings': renderSettings(pageContent); break;
       default: renderOverview(pageContent);
     }
@@ -658,6 +806,13 @@
           </div>
           <button class="btn btn-danger" id="change-pass" style="margin-top:0.5rem">Change Password</button>
         </div>
+
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Two-Factor Authentication (2FA)</h3></div>
+          <div id="totp-settings">
+            <p style="color:var(--text-muted);font-size:0.85rem">Loading 2FA status...</p>
+          </div>
+        </div>
       `;
 
       // Password toggle buttons
@@ -671,6 +826,72 @@
           btn.title = isHidden ? 'Hide password' : 'Show password';
         });
       });
+
+      // 2FA Setup
+      (async function init2FA() {
+        const totpEl = document.getElementById('totp-settings');
+        try {
+          const me = await api('/auth/me');
+          if (me.totpEnabled) {
+            totpEl.innerHTML = `
+              <p style="color:var(--green);margin-bottom:1rem">✅ Two-factor authentication is <strong>enabled</strong></p>
+              <button class="btn btn-danger" id="disable-totp">Disable 2FA</button>
+            `;
+            document.getElementById('disable-totp').addEventListener('click', async () => {
+              if (!confirm('Disable two-factor authentication? This makes your account less secure.')) return;
+              try {
+                await api('/auth/disable-2fa', { method: 'POST' });
+                showToast('2FA disabled');
+                renderSettings(document.getElementById('page-content'));
+              } catch (err) { /* toast shown by api() */ }
+            });
+          } else {
+            totpEl.innerHTML = `
+              <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Protect your account with a TOTP authenticator app (Google Authenticator, Authy, etc.)</p>
+              <button class="btn btn-primary" id="setup-totp">Setup 2FA</button>
+              <div id="totp-setup-ui" style="display:none;margin-top:1.5rem">
+                <p style="color:var(--text-primary);font-size:0.85rem;margin-bottom:1rem">Scan this QR code with your authenticator app:</p>
+                <div id="totp-qr" style="text-align:center;margin-bottom:1rem"></div>
+                <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.5rem">Or enter manually: <code id="totp-secret" style="user-select:all;color:var(--cyan)"></code></p>
+                <div class="form-group" style="max-width:300px">
+                  <label class="form-label">Enter 6-digit code to confirm</label>
+                  <input type="text" class="form-input" id="totp-confirm-code" placeholder="000000" maxlength="6" inputmode="numeric" style="text-align:center;font-size:1.2rem;letter-spacing:0.3rem">
+                </div>
+                <button class="btn btn-primary" id="confirm-totp">Confirm &amp; Enable 2FA</button>
+              </div>
+            `;
+
+            document.getElementById('setup-totp').addEventListener('click', async () => {
+              try {
+                const data = await api('/auth/setup-2fa', { method: 'POST' });
+                const ui = document.getElementById('totp-setup-ui');
+                ui.style.display = 'block';
+                document.getElementById('setup-totp').style.display = 'none';
+                document.getElementById('totp-secret').textContent = data.secret || '';
+                const qrEl = document.getElementById('totp-qr');
+                if (data.qrCode) {
+                  qrEl.innerHTML = '<img src="' + data.qrCode + '" alt="QR Code" style="max-width:200px;margin:0 auto;border-radius:8px">';
+                }
+              } catch (err) { /* */ }
+            });
+
+            document.getElementById('confirm-totp')?.addEventListener('click', async () => {
+              const code = document.getElementById('totp-confirm-code').value.trim();
+              if (!/^\d{6}$/.test(code)) {
+                showToast('Enter a valid 6-digit code', 'error');
+                return;
+              }
+              try {
+                await api('/auth/confirm-2fa', { method: 'POST', body: JSON.stringify({ totpCode: code }) });
+                showToast('2FA enabled successfully! 🔒');
+                renderSettings(document.getElementById('page-content'));
+              } catch (err) { /* */ }
+            });
+          }
+        } catch (err) {
+          totpEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">2FA management unavailable</p>';
+        }
+      })();
 
       document.getElementById('save-brand').addEventListener('click', async () => {
         try {
@@ -721,6 +942,77 @@
       });
 
     } catch (err) { /* */ }
+  }
+
+  // ═══════════════════════════════════════════
+  // AUDIT LOG PAGE
+  // ═══════════════════════════════════════════
+  async function renderAuditLog(container) {
+    container.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Audit Log</h1>
+          <p class="page-subtitle">Security event tracking &amp; activity history</p>
+        </div>
+        <select id="audit-filter" class="form-input" style="width:auto;min-width:200px">
+          <option value="">All Actions</option>
+          <option value="LOGIN_SUCCESS">Login Success</option>
+          <option value="LOGIN_FAILED">Login Failed</option>
+          <option value="LOGIN_LOCKED">Account Locked</option>
+          <option value="PASSWORD_CHANGE">Password Change</option>
+          <option value="TOTP_SETUP">2FA Setup</option>
+          <option value="TOTP_VERIFY">2FA Verified</option>
+          <option value="PROJECT_CREATE">Project Created</option>
+          <option value="PROJECT_UPDATE">Project Updated</option>
+          <option value="PROJECT_DELETE">Project Deleted</option>
+          <option value="MESSAGE_DELETE">Message Deleted</option>
+        </select>
+      </div>
+      <div class="card">
+        <div id="audit-list"><p style="color:var(--text-muted);font-size:0.85rem;padding:1rem">Loading...</p></div>
+      </div>
+    `;
+
+    async function loadAuditLogs(action = '') {
+      try {
+        const query = action ? `?action=${action}&limit=50` : '?limit=50';
+        const data = await api(`/dashboard/audit-logs${query}`);
+        const listEl = document.getElementById('audit-list');
+
+        if (!data.logs || data.logs.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No audit logs found</p></div>';
+          return;
+        }
+
+        const actionColors = {
+          'LOGIN_SUCCESS': 'badge-green', 'LOGIN_FAILED': 'badge-red', 'LOGIN_LOCKED': 'badge-red',
+          'PASSWORD_CHANGE': 'badge-orange', 'TOTP_SETUP': 'badge-cyan', 'TOTP_VERIFY': 'badge-green',
+          'TOTP_FAILED': 'badge-red', 'PROJECT_CREATE': 'badge-cyan', 'PROJECT_UPDATE': 'badge-orange',
+          'PROJECT_DELETE': 'badge-red', 'SERVICE_CREATE': 'badge-cyan', 'SERVICE_UPDATE': 'badge-orange',
+          'SERVICE_DELETE': 'badge-red', 'MESSAGE_DELETE': 'badge-red', 'SETTINGS_UPDATE': 'badge-orange'
+        };
+
+        listEl.innerHTML = `<table>
+          <thead><tr><th>Time</th><th>Action</th><th>User</th><th>IP</th><th>Details</th></tr></thead>
+          <tbody>${data.logs.map(log => `
+            <tr>
+              <td style="white-space:nowrap">${new Date(log.timestamp).toLocaleString()}</td>
+              <td><span class="badge ${actionColors[log.action] || 'badge-cyan'}">${escapeHtml(log.action)}</span></td>
+              <td>${escapeHtml(log.username || '—')}</td>
+              <td style="font-family:monospace;font-size:0.8rem">${escapeHtml(log.ip || '—')}</td>
+              <td style="font-size:0.8rem;color:var(--text-muted)">${escapeHtml(log.details || '—')}</td>
+            </tr>`).join('')}
+          </tbody></table>`;
+      } catch (err) {
+        document.getElementById('audit-list').innerHTML = '<p style="color:var(--red);padding:1rem">Failed to load audit logs</p>';
+      }
+    }
+
+    document.getElementById('audit-filter').addEventListener('change', (e) => {
+      loadAuditLogs(e.target.value);
+    });
+
+    loadAuditLogs();
   }
 
   // ─── Initial render ───

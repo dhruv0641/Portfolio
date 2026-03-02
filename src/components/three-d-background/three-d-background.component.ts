@@ -16,23 +16,38 @@ export class ThreeDBackgroundComponent implements OnDestroy {
   private particles!: THREE.Points;
   private mouseX = 0;
   private mouseY = 0;
+  private targetMouseX = 0;
+  private targetMouseY = 0;
   private animationFrameId: number | null = null;
+  private isLowEnd = false;
+  private lastFrameTime = 0;
+  private frameSkipThreshold = 16; // ~60fps target
 
   constructor() {
     afterNextRender(() => {
+      // Detect low-end devices
+      this.isLowEnd = (navigator.hardwareConcurrency || 4) < 4 ||
+        /Android|iPhone|iPad/i.test(navigator.userAgent);
       this.initThree();
-      this.animate();
+      this.animate(0);
     });
   }
 
   ngOnDestroy(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
-    window.removeEventListener('resize', this.onWindowResize);
-    document.removeEventListener('mousemove', this.onDocumentMouseMove);
-    if(this.renderer) {
-        this.renderer.dispose();
+    window.removeEventListener('resize', this.boundResize);
+    document.removeEventListener('mousemove', this.boundMouseMove);
+    if (this.particles) {
+      this.particles.geometry.dispose();
+      (this.particles.material as THREE.PointsMaterial).map?.dispose();
+      (this.particles.material as THREE.PointsMaterial).dispose();
+    }
+    if (this.renderer) {
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
     }
   }
 
@@ -61,10 +76,14 @@ export class ThreeDBackgroundComponent implements OnDestroy {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas().nativeElement,
       alpha: true,
+      antialias: false,       // Performance: skip AA for particles
+      powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x
 
-    const particleCount = 5000;
+    // Adaptive particle count based on device capability
+    const particleCount = this.isLowEnd ? 1500 : 5000;
     const vertices = [];
     for (let i = 0; i < particleCount; i++) {
       const x = (Math.random() - 0.5) * 2000;
@@ -88,26 +107,43 @@ export class ThreeDBackgroundComponent implements OnDestroy {
     this.particles = new THREE.Points(geometry, material);
     this.scene.add(this.particles);
 
-    window.addEventListener('resize', this.onWindowResize.bind(this));
-    document.addEventListener('mousemove', this.onDocumentMouseMove.bind(this));
+    this.boundResize = this.onWindowResize.bind(this);
+    this.boundMouseMove = this.onDocumentMouseMove.bind(this);
+    window.addEventListener('resize', this.boundResize, { passive: true });
+    document.addEventListener('mousemove', this.boundMouseMove, { passive: true });
   }
 
-  private onWindowResize = (): void => {
+  private boundResize: any;
+  private boundMouseMove: any;
+
+  private onWindowResize(): void {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  private onDocumentMouseMove = (event: MouseEvent): void => {
-    this.mouseX = (event.clientX - window.innerWidth / 2) / 10;
-    this.mouseY = (event.clientY - window.innerHeight / 2) / 10;
+  private onDocumentMouseMove(event: MouseEvent): void {
+    // Throttled: only update target, interpolation happens in animate loop
+    this.targetMouseX = (event.clientX - window.innerWidth / 2) / 10;
+    this.targetMouseY = (event.clientY - window.innerHeight / 2) / 10;
   }
 
-  private animate = (): void => {
+  private animate = (timestamp: number): void => {
     this.animationFrameId = requestAnimationFrame(this.animate);
 
-    const baseTime = Date.now() * 0.00005;
-    const pulseTime = Date.now() * 0.001;
+    // Adaptive frame skipping for low-end devices
+    if (this.isLowEnd) {
+      const delta = timestamp - this.lastFrameTime;
+      if (delta < 33) return; // Cap at ~30fps for low-end
+      this.lastFrameTime = timestamp;
+    }
+
+    const baseTime = timestamp * 0.00005;
+    const pulseTime = timestamp * 0.001;
+
+    // Smooth mouse interpolation (GPU-friendly)
+    this.mouseX += (this.targetMouseX - this.mouseX) * 0.05;
+    this.mouseY += (this.targetMouseY - this.mouseY) * 0.05;
 
     // Camera movement for parallax effect
     this.camera.position.x += (this.mouseX - this.camera.position.x) * 0.05;
@@ -115,11 +151,10 @@ export class ThreeDBackgroundComponent implements OnDestroy {
     this.camera.lookAt(this.scene.position);
 
     if (this.particles) {
-        // Combine base rotation with mouse influence for a more dynamic feel
         this.particles.rotation.x = baseTime * 0.25 + this.mouseY * 0.001;
         this.particles.rotation.y = baseTime * 0.5 + this.mouseX * 0.001;
         
-        // Pulsing effect for size. Opacity is handled by texture and blending.
+        // Pulsing size effect (use transform only — GPU accelerated)
         const material = this.particles.material as THREE.PointsMaterial;
         material.size = 2.5 + Math.sin(pulseTime) * 0.5;
     }

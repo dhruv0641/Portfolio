@@ -2,17 +2,18 @@
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(20px) translateZ(0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 1s ease-out 0.5s forwards;
+  animation: fadeInUp 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
   opacity: 0;
+  will-change: opacity, transform;
 }
 
 @keyframes textGlowPulse {
@@ -27,4 +28,17 @@
 .hero-text-glow {
   color: #fff;
   animation: textGlowPulse 4s infinite ease-in-out;
+  will-change: text-shadow;
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+    opacity: 1;
+  }
+  .hero-text-glow {
+    animation: none;
+    text-shadow: 0 0 10px #06b6d4, 0 0 20px #06b6d4;
+  }
 }

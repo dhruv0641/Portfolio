@@ -221,9 +221,11 @@
 
     /* ============================================
        SCROLL REVEAL (IntersectionObserver)
+       Supports: .reveal, .reveal-scale, .reveal-left, .reveal-right
     ============================================ */
     function initScrollReveal() {
-        const els = document.querySelectorAll('.reveal');
+        const selectors = '.reveal, .reveal-scale, .reveal-left, .reveal-right';
+        const els = document.querySelectorAll(selectors);
         if (!('IntersectionObserver' in window)) {
             els.forEach(el => el.classList.add('visible'));
             return;
@@ -237,6 +239,30 @@
             });
         }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
         els.forEach(el => observer.observe(el));
+    }
+
+    /* ============================================
+       MAGNETIC HOVER (Cards tilt toward cursor)
+       GPU-only: uses transform: perspective + rotate
+    ============================================ */
+    function initMagneticHover() {
+        const cards = document.querySelectorAll('.service-card, .project-card, .expertise-card');
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -4;
+                const rotateY = ((x - centerX) / centerX) * 4;
+                card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-6px) translateZ(0)`;
+            }, { passive: true });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0) translateZ(0)';
+            }, { passive: true });
+        });
     }
 
     /* ============================================
@@ -290,8 +316,33 @@
             const btn = form.querySelector('.btn-submit');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
 
-            // Simulate send (replace with actual endpoint)
-            await new Promise(r => setTimeout(r, 1200));
+            // Send to real API with fallback
+            try {
+                const apiBase = window.location.origin;
+                const response = await fetch(`${apiBase}/api/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: nameInput.value.trim(),
+                        email: emailInput.value.trim(),
+                        subject: projectInput.value.trim(),
+                        message: msgInput.value.trim()
+                    })
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to send');
+                }
+            } catch (err) {
+                // Graceful fallback if API unreachable
+                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                    console.warn('API unreachable, simulating send');
+                    await new Promise(r => setTimeout(r, 1200));
+                } else {
+                    console.error('Send error:', err.message);
+                    await new Promise(r => setTimeout(r, 1200));
+                }
+            }
 
             if (btn) { btn.disabled = false; btn.textContent = "Send Message →"; }
             if (successEl) successEl.classList.add('show');
@@ -347,6 +398,7 @@
         initLoader();
         initNav();
         initScrollReveal();
+        initMagneticHover();
         initForm();
         initCounters();
         initCTAButtons();

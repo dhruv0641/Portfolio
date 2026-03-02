@@ -14,18 +14,35 @@
     content="Cybersecurity Analyst, SOC Analyst, SIEM, Incident Response, Threat Detection, Cloud Security, AI Security, Dhruv Dobariya, Network Security, Log Analysis" />
   <meta name="author" content="Dhruv Dobariya" />
 
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://dhruv.sec" />
+
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://dhruv.sec" />
   <meta property="og:title" content="Dhruv Dobariya — Cybersecurity Analyst & SOC Enthusiast" />
-  <meta property="og:description"
-    content="Aspiring SOC Analyst. SIEM investigation, incident response, cloud security & AI-driven threat detection." />
+  <meta property="og:description" content="Aspiring SOC Analyst specializing in SIEM investigation, incident response, cloud security & AI-driven threat detection. Google Cybersecurity Certified." />
+  <meta property="og:site_name" content="DHRUV.SEC" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Dhruv Dobariya — Cybersecurity Analyst" />
+  <meta name="twitter:description" content="SOC Analyst | SIEM Investigation | Incident Response | Cloud & AI Security" />
+  <meta name="twitter:creator" content="@dhruvdobariya" />
 
   <!-- Robots -->
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
 
   <!-- Preconnect Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Preload critical assets -->
+  <link rel="preload" href="style.css" as="style" />
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700;800&display=swap" as="style" />
+  <link rel="preload" href="main.js" as="script" />
+
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700;800&display=swap"
     rel="stylesheet" />
@@ -34,14 +51,56 @@
   <link rel="stylesheet" href="style.css" />
 
   <!-- JSON-LD Schema -->
+  <!-- JSON-LD Schema: Person -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Person",
     "name": "Dhruv Dobariya",
+    "url": "https://dhruv.sec",
     "jobTitle": "Aspiring SOC Analyst & Cybersecurity Enthusiast",
     "description": "B.Sc. IT student specializing in SIEM investigation, incident response, cloud security, and AI-driven threat detection",
+    "email": "dobariyadhurvvipulbhai@gmail.com",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Surat",
+      "addressRegion": "Gujarat",
+      "addressCountry": "IN"
+    },
+    "sameAs": [
+      "https://www.linkedin.com/in/dhruvdobariya",
+      "https://github.com/dhruvdobariya"
+    ],
     "knowsAbout": ["SIEM", "Incident Response", "Cloud Security", "Threat Detection", "Network Security", "Log Analysis", ".NET Core", "AI Security"]
+  }
+  </script>
+
+  <!-- JSON-LD Schema: WebSite -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "DHRUV.SEC",
+    "url": "https://dhruv.sec",
+    "description": "Dhruv Dobariya — Cybersecurity Analyst Portfolio",
+    "author": { "@type": "Person", "name": "Dhruv Dobariya" }
+  }
+  </script>
+
+  <!-- JSON-LD Schema: Services -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "Cybersecurity Services",
+    "itemListElement": [
+      { "@type": "Service", "name": "Security Log Investigation", "description": "Deep-dive SIEM log analysis" },
+      { "@type": "Service", "name": "SOC Alert Review & Triage", "description": "Security alert review and prioritization" },
+      { "@type": "Service", "name": "Vulnerability Assessment", "description": "Security weakness scanning and remediation" },
+      { "@type": "Service", "name": "Security Documentation", "description": "Policies and incident response playbooks" },
+      { "@type": "Service", "name": "Secure API Development", "description": "Backend APIs with secure coding practices" },
+      { "@type": "Service", "name": "AI Security Automation", "description": "AI-driven threat detection and automation" }
+    ]
   }
   </script>
 </head>
@@ -124,6 +183,7 @@
         </div>
         <span>Scroll</span>
       </div>
+    </div><!-- /.hero-content -->
   </section>
 
   <!-- ABOUT SECTION -->

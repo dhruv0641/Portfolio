@@ -1,52 +1,127 @@
 /**
- * Admin API Server — Dhruv Dobariya Cybersecurity Portfolio
- * Express + JWT Auth + JSON File Storage
+ * ═══════════════════════════════════════════════════════════
+ * DHRUV.SEC — Production-Grade Admin API Server
+ * ═══════════════════════════════════════════════════════════
+ * Express + JWT (access+refresh) + HTTP-only cookies + 2FA
+ * + Audit Logs + AES-256 Encryption + Zod Validation
+ * + Rate Limiting + Brute Force Protection + RBAC
+ * + Abstract Data Layer (SaaS-ready)
+ * ═══════════════════════════════════════════════════════════
  */
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+// ─── Load modular architecture ───
+const config = require('./lib/config');
+const { logger, requestIdMiddleware, requestLoggerMiddleware } = require('./lib/logger');
+const db = require('./lib/dataLayer');
+const { notFoundHandler, errorHandler } = require('./lib/errorHandler');
+
+// ─── Route modules ───
+const authRoutes = require('./routes/auth');
+const projectRoutes = require('./routes/projects');
+const serviceRoutes = require('./routes/services');
+const messageRoutes = require('./routes/messages');
+const settingsRoutes = require('./routes/settings');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
-const DATA_DIR = path.join(__dirname, 'data');
 
-// ─── Ensure data directory ───
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+// ═══════════════════════════════════════════
+// MIDDLEWARE STACK (order matters)
+// ═══════════════════════════════════════════
 
-// ─── Helper: read/write JSON ───
-function readJSON(file) {
-  const filePath = path.join(DATA_DIR, file);
-  if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-}
+// 1. Request ID tracking
+app.use(requestIdMiddleware);
 
-function writeJSON(file, data) {
-  fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2), 'utf-8');
-}
+// 2. Structured request logging
+app.use(requestLoggerMiddleware);
 
-// ─── Initialize default data ───
+// 3. Security headers (Helmet — strict config)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://esm.sh"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://lottie.host", "https://esm.sh"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,     // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xFrameOptions: { action: 'deny' },
+}));
+
+// 4. CORS (environment-driven origins)
+app.use(cors({
+  origin: config.cors.origins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+}));
+
+// 5. Cookie parser (for HTTP-only auth cookies)
+app.use(cookieParser());
+
+// 6. Body parser with size limit
+app.use(express.json({ limit: '1mb' }));
+
+// 7. Global rate limiter
+const globalLimiter = rateLimit({
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.max,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+});
+app.use('/api/', globalLimiter);
+
+// 8. Strict auth rate limiter
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: config.rateLimit.authMax,
+  message: { error: 'Too many authentication attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ═══════════════════════════════════════════
+// DATA INITIALIZATION
+// ═══════════════════════════════════════════
 function initData() {
-  if (!readJSON('admin.json')) {
-    const hash = bcrypt.hashSync('admin123', 10);
-    writeJSON('admin.json', {
+  const existing = db.admin.get();
+  if (!existing || !existing.username) {
+    const hash = bcrypt.hashSync('admin123', 12);
+    db.admin.set({
       username: 'admin',
       passwordHash: hash,
-      email: 'dobariyadhurvvipulbhai@gmail.com'
+      email: 'dobariyadhurvvipulbhai@gmail.com',
+      role: 'super_admin',
+      tenantId: 'default',
     });
-    console.log('[INIT] Default admin created — username: admin, password: admin123');
+    logger.info('Default admin created', { username: 'admin', warning: 'CHANGE PASSWORD IMMEDIATELY' });
   }
 
-  if (!readJSON('projects.json')) {
-    writeJSON('projects.json', [
+  if (!db.projects.getAll().length) {
+    const defaultProjects = [
       {
-        id: '1',
         title: 'SOC Log Analysis Lab',
         description: 'Built a complete SOC analyst lab using Splunk with custom log ingestion pipelines. Analyzed Windows Event Logs, Sysmon data, and firewall logs to detect brute-force attacks, lateral movement, and data exfiltration.',
         technologies: ['Splunk', 'SIEM', 'Windows Event Logs', 'Sysmon'],
@@ -54,10 +129,8 @@ function initData() {
         impact: 'Detected 15+ attack patterns across simulated enterprise network',
         githubLink: '#',
         featured: true,
-        createdAt: new Date().toISOString()
       },
       {
-        id: '2',
         title: 'Phishing Email Detection',
         description: 'Developed a phishing detection simulation analyzing email headers, URLs, and social engineering indicators.',
         technologies: ['Python', 'Email Analysis', 'Threat Intel', 'Social Engineering'],
@@ -65,10 +138,8 @@ function initData() {
         impact: '94% accuracy identifying phishing across 500+ test emails',
         githubLink: '#',
         featured: false,
-        createdAt: new Date().toISOString()
       },
       {
-        id: '3',
         title: 'Network Traffic Analyzer',
         description: 'Network traffic analysis using Wireshark and tcpdump to capture, filter, and analyze packets.',
         technologies: ['Wireshark', 'tcpdump', 'Packet Analysis', 'DNS Security'],
@@ -76,10 +147,8 @@ function initData() {
         impact: 'Identified 8 types of network-based attacks in simulated captures',
         githubLink: '#',
         featured: false,
-        createdAt: new Date().toISOString()
       },
       {
-        id: '4',
         title: 'AI Threat Report Generator',
         description: 'AI-assisted tool that automatically generates structured threat intelligence reports from raw security logs.',
         technologies: ['Python', 'AI/ML', 'NLP', 'Threat Intelligence'],
@@ -87,28 +156,31 @@ function initData() {
         impact: 'Reduced manual report generation time by 70%',
         githubLink: '#',
         featured: false,
-        createdAt: new Date().toISOString()
-      }
-    ]);
+      },
+    ];
+    defaultProjects.forEach(p => db.projects.create(p));
   }
 
-  if (!readJSON('services.json')) {
-    writeJSON('services.json', [
-      { id: '1', title: 'Security Log Investigation', icon: '🔍', description: 'Deep-dive SIEM log analysis to identify anomalies and potential security incidents.' },
-      { id: '2', title: 'SOC Alert Review & Triage', icon: '🚨', description: 'Systematic security alert review and prioritization following NIST frameworks.' },
-      { id: '3', title: 'Vulnerability Assessment', icon: '🛡️', description: 'Identifying security weaknesses through scanning, analysis, and remediation.' },
-      { id: '4', title: 'Security Documentation', icon: '📋', description: 'Policies, incident response playbooks, and compliance documentation.' },
-      { id: '5', title: 'Secure API Development', icon: '💻', description: 'Backend APIs with .NET Core implementing authentication and secure coding.' },
-      { id: '6', title: 'AI Security Automation', icon: '🤖', description: 'AI/ML for automated threat detection and log correlation.' }
-    ]);
+  if (!db.services.getAll().length) {
+    const defaultServices = [
+      { title: 'Security Log Investigation', icon: '🔍', description: 'Deep-dive SIEM log analysis to identify anomalies and potential security incidents.' },
+      { title: 'SOC Alert Review & Triage', icon: '🚨', description: 'Systematic security alert review and prioritization following NIST frameworks.' },
+      { title: 'Vulnerability Assessment', icon: '🛡️', description: 'Identifying security weaknesses through scanning, analysis, and remediation.' },
+      { title: 'Security Documentation', icon: '📋', description: 'Policies, incident response playbooks, and compliance documentation.' },
+      { title: 'Secure API Development', icon: '💻', description: 'Backend APIs with .NET Core implementing authentication and secure coding.' },
+      { title: 'AI Security Automation', icon: '🤖', description: 'AI/ML for automated threat detection and log correlation.' },
+    ];
+    defaultServices.forEach(s => db.services.create(s));
   }
 
-  if (!readJSON('messages.json')) {
-    writeJSON('messages.json', []);
+  if (!db.messages.getAll().length) {
+    // Ensure messages.json exists
+    db.writeJSON('messages.json', []);
   }
 
-  if (!readJSON('settings.json')) {
-    writeJSON('settings.json', {
+  const settings = db.settings.get();
+  if (!settings.siteName) {
+    db.settings.set({
       siteName: 'DHRUV.SEC',
       fullName: 'Dhruv Dobariya',
       tagline: 'Cybersecurity Analyst | SOC Enthusiast | Cloud & AI Security',
@@ -117,300 +189,129 @@ function initData() {
       linkedIn: 'https://www.linkedin.com/in/dhruvdobariya',
       github: 'https://github.com/dhruvdobariya',
       seoTitle: 'Dhruv Dobariya — Cybersecurity Analyst | SOC Enthusiast',
-      seoDescription: 'Aspiring SOC Analyst specializing in SIEM, incident response, cloud security, and AI-driven threat detection.'
+      seoDescription: 'Aspiring SOC Analyst specializing in SIEM, incident response, cloud security, and AI-driven threat detection.',
     });
+  }
+
+  // Initialize audit logs
+  const auditPath = path.join(config.paths.data, 'audit_logs.json');
+  if (!fs.existsSync(auditPath)) {
+    fs.writeFileSync(auditPath, '[]', 'utf-8');
   }
 }
 
 initData();
 
-// ─── Middleware ───
-app.use(helmet());
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:4200', 'http://127.0.0.1:3000'], credentials: true }));
-app.use(express.json({ limit: '1mb' }));
-
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: { error: 'Too many requests' } });
-app.use('/api/', limiter);
-
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
-
-// ─── Auth Middleware ───
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-}
-
-// ─── Input Sanitization ───
-function sanitize(str) {
-  if (typeof str !== 'string') return str;
-  return str.replace(/[<>]/g, '').trim();
-}
-
-function sanitizeObject(obj) {
-  const clean = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
-      clean[key] = sanitize(value);
-    } else if (Array.isArray(value)) {
-      clean[key] = value.map(v => typeof v === 'string' ? sanitize(v) : v);
-    } else {
-      clean[key] = value;
-    }
-  }
-  return clean;
-}
-
 // ═══════════════════════════════════════════
-// AUTH ROUTES
+// API ROUTES
 // ═══════════════════════════════════════════
-app.post('/api/auth/login', authLimiter, (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
-  const admin = readJSON('admin.json');
-  if (!admin || admin.username !== username) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  if (!bcrypt.compareSync(password, admin.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  const token = jwt.sign({ username: admin.username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-  res.json({ token, username: admin.username, expiresIn: 86400 });
-});
-
-app.post('/api/auth/change-password', authenticate, (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords required' });
-  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-
-  const admin = readJSON('admin.json');
-  if (!bcrypt.compareSync(currentPassword, admin.passwordHash)) {
-    return res.status(401).json({ error: 'Current password is incorrect' });
-  }
-
-  admin.passwordHash = bcrypt.hashSync(newPassword, 10);
-  writeJSON('admin.json', admin);
-  res.json({ message: 'Password changed successfully' });
-});
-
-app.get('/api/auth/me', authenticate, (req, res) => {
-  const admin = readJSON('admin.json');
-  res.json({ username: admin.username, email: admin.email });
-});
-
-// ═══════════════════════════════════════════
-// PROJECTS CRUD
-// ═══════════════════════════════════════════
-app.get('/api/projects', (req, res) => {
-  res.json(readJSON('projects.json') || []);
-});
-
-app.get('/api/projects/:id', (req, res) => {
-  const projects = readJSON('projects.json') || [];
-  const project = projects.find(p => p.id === req.params.id);
-  if (!project) return res.status(404).json({ error: 'Project not found' });
-  res.json(project);
-});
-
-app.post('/api/projects', authenticate, (req, res) => {
-  const projects = readJSON('projects.json') || [];
-  const data = sanitizeObject(req.body);
-  const newProject = {
-    id: crypto.randomUUID(),
-    title: data.title || '',
-    description: data.description || '',
-    technologies: data.technologies || [],
-    emoji: data.emoji || '🔒',
-    impact: data.impact || '',
-    githubLink: data.githubLink || '#',
-    featured: data.featured || false,
-    createdAt: new Date().toISOString()
-  };
-  projects.push(newProject);
-  writeJSON('projects.json', projects);
-  res.status(201).json(newProject);
-});
-
-app.put('/api/projects/:id', authenticate, (req, res) => {
-  const projects = readJSON('projects.json') || [];
-  const index = projects.findIndex(p => p.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Project not found' });
-
-  const data = sanitizeObject(req.body);
-  projects[index] = { ...projects[index], ...data, id: projects[index].id, createdAt: projects[index].createdAt };
-  writeJSON('projects.json', projects);
-  res.json(projects[index]);
-});
-
-app.delete('/api/projects/:id', authenticate, (req, res) => {
-  let projects = readJSON('projects.json') || [];
-  const len = projects.length;
-  projects = projects.filter(p => p.id !== req.params.id);
-  if (projects.length === len) return res.status(404).json({ error: 'Project not found' });
-  writeJSON('projects.json', projects);
-  res.json({ message: 'Project deleted' });
-});
-
-// ═══════════════════════════════════════════
-// SERVICES CRUD
-// ═══════════════════════════════════════════
-app.get('/api/services', (req, res) => {
-  res.json(readJSON('services.json') || []);
-});
-
-app.post('/api/services', authenticate, (req, res) => {
-  const services = readJSON('services.json') || [];
-  const data = sanitizeObject(req.body);
-  const newService = {
-    id: crypto.randomUUID(),
-    title: data.title || '',
-    icon: data.icon || '🔒',
-    description: data.description || ''
-  };
-  services.push(newService);
-  writeJSON('services.json', services);
-  res.status(201).json(newService);
-});
-
-app.put('/api/services/:id', authenticate, (req, res) => {
-  const services = readJSON('services.json') || [];
-  const index = services.findIndex(s => s.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Service not found' });
-
-  const data = sanitizeObject(req.body);
-  services[index] = { ...services[index], ...data, id: services[index].id };
-  writeJSON('services.json', services);
-  res.json(services[index]);
-});
-
-app.delete('/api/services/:id', authenticate, (req, res) => {
-  let services = readJSON('services.json') || [];
-  const len = services.length;
-  services = services.filter(s => s.id !== req.params.id);
-  if (services.length === len) return res.status(404).json({ error: 'Service not found' });
-  writeJSON('services.json', services);
-  res.json({ message: 'Service deleted' });
-});
-
-// ═══════════════════════════════════════════
-// MESSAGES (Contact form submissions)
-// ═══════════════════════════════════════════
-app.get('/api/messages', authenticate, (req, res) => {
-  const messages = readJSON('messages.json') || [];
-  res.json(messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-});
-
-app.post('/api/messages', (req, res) => {
-  const messages = readJSON('messages.json') || [];
-  const data = sanitizeObject(req.body);
-
-  if (!data.name || !data.email || !data.message) {
-    return res.status(400).json({ error: 'Name, email, and message are required' });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    return res.status(400).json({ error: 'Invalid email format' });
-  }
-
-  const newMessage = {
-    id: crypto.randomUUID(),
-    name: data.name,
-    email: data.email,
-    subject: data.subject || '',
-    message: data.message,
-    status: 'unread',
-    createdAt: new Date().toISOString()
-  };
-  messages.push(newMessage);
-  writeJSON('messages.json', messages);
-  res.status(201).json({ message: 'Message sent successfully' });
-});
-
-app.patch('/api/messages/:id/read', authenticate, (req, res) => {
-  const messages = readJSON('messages.json') || [];
-  const msg = messages.find(m => m.id === req.params.id);
-  if (!msg) return res.status(404).json({ error: 'Message not found' });
-  msg.status = 'read';
-  writeJSON('messages.json', messages);
-  res.json(msg);
-});
-
-app.delete('/api/messages/:id', authenticate, (req, res) => {
-  let messages = readJSON('messages.json') || [];
-  const len = messages.length;
-  messages = messages.filter(m => m.id !== req.params.id);
-  if (messages.length === len) return res.status(404).json({ error: 'Message not found' });
-  writeJSON('messages.json', messages);
-  res.json({ message: 'Message deleted' });
-});
-
-// ═══════════════════════════════════════════
-// SETTINGS (Brand & SEO)
-// ═══════════════════════════════════════════
-app.get('/api/settings', (req, res) => {
-  res.json(readJSON('settings.json') || {});
-});
-
-app.put('/api/settings', authenticate, (req, res) => {
-  const data = sanitizeObject(req.body);
-  const current = readJSON('settings.json') || {};
-  const updated = { ...current, ...data };
-  writeJSON('settings.json', updated);
-  res.json(updated);
-});
-
-// ═══════════════════════════════════════════
-// DASHBOARD STATS
-// ═══════════════════════════════════════════
-app.get('/api/dashboard/stats', authenticate, (req, res) => {
-  const projects = readJSON('projects.json') || [];
-  const services = readJSON('services.json') || [];
-  const messages = readJSON('messages.json') || [];
-  const unreadMessages = messages.filter(m => m.status === 'unread').length;
-
+// Health check
+app.get('/api/health', (req, res) => {
   res.json({
-    totalProjects: projects.length,
-    featuredProjects: projects.filter(p => p.featured).length,
-    totalServices: services.length,
-    totalMessages: messages.length,
-    unreadMessages,
-    recentMessages: messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0',
+    environment: config.nodeEnv,
+    uptime: Math.floor(process.uptime()),
+    requestId: req.requestId,
   });
 });
 
-// ─── Health Check ───
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// ─── Serve Admin Dashboard at /admin ───
+// ═══════════════════════════════════════════
+// STATIC FILE SERVING
+// ═══════════════════════════════════════════
 const adminDir = path.join(__dirname, '..', 'admin');
 app.use('/admin', express.static(adminDir));
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(adminDir, 'index.html'));
 });
 
-// ─── Serve Portfolio Website at / ───
+// Serve SEO files
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Sitemap: ${req.protocol}://${req.get('host')}/sitemap.xml`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const now = new Date().toISOString().split('T')[0];
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${baseUrl}/</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>${baseUrl}/#about</loc><lastmod>${now}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>${baseUrl}/#projects</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>${baseUrl}/#services</loc><lastmod>${now}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>${baseUrl}/#contact</loc><lastmod>${now}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>`);
+});
+
 const siteDir = path.join(__dirname, '..', 'new   website');
 app.use(express.static(siteDir));
 app.get('/', (req, res) => {
   res.sendFile(path.join(siteDir, 'index.html'));
 });
 
-// ─── Start ───
-app.listen(PORT, () => {
-  console.log(`\n🛡️  Portfolio running at http://localhost:${PORT}`);
-  console.log(`🖥️  Admin Dashboard: http://localhost:${PORT}/admin`);
-  console.log(`🔐 Default login — username: admin, password: admin123\n`);
+// ═══════════════════════════════════════════
+// ERROR HANDLING
+// ═══════════════════════════════════════════
+app.use('/api/*', notFoundHandler);
+app.use(errorHandler);
+
+// ═══════════════════════════════════════════
+// GRACEFUL SHUTDOWN
+// ═══════════════════════════════════════════
+let server;
+
+function gracefulShutdown(signal) {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+  if (server) {
+    server.close(() => {
+      logger.info('Server closed. Goodbye.');
+      process.exit(0);
+    });
+    // Force close after 10 seconds
+    setTimeout(() => {
+      logger.warn('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', { error: err.message, stack: err.stack });
+  gracefulShutdown('uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', { error: String(reason) });
+});
+
+// ═══════════════════════════════════════════
+// START SERVER
+// ═══════════════════════════════════════════
+server = app.listen(config.port, () => {
+  logger.info('Server started', {
+    port: config.port,
+    environment: config.nodeEnv,
+    version: '2.0.0',
+  });
+  console.log(`\n🛡️  DHRUV.SEC API running at http://localhost:${config.port}`);
+  console.log(`🖥️  Admin Dashboard: http://localhost:${config.port}/admin`);
+  console.log(`🔐 Environment: ${config.nodeEnv}`);
+  if (!config.isProduction) {
+    console.log(`⚠️  Default login — admin / admin123 (CHANGE IMMEDIATELY)\n`);
+  }
 });

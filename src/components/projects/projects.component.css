@@ -10,8 +10,9 @@
   height: 100%;
   border: 1px solid #222;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  will-change: transform;
   transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease;
-  transform: scale(1); /* Initial state */
+  transform: scale(1) translateZ(0);
 }
 
 .project-card.featured-project {
@@ -19,8 +20,12 @@
 }
 
 .project-card:hover {
-  transform: scale(1.05);
+  transform: scale(1.05) translateZ(0);
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(147, 51, 234, 0.4);
+}
+
+.project-card:active {
+  transform: scale(1.02) translateZ(0);
 }
 
 .project-card::after {

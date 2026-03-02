@@ -1,18 +1,25 @@
 {
   "name": "dhruv-portfolio-admin-api",
-  "version": "1.0.0",
-  "description": "Admin API for Dhruv Dobariya Cybersecurity Portfolio",
+  "version": "2.0.0",
+  "description": "DHRUV.SEC — Production-Grade SaaS Admin API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "prod": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
     "express": "^4.21.0",
-    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.4.0",
     "helmet": "^8.0.0",
-    "express-rate-limit": "^7.4.0"
+    "jsonwebtoken": "^9.0.2",
+    "otpauth": "^9.5.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6"
   }
 }
