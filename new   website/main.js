@@ -21,6 +21,228 @@
   var isDesktop = window.matchMedia('(min-width: 1025px) and (hover: hover)').matches;
   var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ======== CUSTOMIZATION ENGINE ======== */
+  var siteConfig = null;
+
+  function applyCustomization(cfg) {
+    if (!cfg) return;
+    siteConfig = cfg;
+    var root = document.documentElement;
+
+    /* ── Theme colors ── */
+    var t = cfg.theme;
+    if (t) {
+      if (t.primaryColor)   root.style.setProperty('--accent', t.primaryColor);
+      if (t.primaryColor)   root.style.setProperty('--accent-dim', t.primaryColor + '1f');
+      if (t.primaryColor)   root.style.setProperty('--accent-mid', t.primaryColor + '40');
+      if (t.secondaryColor) root.style.setProperty('--cyber-blue', t.secondaryColor);
+      if (t.accentColor)    root.style.setProperty('--neon-green', t.accentColor);
+      if (t.successColor)   root.style.setProperty('--success', t.successColor);
+      if (t.dangerColor)    root.style.setProperty('--danger', t.dangerColor);
+      if (t.warningColor)   root.style.setProperty('--warning', t.warningColor);
+      if (t.bgColor)        root.style.setProperty('--bg-void', t.bgColor);
+      if (t.textPrimary)    root.style.setProperty('--text-primary', t.textPrimary);
+      if (t.textSecondary)  root.style.setProperty('--text-secondary', t.textSecondary);
+      if (t.baseFontSize)   root.style.setProperty('font-size', t.baseFontSize + 'px');
+      if (t.borderRadius != null) {
+        root.style.setProperty('--r-sm', Math.round(t.borderRadius * 0.5) + 'px');
+        root.style.setProperty('--r-md', t.borderRadius + 'px');
+        root.style.setProperty('--r-lg', Math.round(t.borderRadius * 1.33) + 'px');
+      }
+      if (t.fontPrimary) root.style.setProperty('--font-primary', t.fontPrimary + ', system-ui, sans-serif');
+      if (t.fontSecondary) root.style.setProperty('--font-heading', "'" + t.fontSecondary + "', sans-serif");
+    }
+
+    /* ── Hero content ── */
+    var h = cfg.hero;
+    if (h) {
+      var heroTitle = qs('.vfx-pending, .vfx-ready, .hero-title');
+      if (heroTitle && h.title) heroTitle.textContent = h.title;
+      var heroSub = qs('.hero-subtitle');
+      if (heroSub && h.subtitle) heroSub.textContent = h.subtitle;
+      if (h.typingPhrases && h.typingPhrases.length) {
+        typedPhrases = h.typingPhrases;
+      }
+      var ctaPrimary = qs('.hero-cta .btn-primary, .hero-actions .btn-primary');
+      if (ctaPrimary) {
+        if (h.ctaPrimaryText) {
+          var pSvg = ctaPrimary.querySelector('svg');
+          ctaPrimary.textContent = '';
+          if (pSvg) ctaPrimary.appendChild(pSvg);
+          ctaPrimary.appendChild(document.createTextNode(' ' + h.ctaPrimaryText));
+        }
+        if (h.ctaPrimaryLink) ctaPrimary.setAttribute('data-scroll-to', h.ctaPrimaryLink);
+      }
+      var ctaSecondary = qs('.hero-cta .btn-secondary, .hero-actions .btn-secondary');
+      if (ctaSecondary) {
+        if (h.ctaSecondaryText) {
+          var sSvg = ctaSecondary.querySelector('svg');
+          ctaSecondary.textContent = '';
+          if (sSvg) ctaSecondary.appendChild(sSvg);
+          ctaSecondary.appendChild(document.createTextNode(' ' + h.ctaSecondaryText));
+        }
+        if (h.ctaSecondaryLink) ctaSecondary.setAttribute('data-scroll-to', h.ctaSecondaryLink);
+      }
+      var statusBadge = qs('.status-badge');
+      if (statusBadge) {
+        if (h.showStatusBadge === false) statusBadge.style.display = 'none';
+        if (h.statusText) {
+          var statusSpan = statusBadge.querySelector('span') || statusBadge;
+          statusSpan.textContent = h.statusText;
+        }
+      }
+      var scanLine = qs('.scan-line');
+      if (scanLine && h.showScanLine === false) scanLine.style.display = 'none';
+    }
+
+    /* ── Section visibility & order ── */
+    var sec = cfg.sections;
+    if (sec) {
+      Object.keys(sec).forEach(function (key) {
+        var sectionCfg = sec[key];
+        var el = qs('#' + key) || qs('[data-section="' + key + '"]');
+        if (!el) return;
+        if (sectionCfg.visible === false) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = '';
+        }
+        if (sectionCfg.order) {
+          el.style.order = sectionCfg.order;
+        }
+      });
+    }
+
+    /* ── Animation settings ── */
+    var an = cfg.animations;
+    if (an) {
+      if (an.globalSpeed && an.globalSpeed !== 1) {
+        root.style.setProperty('--anim-speed', (1 / an.globalSpeed) + 's');
+      }
+      if (an.glowEnabled === false) {
+        root.style.setProperty('--glow-size', '0px');
+        root.style.setProperty('--shadow-glow', 'none');
+      } else if (an.glowIntensity != null) {
+        root.style.setProperty('--glow-opacity', an.glowIntensity);
+      }
+      if (an.typingSpeed) typingSpeedMs = an.typingSpeed;
+      if (an.particlesEnabled === false) {
+        var pCanvas = qs('#particle-canvas');
+        if (pCanvas) pCanvas.style.display = 'none';
+      }
+      if (an.smoothReveal === false) {
+        root.style.setProperty('--reveal-offset', '0px');
+        qsa('.reveal').forEach(function (el) {
+          el.classList.add('visible');
+        });
+      }
+    }
+
+    /* ── Layout ── */
+    var lay = cfg.layout;
+    if (lay) {
+      if (lay.glassmorphism === false) {
+        root.style.setProperty('--bg-glass', 'rgba(17,24,39,0.95)');
+      } else if (lay.glassBgOpacity != null) {
+        root.style.setProperty('--bg-glass', 'rgba(17,24,39,' + lay.glassBgOpacity + ')');
+      }
+      if (lay.maxWidth) root.style.setProperty('--max-w', lay.maxWidth + 'px');
+      if (lay.sectionSpacing) root.style.setProperty('--section-spacing', lay.sectionSpacing + 'px');
+      if (lay.showProgressBar === false) {
+        var prog = qs('#scroll-progress');
+        if (prog) prog.style.display = 'none';
+      }
+      if (lay.showBackToTop === false) {
+        var btt = qs('#floating-cta');
+        if (btt) btt.style.display = 'none';
+      }
+    }
+
+    /* ── SEO meta ── */
+    var seo = cfg.seo;
+    if (seo) {
+      if (seo.metaTitle) document.title = seo.metaTitle;
+      setMeta('description', seo.metaDescription);
+      setMeta('keywords', seo.keywords);
+      setMetaOG('og:title', seo.ogTitle);
+      setMetaOG('og:description', seo.ogDescription);
+      setMetaOG('og:image', seo.ogImage);
+      setMetaOG('twitter:card', seo.twitterCard);
+      setMetaOG('twitter:site', seo.twitterHandle);
+      if (seo.canonicalUrl) {
+        var canon = qs('link[rel="canonical"]');
+        if (canon) canon.href = seo.canonicalUrl;
+        else {
+          canon = document.createElement('link');
+          canon.rel = 'canonical';
+          canon.href = seo.canonicalUrl;
+          document.head.appendChild(canon);
+        }
+      }
+    }
+
+    /* ── UX settings ── */
+    var ux = cfg.ux;
+    if (ux) {
+      if (ux.progressBarColor) root.style.setProperty('--progress-color', ux.progressBarColor);
+      if (ux.focusRingColor) root.style.setProperty('--focus-ring', ux.focusRingColor);
+    }
+
+    /* ── Data control ── */
+    var dc = cfg.dataControl;
+    if (dc) {
+      if (dc.activityPanelVisible === false) {
+        var sm = qs('.session-monitor');
+        if (sm) sm.style.display = 'none';
+      }
+      if (dc.idleTimeout) IDLE_TIMEOUT = dc.idleTimeout * 1000;
+    }
+
+    /* ── Custom CSS injection ── */
+    var cc = cfg.customCode;
+    if (cc && cc.customCSS) {
+      var existing = qs('#custom-css-inject');
+      if (existing) existing.remove();
+      var styleTag = document.createElement('style');
+      styleTag.id = 'custom-css-inject';
+      styleTag.textContent = cc.customCSS;
+      document.head.appendChild(styleTag);
+    }
+  }
+
+  function setMeta(name, content) {
+    if (!content) return;
+    var el = qs('meta[name="' + name + '"]');
+    if (el) el.setAttribute('content', content);
+    else {
+      el = document.createElement('meta');
+      el.name = name;
+      el.content = content;
+      document.head.appendChild(el);
+    }
+  }
+
+  function setMetaOG(property, content) {
+    if (!content) return;
+    var el = qs('meta[property="' + property + '"]') || qs('meta[name="' + property + '"]');
+    if (el) el.setAttribute('content', content);
+    else {
+      el = document.createElement('meta');
+      el.setAttribute('property', property);
+      el.content = content;
+      document.head.appendChild(el);
+    }
+  }
+
+  /* Fetch customization on load */
+  var typingSpeedMs = 70;
+  (function loadCustomization() {
+    fetch('/api/customize')
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (cfg) { if (cfg) applyCustomization(cfg); })
+      .catch(function () { /* graceful fallback — use defaults */ });
+  })();
+
   /* ======== LOADER ======== */
   var loader = qs('#loader');
   function hideLoader() {
@@ -77,7 +299,7 @@
         setTimeout(function () { typedDeleting = true; typeLoop(); }, 2000);
         return;
       }
-      setTimeout(typeLoop, 70);
+      setTimeout(typeLoop, typingSpeedMs);
     } else {
       typedEl.textContent = current.substring(0, typedChar);
       typedChar--;
@@ -88,7 +310,7 @@
         setTimeout(typeLoop, 400);
         return;
       }
-      setTimeout(typeLoop, 35);
+      setTimeout(typeLoop, Math.round(typingSpeedMs / 2));
     }
   }
 
@@ -330,6 +552,7 @@
   /* ======== 3D TILT EFFECT (desktop only) ======== */
   function initTiltCards() {
     if (!isDesktop || prefersReducedMotion) return;
+    if (siteConfig && siteConfig.animations && siteConfig.animations.tiltEnabled === false) return;
     var cards = qsa('.tilt-card');
     cards.forEach(function (card) {
       card.addEventListener('mousemove', function (e) {
@@ -351,6 +574,7 @@
   /* ======== MAGNETIC BUTTONS (desktop only) ======== */
   function initMagneticButtons() {
     if (!isDesktop || prefersReducedMotion) return;
+    if (siteConfig && siteConfig.animations && siteConfig.animations.magneticButtons === false) return;
     var btns = qsa('.magnetic');
     btns.forEach(function (btn) {
       btn.addEventListener('mousemove', function (e) {
@@ -377,7 +601,8 @@
   var lastSectionLogged = '';
   var idleTimer = null;
   var isIdle = false;
-  var IDLE_TIMEOUT = 8000;
+  var IDLE_TIMEOUT = (siteConfig && siteConfig.dataControl && siteConfig.dataControl.idleTimeout)
+    ? siteConfig.dataControl.idleTimeout * 1000 : 8000;
 
   function getSessionTime() {
     return Math.floor((Date.now() - sessionStartTime) / 1000);
@@ -521,6 +746,7 @@
   }
 
   function initSessionMonitor() {
+    if (siteConfig && siteConfig.dataControl && siteConfig.dataControl.activityMonitorEnabled === false) return;
     sessionLog = qs('#session-log');
     ssScrollEl = qs('#ss-scroll');
     ssEventsEl = qs('#ss-events');

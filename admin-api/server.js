@@ -30,6 +30,7 @@ const serviceRoutes = require('./routes/services');
 const messageRoutes = require('./routes/messages');
 const settingsRoutes = require('./routes/settings');
 const dashboardRoutes = require('./routes/dashboard');
+const customizeRoutes = require('./routes/customize');
 
 const app = express();
 
@@ -215,6 +216,19 @@ function initData() {
   if (!fs.existsSync(auditPath)) {
     fs.writeFileSync(auditPath, '[]', 'utf-8');
   }
+
+  // Initialize customize defaults
+  const customize = db.customize.get();
+  if (!customize || !customize.theme) {
+    const defaultsPath = path.join(config.paths.data, 'customize.json');
+    if (!fs.existsSync(defaultsPath)) {
+      db.customize.set({
+        theme: { primaryColor: '#00F5FF', secondaryColor: '#0066FF', accentColor: '#10B981', bgColor: '#0B0F19' },
+        hero: { title: 'CYBER COMMAND', subtitle: 'Dhruvkumar Dobariya' },
+        animations: { globalSpeed: 1.0, particlesEnabled: true },
+      });
+    }
+  }
 }
 
 initData();
@@ -227,6 +241,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/customize', customizeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // Health check

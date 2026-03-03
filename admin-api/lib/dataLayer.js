@@ -150,6 +150,7 @@ module.exports = {
   // Singleton stores
   admin: new SingletonStore('admin.json'),
   settings: new SingletonStore('settings.json'),
+  customize: new SingletonStore('customize.json'),
 
   // For direct access (audit logs etc.)
   readJSON,

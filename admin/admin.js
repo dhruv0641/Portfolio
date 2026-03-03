@@ -32,6 +32,7 @@
     'check':         '<polyline points="20 6 9 17 4 12"/>',
     'x':             '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
     'chevron-right': '<polyline points="9 18 15 12 9 6"/>',
+    'chevron-down':  '<polyline points="6 9 12 15 18 9"/>',
     'menu':          '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
     'bell':          '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>',
     'star':          '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
@@ -45,7 +46,16 @@
     'map-pin':       '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>',
     'link':          '<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>',
     'terminal':      '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
-    'server':        '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>'
+    'server':        '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+    'palette':       '<circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+    'sliders':       '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+    'layout':        '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
+    'type':          '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
+    'zap':           '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    'code':          '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+    'monitor':       '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    'target':        '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    'database':      '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>'
   };
 
   function icon(name, size) {
@@ -286,7 +296,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'projects', 'services', 'messages', 'audit', 'settings'];
+    var valid = ['dashboard', 'projects', 'services', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -340,6 +350,7 @@
       case 'messages':  renderMessages(pageContent); break;
       case 'audit':     renderAuditLog(pageContent); break;
       case 'settings':  renderSettings(pageContent); break;
+      case 'customize': renderCustomize(pageContent); break;
       default:          renderOverview(pageContent);
     }
   }
@@ -352,7 +363,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', messages: 'Messages', audit: 'Audit Log', settings: 'Settings' };
+    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -818,6 +829,7 @@
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
       { page: 'messages',  icon: 'mail', label: 'Messages' },
+      { page: 'customize', icon: 'palette', label: 'Customize' },
       { page: 'audit',     icon: 'clipboard', label: 'Audit Log' },
       { page: 'settings',  icon: 'settings', label: 'Settings' }
     ];
@@ -1519,6 +1531,665 @@
         } catch (err) { /* */ }
       });
     } catch (err) { /* */ }
+  }
+
+  /* ═══════════════════════════════════════════
+     CUSTOMIZE PAGE — Enterprise Customization Engine
+     12 Levels: Theme, Hero, Sections, Projects, Services,
+     Animations, Layout, SEO, Security, Custom Code, UX, Data Control
+     ═══════════════════════════════════════════ */
+  var customizeCache = null;
+  var activeCustomizeTab = 'theme';
+
+  function cuzColorInput(id, label, value) {
+    return '<div class="cuz-field">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<div class="cuz-color-wrap">' +
+        '<input type="color" class="cuz-color" id="' + id + '" value="' + escapeHtml(value || '#00F5FF') + '">' +
+        '<input type="text" class="form-input cuz-color-text" id="' + id + '-text" value="' + escapeHtml(value || '') + '" placeholder="#00F5FF">' +
+      '</div>' +
+    '</div>';
+  }
+
+  function cuzTextInput(id, label, value, placeholder) {
+    return '<div class="cuz-field">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<input type="text" class="form-input" id="' + id + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '">' +
+    '</div>';
+  }
+
+  function cuzNumberInput(id, label, value, min, max, step) {
+    return '<div class="cuz-field">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<div class="cuz-range-wrap">' +
+        '<input type="range" class="cuz-range" id="' + id + '-range" value="' + (value || 0) + '" min="' + (min || 0) + '" max="' + (max || 100) + '" step="' + (step || 1) + '">' +
+        '<input type="number" class="form-input cuz-number" id="' + id + '" value="' + (value || 0) + '" min="' + (min || 0) + '" max="' + (max || 100) + '" step="' + (step || 1) + '">' +
+      '</div>' +
+    '</div>';
+  }
+
+  function cuzToggle(id, label, checked) {
+    return '<div class="cuz-field cuz-field--toggle">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<label class="cuz-switch"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '><span class="cuz-slider"></span></label>' +
+    '</div>';
+  }
+
+  function cuzSelect(id, label, value, options) {
+    var opts = options.map(function (o) {
+      return '<option value="' + escapeHtml(o.value || o) + '"' + ((value === (o.value || o)) ? ' selected' : '') + '>' + escapeHtml(o.label || o) + '</option>';
+    }).join('');
+    return '<div class="cuz-field">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<select class="form-input form-select" id="' + id + '">' + opts + '</select>' +
+    '</div>';
+  }
+
+  function cuzTextarea(id, label, value, placeholder, rows) {
+    return '<div class="cuz-field cuz-field--full">' +
+      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<textarea class="form-input form-textarea" id="' + id + '" rows="' + (rows || 4) + '" placeholder="' + escapeHtml(placeholder || '') + '">' + escapeHtml(value || '') + '</textarea>' +
+    '</div>';
+  }
+
+  function buildCustomizeTabs() {
+    var tabs = [
+      { id: 'theme', icon: 'palette', label: 'Theme' },
+      { id: 'hero', icon: 'zap', label: 'Hero' },
+      { id: 'sections', icon: 'layout', label: 'Sections' },
+      { id: 'animations', icon: 'activity', label: 'Animations' },
+      { id: 'layoutTab', icon: 'sidebar', label: 'Layout' },
+      { id: 'seo', icon: 'search', label: 'SEO' },
+      { id: 'security', icon: 'shield', label: 'Security' },
+      { id: 'ux', icon: 'sliders', label: 'UX' },
+      { id: 'customCode', icon: 'code', label: 'Custom Code' },
+      { id: 'dataControl', icon: 'database', label: 'Data Control' },
+      { id: 'preview', icon: 'monitor', label: 'Preview' }
+    ];
+    return '<div class="cuz-tabs">' + tabs.map(function (t) {
+      return '<button class="cuz-tab' + (activeCustomizeTab === t.id ? ' active' : '') + '" data-tab="' + t.id + '">' +
+        icon(t.icon, 14) + ' <span>' + t.label + '</span></button>';
+    }).join('') + '</div>';
+  }
+
+  function buildThemePanel(cfg) {
+    var t = cfg.theme || {};
+    return '<div class="cuz-panel" data-panel="theme">' +
+      '<h3 class="cuz-section-title">' + icon('palette', 18) + ' Global Theme Customization</h3>' +
+      '<p class="cuz-section-desc">Control the visual identity of your entire website — colors, typography, and spacing.</p>' +
+      '<div class="cuz-grid">' +
+        cuzColorInput('cuz-primaryColor', 'Primary Color', t.primaryColor) +
+        cuzColorInput('cuz-secondaryColor', 'Secondary Color', t.secondaryColor) +
+        cuzColorInput('cuz-accentColor', 'Accent Color', t.accentColor) +
+        cuzColorInput('cuz-successColor', 'Success Color', t.successColor) +
+        cuzColorInput('cuz-dangerColor', 'Danger Color', t.dangerColor) +
+        cuzColorInput('cuz-warningColor', 'Warning Color', t.warningColor) +
+        cuzColorInput('cuz-bgColor', 'Background Color', t.bgColor) +
+        cuzColorInput('cuz-textPrimary', 'Text Primary', t.textPrimary) +
+        cuzColorInput('cuz-textSecondary', 'Text Secondary', t.textSecondary) +
+      '</div>' +
+      '<div class="cuz-divider"></div>' +
+      '<h4 class="cuz-sub-title">' + icon('type', 16) + ' Typography</h4>' +
+      '<div class="cuz-grid">' +
+        cuzTextInput('cuz-fontPrimary', 'Primary Font', t.fontPrimary, 'Inter') +
+        cuzTextInput('cuz-fontSecondary', 'Secondary Font', t.fontSecondary, 'Rajdhani') +
+        cuzNumberInput('cuz-baseFontSize', 'Base Font Size (px)', t.baseFontSize, 10, 24, 1) +
+        cuzNumberInput('cuz-headingScale', 'Heading Scale', t.headingScale, 1, 2, 0.05) +
+        cuzNumberInput('cuz-borderRadius', 'Border Radius (px)', t.borderRadius, 0, 50, 1) +
+        cuzNumberInput('cuz-glowOpacity', 'Glow Opacity', t.glowOpacity, 0, 1, 0.05) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildHeroPanel(cfg) {
+    var h = cfg.hero || {};
+    var phrases = (h.typingPhrases || []).join('\n');
+    return '<div class="cuz-panel" data-panel="hero">' +
+      '<h3 class="cuz-section-title">' + icon('zap', 18) + ' Hero Section Customization</h3>' +
+      '<p class="cuz-section-desc">Configure the hero banner — title, typing phrases, CTAs, and layout.</p>' +
+      '<div class="cuz-grid">' +
+        cuzTextInput('cuz-heroTitle', 'Hero Title', h.title, 'CYBER COMMAND') +
+        cuzTextInput('cuz-heroSubtitle', 'Subtitle', h.subtitle, 'Dhruvkumar Dobariya') +
+        cuzSelect('cuz-heroLayout', 'Layout', h.layout, [
+          { value: 'split', label: 'Split (Left/Right)' },
+          { value: 'centered', label: 'Centered' },
+          { value: 'fullscreen', label: 'Fullscreen' }
+        ]) +
+        cuzTextInput('cuz-heroStatusText', 'Status Badge Text', h.statusText, 'SYSTEMS ONLINE') +
+      '</div>' +
+      cuzTextarea('cuz-heroTyping', 'Typing Phrases (one per line)', phrases, 'SOC Analyst & Threat Hunter\nSIEM Engineer & Log Analyst', 5) +
+      '<div class="cuz-grid">' +
+        cuzTextInput('cuz-ctaPrimaryText', 'CTA Primary Text', h.ctaPrimaryText, 'View Operations') +
+        cuzTextInput('cuz-ctaPrimaryLink', 'CTA Primary Link', h.ctaPrimaryLink, '#projects') +
+        cuzTextInput('cuz-ctaSecondaryText', 'CTA Secondary Text', h.ctaSecondaryText, 'Contact HQ') +
+        cuzTextInput('cuz-ctaSecondaryLink', 'CTA Secondary Link', h.ctaSecondaryLink, '#contact') +
+      '</div>' +
+      '<div class="cuz-grid">' +
+        cuzToggle('cuz-heroShowStatus', 'Show Status Badge', h.showStatusBadge !== false) +
+        cuzToggle('cuz-heroShowScan', 'Show Scan Line', h.showScanLine !== false) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildSectionsPanel(cfg) {
+    var s = cfg.sections || {};
+    var sectionKeys = Object.keys(s).sort(function (a, b) { return (s[a].order || 0) - (s[b].order || 0); });
+    var rows = sectionKeys.map(function (key) {
+      var sec = s[key] || {};
+      return '<div class="cuz-section-row" data-section="' + key + '">' +
+        '<span class="cuz-section-handle">' + icon('menu', 14) + '</span>' +
+        '<span class="cuz-section-name">' + escapeHtml(sec.label || key) + '</span>' +
+        '<span class="cuz-section-key">' + escapeHtml(key) + '</span>' +
+        '<label class="cuz-switch"><input type="checkbox" class="section-visible" data-key="' + key + '"' + (sec.visible !== false ? ' checked' : '') + '><span class="cuz-slider"></span></label>' +
+        '<input type="number" class="form-input cuz-order-input section-order" data-key="' + key + '" value="' + (sec.order || 1) + '" min="1" max="20">' +
+      '</div>';
+    }).join('');
+    return '<div class="cuz-panel" data-panel="sections">' +
+      '<h3 class="cuz-section-title">' + icon('layout', 18) + ' Section Visibility & Order</h3>' +
+      '<p class="cuz-section-desc">Toggle sections on/off and control their display order on the main website.</p>' +
+      '<div class="cuz-sections-list">' +
+        '<div class="cuz-sections-header"><span></span><span>Section</span><span>Key</span><span>Visible</span><span>Order</span></div>' +
+        rows +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildAnimationsPanel(cfg) {
+    var a = cfg.animations || {};
+    return '<div class="cuz-panel" data-panel="animations">' +
+      '<h3 class="cuz-section-title">' + icon('activity', 18) + ' Animation Control Panel</h3>' +
+      '<p class="cuz-section-desc">Fine-tune animation speed, particle effects, glow intensity, and reveal types.</p>' +
+      '<div class="cuz-grid">' +
+        cuzNumberInput('cuz-globalSpeed', 'Global Speed Multiplier', a.globalSpeed, 0.1, 5, 0.1) +
+        cuzNumberInput('cuz-glowIntensity', 'Glow Intensity', a.glowIntensity, 0, 1, 0.05) +
+        cuzNumberInput('cuz-particleCount', 'Particle Count', a.particleCount, 0, 300, 10) +
+        cuzNumberInput('cuz-particleSpeed', 'Particle Speed', a.particleSpeed, 0, 5, 0.1) +
+        cuzNumberInput('cuz-particleOpacity', 'Particle Opacity', a.particleOpacity, 0, 1, 0.05) +
+        cuzNumberInput('cuz-typingSpeed', 'Typing Speed (ms)', a.typingSpeed, 20, 300, 10) +
+        cuzSelect('cuz-revealType', 'Reveal Animation', a.revealType, [
+          { value: 'fade-up', label: 'Fade Up' },
+          { value: 'fade-in', label: 'Fade In' },
+          { value: 'slide-left', label: 'Slide Left' },
+          { value: 'slide-right', label: 'Slide Right' },
+          { value: 'zoom', label: 'Zoom' },
+          { value: 'none', label: 'None' }
+        ]) +
+      '</div>' +
+      '<div class="cuz-divider"></div>' +
+      '<h4 class="cuz-sub-title">Feature Toggles</h4>' +
+      '<div class="cuz-grid">' +
+        cuzToggle('cuz-glowEnabled', 'Glow Effects', a.glowEnabled !== false) +
+        cuzToggle('cuz-particlesEnabled', 'Particles', a.particlesEnabled !== false) +
+        cuzToggle('cuz-cursorBlink', 'Cursor Blink', a.cursorBlink !== false) +
+        cuzToggle('cuz-smoothScroll', 'Smooth Scroll', a.smoothScroll !== false) +
+        cuzToggle('cuz-parallaxEnabled', 'Parallax', a.parallaxEnabled !== false) +
+        cuzToggle('cuz-tiltEnabled', '3D Tilt', a.tiltEnabled !== false) +
+        cuzToggle('cuz-magneticButtons', 'Magnetic Buttons', a.magneticButtons !== false) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildLayoutPanel(cfg) {
+    var l = cfg.layout || {};
+    return '<div class="cuz-panel" data-panel="layoutTab">' +
+      '<h3 class="cuz-section-title">' + icon('sidebar', 18) + ' Layout Control</h3>' +
+      '<p class="cuz-section-desc">Glassmorphism, card styles, navbar, footer, spacing.</p>' +
+      '<div class="cuz-grid">' +
+        cuzToggle('cuz-glassmorphism', 'Glassmorphism', l.glassmorphism !== false) +
+        cuzNumberInput('cuz-glassBgOpacity', 'Glass BG Opacity', l.glassBgOpacity, 0, 1, 0.05) +
+        cuzNumberInput('cuz-glassBlur', 'Glass Blur (px)', l.glassBlur, 0, 50, 1) +
+        cuzSelect('cuz-cardStyle', 'Card Style', l.cardStyle, [
+          { value: 'glass', label: 'Glassmorphic' },
+          { value: 'solid', label: 'Solid' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'minimal', label: 'Minimal' }
+        ]) +
+        cuzSelect('cuz-navbarStyle', 'Navbar Style', l.navbarStyle, [
+          { value: 'floating', label: 'Floating' },
+          { value: 'fixed', label: 'Fixed' },
+          { value: 'transparent', label: 'Transparent' },
+          { value: 'solid', label: 'Solid' }
+        ]) +
+        cuzToggle('cuz-navbarBlur', 'Navbar Blur', l.navbarBlur !== false) +
+        cuzSelect('cuz-footerStyle', 'Footer Style', l.footerStyle, [
+          { value: 'minimal', label: 'Minimal' },
+          { value: 'detailed', label: 'Detailed' },
+          { value: 'hidden', label: 'Hidden' }
+        ]) +
+        cuzNumberInput('cuz-maxWidth', 'Max Width (px)', l.maxWidth, 800, 2400, 50) +
+        cuzNumberInput('cuz-sectionSpacing', 'Section Spacing (px)', l.sectionSpacing, 40, 300, 10) +
+        cuzToggle('cuz-showBackToTop', 'Back to Top Button', l.showBackToTop !== false) +
+        cuzToggle('cuz-showProgressBar', 'Scroll Progress Bar', l.showProgressBar !== false) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildSeoPanel(cfg) {
+    var s = cfg.seo || {};
+    return '<div class="cuz-panel" data-panel="seo">' +
+      '<h3 class="cuz-section-title">' + icon('search', 18) + ' SEO Control Panel</h3>' +
+      '<p class="cuz-section-desc">Meta tags, Open Graph, Twitter Card, and structured data.</p>' +
+      '<div class="cuz-grid">' +
+        cuzTextInput('cuz-metaTitle', 'Meta Title', s.metaTitle, 'Dhruvkumar Dobariya — Cybersecurity') +
+        cuzTextInput('cuz-canonicalUrl', 'Canonical URL', s.canonicalUrl, 'https://dhruvkumar.tech') +
+      '</div>' +
+      cuzTextarea('cuz-metaDescription', 'Meta Description', s.metaDescription, 'Cybersecurity Analyst & SOC Engineer...', 3) +
+      '<div class="cuz-divider"></div>' +
+      '<h4 class="cuz-sub-title">Open Graph</h4>' +
+      '<div class="cuz-grid">' +
+        cuzTextInput('cuz-ogTitle', 'OG Title', s.ogTitle, '') +
+        cuzTextInput('cuz-ogImage', 'OG Image URL', s.ogImage, 'https://...') +
+      '</div>' +
+      cuzTextarea('cuz-ogDescription', 'OG Description', s.ogDescription, '', 2) +
+      '<div class="cuz-divider"></div>' +
+      '<h4 class="cuz-sub-title">Twitter Card</h4>' +
+      '<div class="cuz-grid">' +
+        cuzSelect('cuz-twitterCard', 'Card Type', s.twitterCard, [
+          { value: 'summary', label: 'Summary' },
+          { value: 'summary_large_image', label: 'Summary Large Image' }
+        ]) +
+        cuzTextInput('cuz-twitterHandle', 'Twitter Handle', s.twitterHandle, '@handle') +
+      '</div>' +
+      '<div class="cuz-divider"></div>' +
+      '<h4 class="cuz-sub-title">Structured Data</h4>' +
+      '<div class="cuz-grid">' +
+        cuzSelect('cuz-structuredDataType', 'Schema Type', s.structuredDataType, [
+          { value: 'Person', label: 'Person' },
+          { value: 'Organization', label: 'Organization' },
+          { value: 'WebSite', label: 'WebSite' }
+        ]) +
+        cuzTextInput('cuz-keywords', 'Keywords', s.keywords, 'cybersecurity, SOC, SIEM...') +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildSecurityPanel(cfg) {
+    var s = cfg.security || {};
+    return '<div class="cuz-panel" data-panel="security">' +
+      '<h3 class="cuz-section-title">' + icon('shield', 18) + ' Security Visual Options</h3>' +
+      '<p class="cuz-section-desc">Security badges, trust indicators, and visual security elements.</p>' +
+      '<div class="cuz-grid">' +
+        cuzToggle('cuz-showSecurityBadges', 'Security Badges', s.showSecurityBadges !== false) +
+        cuzToggle('cuz-showTrustIndicators', 'Trust Indicators', s.showTrustIndicators !== false) +
+        cuzToggle('cuz-showEncryptionBadge', 'Encryption Badge', s.showEncryptionBadge !== false) +
+        cuzToggle('cuz-showUptimeBadge', 'Uptime Badge', s.showUptimeBadge !== false) +
+        cuzToggle('cuz-securityScoreVisible', 'Security Score', s.securityScoreVisible !== false) +
+        cuzSelect('cuz-threatLevelDisplay', 'Threat Level Display', s.threatLevelDisplay, [
+          { value: 'bar', label: 'Bar' },
+          { value: 'badge', label: 'Badge' },
+          { value: 'hidden', label: 'Hidden' }
+        ]) +
+        cuzSelect('cuz-badgeStyle', 'Badge Style', s.badgeStyle, [
+          { value: 'pill', label: 'Pill' },
+          { value: 'square', label: 'Square' },
+          { value: 'rounded', label: 'Rounded' }
+        ]) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildUxPanel(cfg) {
+    var u = cfg.ux || {};
+    return '<div class="cuz-panel" data-panel="ux">' +
+      '<h3 class="cuz-section-title">' + icon('sliders', 18) + ' UX Settings</h3>' +
+      '<p class="cuz-section-desc">Scroll behavior, cursor, loader, progress bar, buttons.</p>' +
+      '<div class="cuz-grid">' +
+        cuzNumberInput('cuz-smoothScrollSpeed', 'Smooth Scroll Speed (ms)', u.smoothScrollSpeed, 100, 3000, 100) +
+        cuzToggle('cuz-customCursor', 'Custom Cursor', u.customCursor === true) +
+        cuzSelect('cuz-cursorStyle', 'Cursor Style', u.cursorStyle, [
+          { value: 'default', label: 'Default' },
+          { value: 'dot', label: 'Dot' },
+          { value: 'ring', label: 'Ring' },
+          { value: 'crosshair', label: 'Crosshair' }
+        ]) +
+        cuzToggle('cuz-loaderEnabled', 'Loader Enabled', u.loaderEnabled !== false) +
+        cuzSelect('cuz-loaderStyle', 'Loader Style', u.loaderStyle, [
+          { value: 'cyber', label: 'Cyber' },
+          { value: 'minimal', label: 'Minimal' },
+          { value: 'pulse', label: 'Pulse' },
+          { value: 'none', label: 'None' }
+        ]) +
+        cuzNumberInput('cuz-loaderDuration', 'Loader Duration (ms)', u.loaderDuration, 0, 10000, 100) +
+        cuzToggle('cuz-progressBarEnabled', 'Progress Bar', u.progressBarEnabled !== false) +
+        cuzColorInput('cuz-progressBarColor', 'Progress Bar Color', u.progressBarColor) +
+        cuzSelect('cuz-buttonStyle', 'Button Style', u.buttonStyle, [
+          { value: 'glow', label: 'Glow' },
+          { value: 'solid', label: 'Solid' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'gradient', label: 'Gradient' }
+        ]) +
+        cuzToggle('cuz-hoverEffects', 'Hover Effects', u.hoverEffects !== false) +
+        cuzColorInput('cuz-focusRingColor', 'Focus Ring Color', u.focusRingColor) +
+        cuzNumberInput('cuz-scrollRevealOffset', 'Scroll Reveal Offset', u.scrollRevealOffset, 0, 500, 10) +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildCustomCodePanel(cfg) {
+    var c = cfg.customCode || {};
+    return '<div class="cuz-panel" data-panel="customCode">' +
+      '<h3 class="cuz-section-title">' + icon('code', 18) + ' Custom CSS & HTML</h3>' +
+      '<p class="cuz-section-desc">Inject custom CSS and HTML into the website. Validated and sanitized.</p>' +
+      cuzTextarea('cuz-customCSS', 'Custom CSS', c.customCSS, '/* Custom styles here */\n.my-class { color: red; }', 8) +
+      cuzTextarea('cuz-customHeadHTML', 'Custom Head HTML', c.customHeadHTML, '<!-- e.g. analytics scripts -->', 4) +
+      cuzTextarea('cuz-customFooterHTML', 'Custom Footer HTML', c.customFooterHTML, '<!-- e.g. chat widget -->', 4) +
+    '</div>';
+  }
+
+  function buildDataControlPanel(cfg) {
+    var d = cfg.dataControl || {};
+    return '<div class="cuz-panel" data-panel="dataControl">' +
+      '<h3 class="cuz-section-title">' + icon('database', 18) + ' Data Control Settings</h3>' +
+      '<p class="cuz-section-desc">Activity monitor, idle detection, analytics integration.</p>' +
+      '<div class="cuz-grid">' +
+        cuzToggle('cuz-activityMonitorEnabled', 'Activity Monitor', d.activityMonitorEnabled !== false) +
+        cuzToggle('cuz-activityPanelVisible', 'Activity Panel Visible', d.activityPanelVisible !== false) +
+        cuzNumberInput('cuz-idleTimeout', 'Idle Timeout (seconds)', d.idleTimeout, 30, 3600, 10) +
+        cuzTextInput('cuz-idleMessage', 'Idle Message', d.idleMessage, 'Session Idle') +
+        cuzToggle('cuz-showScrollProgress', 'Scroll Progress', d.showScrollProgress !== false) +
+        cuzToggle('cuz-showSectionTracking', 'Section Tracking', d.showSectionTracking !== false) +
+        cuzToggle('cuz-showClickTracking', 'Click Tracking', d.showClickTracking !== false) +
+        cuzToggle('cuz-analyticsEnabled', 'Analytics Enabled', d.analyticsEnabled === true) +
+        cuzTextInput('cuz-analyticsId', 'Analytics ID', d.analyticsId, 'G-XXXXXXXXXX') +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildPreviewPanel() {
+    return '<div class="cuz-panel" data-panel="preview">' +
+      '<h3 class="cuz-section-title">' + icon('monitor', 18) + ' Live Preview</h3>' +
+      '<p class="cuz-section-desc">Preview your website with current customization settings.</p>' +
+      '<div class="cuz-preview-actions">' +
+        '<button class="btn btn-primary" id="cuz-preview-refresh">' + icon('refresh', 14) + ' Refresh Preview</button>' +
+        '<a class="btn btn-ghost" href="/" target="_blank" rel="noopener">' + icon('external-link', 14) + ' Open in New Tab</a>' +
+      '</div>' +
+      '<div class="cuz-preview-frame-wrap">' +
+        '<iframe id="cuz-preview-iframe" src="/" class="cuz-preview-iframe" title="Website Preview"></iframe>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function collectCustomizeData() {
+    var data = {};
+
+    // Theme
+    var theme = {};
+    ['primaryColor','secondaryColor','accentColor','successColor','dangerColor','warningColor','bgColor','textPrimary','textSecondary'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k + '-text') || document.getElementById('cuz-' + k);
+      if (el) theme[k] = el.value.trim();
+    });
+    ['fontPrimary','fontSecondary'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) theme[k] = el.value.trim();
+    });
+    ['baseFontSize','headingScale','borderRadius','glowOpacity'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) theme[k] = parseFloat(el.value);
+    });
+    if (Object.keys(theme).length) data.theme = theme;
+
+    // Hero
+    var hero = {};
+    var heroTitle = document.getElementById('cuz-heroTitle');
+    if (heroTitle) hero.title = heroTitle.value.trim();
+    var heroSub = document.getElementById('cuz-heroSubtitle');
+    if (heroSub) hero.subtitle = heroSub.value.trim();
+    var heroLayout = document.getElementById('cuz-heroLayout');
+    if (heroLayout) hero.layout = heroLayout.value;
+    var heroStatus = document.getElementById('cuz-heroStatusText');
+    if (heroStatus) hero.statusText = heroStatus.value.trim();
+    var heroTyping = document.getElementById('cuz-heroTyping');
+    if (heroTyping) hero.typingPhrases = heroTyping.value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    ['ctaPrimaryText','ctaPrimaryLink','ctaSecondaryText','ctaSecondaryLink'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) hero[k] = el.value.trim();
+    });
+    var heroShowStatus = document.getElementById('cuz-heroShowStatus');
+    if (heroShowStatus) hero.showStatusBadge = heroShowStatus.checked;
+    var heroShowScan = document.getElementById('cuz-heroShowScan');
+    if (heroShowScan) hero.showScanLine = heroShowScan.checked;
+    if (Object.keys(hero).length) data.hero = hero;
+
+    // Sections
+    var sections = {};
+    document.querySelectorAll('.section-visible').forEach(function(el) {
+      var key = el.dataset.key;
+      if (!sections[key]) sections[key] = {};
+      sections[key].visible = el.checked;
+    });
+    document.querySelectorAll('.section-order').forEach(function(el) {
+      var key = el.dataset.key;
+      if (!sections[key]) sections[key] = {};
+      sections[key].order = parseInt(el.value, 10);
+    });
+    if (Object.keys(sections).length) data.sections = sections;
+
+    // Animations
+    var animations = {};
+    ['globalSpeed','glowIntensity','particleCount','particleSpeed','particleOpacity','typingSpeed'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) animations[k] = parseFloat(el.value);
+    });
+    var revealType = document.getElementById('cuz-revealType');
+    if (revealType) animations.revealType = revealType.value;
+    ['glowEnabled','particlesEnabled','cursorBlink','smoothScroll','parallaxEnabled','tiltEnabled','magneticButtons'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) animations[k] = el.checked;
+    });
+    if (Object.keys(animations).length) data.animations = animations;
+
+    // Layout
+    var layout = {};
+    ['glassBgOpacity','glassBlur','maxWidth','sectionSpacing'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) layout[k] = parseFloat(el.value);
+    });
+    ['glassmorphism','navbarBlur','showBackToTop','showProgressBar'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) layout[k] = el.checked;
+    });
+    ['cardStyle','navbarStyle','footerStyle'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) layout[k] = el.value;
+    });
+    if (Object.keys(layout).length) data.layout = layout;
+
+    // SEO
+    var seo = {};
+    ['metaTitle','canonicalUrl','ogTitle','ogImage','twitterHandle','keywords'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) seo[k] = el.value.trim();
+    });
+    ['metaDescription','ogDescription'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) seo[k] = el.value.trim();
+    });
+    ['twitterCard','structuredDataType'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) seo[k] = el.value;
+    });
+    if (Object.keys(seo).length) data.seo = seo;
+
+    // Security
+    var security = {};
+    ['showSecurityBadges','showTrustIndicators','showEncryptionBadge','showUptimeBadge','securityScoreVisible'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) security[k] = el.checked;
+    });
+    ['threatLevelDisplay','badgeStyle'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) security[k] = el.value;
+    });
+    if (Object.keys(security).length) data.security = security;
+
+    // UX
+    var ux = {};
+    ['smoothScrollSpeed','loaderDuration','scrollRevealOffset'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) ux[k] = parseFloat(el.value);
+    });
+    ['customCursor','loaderEnabled','progressBarEnabled','hoverEffects'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) ux[k] = el.checked;
+    });
+    ['cursorStyle','loaderStyle','buttonStyle'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) ux[k] = el.value;
+    });
+    ['progressBarColor','focusRingColor'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k + '-text') || document.getElementById('cuz-' + k);
+      if (el) ux[k] = el.value.trim();
+    });
+    if (Object.keys(ux).length) data.ux = ux;
+
+    // Custom Code
+    var customCode = {};
+    ['customCSS','customHeadHTML','customFooterHTML'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) customCode[k] = el.value;
+    });
+    if (Object.keys(customCode).length) data.customCode = customCode;
+
+    // Data Control
+    var dataControl = {};
+    ['activityMonitorEnabled','activityPanelVisible','showScrollProgress','showSectionTracking','showClickTracking','analyticsEnabled'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) dataControl[k] = el.checked;
+    });
+    ['idleTimeout'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) dataControl[k] = parseInt(el.value, 10);
+    });
+    ['idleMessage','analyticsId'].forEach(function(k) {
+      var el = document.getElementById('cuz-' + k);
+      if (el) dataControl[k] = el.value.trim();
+    });
+    if (Object.keys(dataControl).length) data.dataControl = dataControl;
+
+    return data;
+  }
+
+  function bindCustomizeEvents(container) {
+    // Tab switching
+    container.querySelectorAll('.cuz-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        activeCustomizeTab = btn.dataset.tab;
+        container.querySelectorAll('.cuz-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === activeCustomizeTab); });
+        container.querySelectorAll('.cuz-panel').forEach(function(p) {
+          p.style.display = p.dataset.panel === activeCustomizeTab ? '' : 'none';
+        });
+      });
+    });
+
+    // Show only active panel
+    container.querySelectorAll('.cuz-panel').forEach(function(p) {
+      p.style.display = p.dataset.panel === activeCustomizeTab ? '' : 'none';
+    });
+
+    // Color sync: color picker ↔ text input
+    container.querySelectorAll('.cuz-color').forEach(function(colorInput) {
+      var textInput = document.getElementById(colorInput.id + '-text');
+      if (!textInput) return;
+      colorInput.addEventListener('input', function() { textInput.value = colorInput.value; });
+      textInput.addEventListener('input', function() {
+        if (/^#[0-9a-fA-F]{6}$/.test(textInput.value)) colorInput.value = textInput.value;
+      });
+    });
+
+    // Range ↔ number sync
+    container.querySelectorAll('.cuz-range').forEach(function(range) {
+      var numId = range.id.replace('-range', '');
+      var numInput = document.getElementById(numId);
+      if (!numInput) return;
+      range.addEventListener('input', function() { numInput.value = range.value; });
+      numInput.addEventListener('input', function() { range.value = numInput.value; });
+    });
+
+    // Save button
+    var saveBtn = document.getElementById('cuz-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async function() {
+        var data = collectCustomizeData();
+        try {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = icon('refresh', 14) + ' Saving...';
+          var result = await api('/customize', { method: 'PUT', body: JSON.stringify(data) });
+          customizeCache = result;
+          showToast('Customization saved successfully');
+          // Refresh preview if visible
+          var iframe = document.getElementById('cuz-preview-iframe');
+          if (iframe) iframe.src = iframe.src;
+        } catch(err) { /* toast shown by api() */ }
+        finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = icon('check', 14) + ' Save All Changes';
+        }
+      });
+    }
+
+    // Reset button
+    var resetBtn = document.getElementById('cuz-reset');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', async function() {
+        var confirmed = await customConfirm('Reset all customization to defaults? This cannot be undone.', { title: 'Reset Customization', type: 'danger', confirmText: 'Reset' });
+        if (!confirmed) return;
+        try {
+          var result = await api('/customize/reset', { method: 'POST' });
+          customizeCache = result;
+          showToast('Customization reset to defaults');
+          renderCustomize(document.getElementById('page-content'));
+        } catch(err) { /* */ }
+      });
+    }
+
+    // Preview refresh
+    var previewRefresh = document.getElementById('cuz-preview-refresh');
+    if (previewRefresh) {
+      previewRefresh.addEventListener('click', function() {
+        var iframe = document.getElementById('cuz-preview-iframe');
+        if (iframe) iframe.src = iframe.src;
+      });
+    }
+  }
+
+  async function renderCustomize(container) {
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon('palette', 22) + ' Customize</h1><p class="page-subtitle">Enterprise Customization Engine — Control every visual element</p></div>' +
+        '<div class="page-header-actions">' +
+          '<button class="btn btn-ghost" id="cuz-reset">' + icon('refresh', 14) + ' Reset Defaults</button>' +
+          '<button class="btn btn-primary" id="cuz-save">' + icon('check', 14) + ' Save All Changes</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="cuz-content">' + skeleton('cards', 2) + '</div>';
+
+    try {
+      var cfg = customizeCache || await api('/customize');
+      customizeCache = cfg;
+      var cuzEl = document.getElementById('cuz-content');
+      if (!cuzEl) return;
+
+      cuzEl.innerHTML =
+        buildCustomizeTabs() +
+        '<div class="cuz-panels">' +
+          buildThemePanel(cfg) +
+          buildHeroPanel(cfg) +
+          buildSectionsPanel(cfg) +
+          buildAnimationsPanel(cfg) +
+          buildLayoutPanel(cfg) +
+          buildSeoPanel(cfg) +
+          buildSecurityPanel(cfg) +
+          buildUxPanel(cfg) +
+          buildCustomCodePanel(cfg) +
+          buildDataControlPanel(cfg) +
+          buildPreviewPanel() +
+        '</div>';
+
+      bindCustomizeEvents(container);
+    } catch(err) {
+      var el = document.getElementById('cuz-content');
+      if (el) el.innerHTML = '<p style="color:var(--danger);padding:var(--sp-4)">Failed to load customization settings. Is the API running?</p>';
+    }
   }
 
   /* ═══════════════════════════════════════════
