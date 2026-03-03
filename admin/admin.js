@@ -526,6 +526,16 @@
   }
 
   function renderDashboard() {
+    const pageNames = {
+      dashboard: 'Dashboard',
+      projects: 'Projects',
+      services: 'Services',
+      messages: 'Messages',
+      audit: 'Audit Log',
+      settings: 'Settings'
+    };
+    const pageTitle = pageNames[currentPage] || 'Dashboard';
+
     app.innerHTML = `
       <div class="app-layout">
         <button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">☰</button>
@@ -535,6 +545,7 @@
             Dhruvkumar Dobariya
             <small>Admin Panel</small>
           </div>
+          <div class="sidebar-section-label">Navigation</div>
           <ul class="sidebar-nav" id="sidebar-nav">
             <li><a href="#" data-page="dashboard" class="${currentPage === 'dashboard' ? 'active' : ''}"><span class="nav-icon">📊</span> Dashboard</a></li>
             <li><a href="#" data-page="projects" class="${currentPage === 'projects' ? 'active' : ''}"><span class="nav-icon">🔐</span> Projects</a></li>
@@ -546,8 +557,23 @@
               <button id="logout-btn"><span class="nav-icon">🚪</span> Logout</button>
             </li>
           </ul>
-          <div class="sidebar-user">Logged in as <strong>admin</strong></div>
+          <div class="sidebar-user">
+            <span class="sidebar-user-avatar">DD</span>
+            Logged in as <strong>admin</strong>
+          </div>
         </aside>
+        <header class="topbar">
+          <div class="topbar-left">
+            <span class="topbar-title">${pageTitle}</span>
+            <span class="topbar-breadcrumb">/ Admin / ${pageTitle}</span>
+          </div>
+          <div class="topbar-right">
+            <button class="topbar-btn" id="topbar-logout-btn">
+              <span>🚪</span> Logout
+            </button>
+            <div class="topbar-avatar">DD</div>
+          </div>
+        </header>
         <main class="main-content" id="page-content"></main>
       </div>
     `;
@@ -576,6 +602,11 @@
 
     document.getElementById('logout-btn').addEventListener('click', () => {
       if (isMobile()) closeSidebar();
+      logout();
+    });
+
+    // Topbar logout
+    document.getElementById('topbar-logout-btn').addEventListener('click', () => {
       logout();
     });
 
@@ -615,7 +646,7 @@
     try {
       const stats = await api('/dashboard/stats');
       document.getElementById('stats-grid').innerHTML = `
-        <div class="stat-card"><div class="stat-icon">🔐</div><div class="stat-value">${stats.totalProjects}</div><div class="stat-label">Projects</div></div>
+        <div class="stat-card"><div class="stat-icon">🔐</div><div class="stat-value">${stats.totalProjects}</div><div class="stat-label">Total Projects</div></div>
         <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">${stats.featuredProjects}</div><div class="stat-label">Featured</div></div>
         <div class="stat-card"><div class="stat-icon">⚙️</div><div class="stat-value">${stats.totalServices}</div><div class="stat-label">Services</div></div>
         <div class="stat-card"><div class="stat-icon">📬</div><div class="stat-value">${stats.totalMessages}</div><div class="stat-label">Messages</div></div>
