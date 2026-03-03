@@ -260,28 +260,29 @@
             </svg>
           </div>
 
-          <!-- LIVE THREAT FEED -->
-          <div class="threat-feed">
-            <div class="threat-feed-header">
+          <!-- SESSION ACTIVITY MONITOR -->
+          <div class="session-monitor">
+            <div class="session-monitor-header">
               <span class="dot-pulse" aria-hidden="true"></span>
-              Live Threat Feed
+              Live Session Monitor
             </div>
-            <ul class="threat-feed-list" id="threat-feed" role="log" aria-live="polite"></ul>
+            <p class="session-monitor-sub">Real-Time Visitor Interaction Log</p>
+            <ul class="session-log" id="session-log" role="log" aria-live="polite"></ul>
           </div>
 
-          <!-- COMMAND STATUS -->
-          <div class="command-stats">
-            <div class="cmd-stat">
-              <span class="cmd-stat-val active-status">ACTIVE</span>
-              <span class="cmd-stat-label">SOC Status</span>
+          <!-- SESSION STATS -->
+          <div class="session-stats">
+            <div class="ss-stat">
+              <span class="ss-stat-val active-status" id="ss-status">ACTIVE</span>
+              <span class="ss-stat-label">Status</span>
             </div>
-            <div class="cmd-stat">
-              <span class="cmd-stat-val">0</span>
-              <span class="cmd-stat-label">Critical</span>
+            <div class="ss-stat">
+              <span class="ss-stat-val" id="ss-scroll">0%</span>
+              <span class="ss-stat-label">Scrolled</span>
             </div>
-            <div class="cmd-stat">
-              <span class="cmd-stat-val">99.9%</span>
-              <span class="cmd-stat-label">Uptime</span>
+            <div class="ss-stat">
+              <span class="ss-stat-val" id="ss-events">0</span>
+              <span class="ss-stat-label">Events</span>
             </div>
           </div>
         </div>

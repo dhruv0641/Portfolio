@@ -702,15 +702,35 @@ section {
 }
 @keyframes checkDraw { to { stroke-dashoffset: 0; } }
 
-/* ---------- 12. THREAT FEED ---------- */
-.threat-feed {
+/* ---------- 12. SESSION ACTIVITY MONITOR ---------- */
+.session-monitor {
   width: 100%;
   background: rgba(0,0,0,0.3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   overflow: hidden;
+  position: relative;
 }
-.threat-feed-header {
+/* Scanning line across monitor */
+.session-monitor::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; right: 0;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: monitorScan 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes monitorScan {
+  0%   { left: -100%; opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.session-monitor-header {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -729,17 +749,30 @@ section {
   border-radius: 50%;
   animation: pulse 1.5s infinite;
 }
+.session-monitor-sub {
+  padding: var(--s-1) var(--s-3) 0;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
 
-.threat-feed-list {
+.session-log {
   list-style: none;
   padding: var(--s-2) var(--s-3);
-  max-height: 120px;
-  overflow: hidden;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  scroll-behavior: smooth;
 }
-.threat-feed-list li {
+/* Thin scrollbar */
+.session-log::-webkit-scrollbar { width: 3px; }
+.session-log::-webkit-scrollbar-track { background: transparent; }
+.session-log::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 3px; }
+
+.session-log li {
   font-size: 0.68rem;
   font-family: 'Courier New', monospace;
   color: var(--text-muted);
@@ -747,48 +780,51 @@ section {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  animation: feedFadeIn var(--motion-slow) ease;
+  animation: logFadeIn var(--motion-slow) ease;
 }
-.threat-feed-list li .tf-time {
+.session-log .sl-time {
   color: var(--text-dim);
 }
-.threat-feed-list li .tf-type-block {
-  color: var(--danger);
-}
-.threat-feed-list li .tf-type-detect {
-  color: var(--warning);
-}
-.threat-feed-list li .tf-type-clear {
+.session-log .sl-section {
   color: var(--neon-green);
 }
+.session-log .sl-click {
+  color: var(--accent);
+}
+.session-log .sl-scroll {
+  color: var(--text-secondary);
+}
+.session-log .sl-idle {
+  color: var(--warning);
+}
 
-@keyframes feedFadeIn {
+@keyframes logFadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Command status */
-.command-stats {
+/* Session stats */
+.session-stats {
   display: flex;
   gap: var(--s-6);
   width: 100%;
   justify-content: center;
 }
-.cmd-stat {
+.ss-stat {
   text-align: center;
 }
-.cmd-stat-val {
+.ss-stat-val {
   display: block;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--text-sm);
   color: #fff;
 }
-.cmd-stat-val.active-status {
+.ss-stat-val.active-status {
   color: var(--neon-green);
   position: relative;
 }
-.cmd-stat-val.active-status::before {
+.ss-stat-val.active-status::before {
   content: '';
   display: inline-block;
   width: 6px; height: 6px;
@@ -798,7 +834,10 @@ section {
   animation: pulse 1.5s infinite;
   vertical-align: middle;
 }
-.cmd-stat-label {
+.ss-stat-val.idle-status {
+  color: var(--warning);
+}
+.ss-stat-label {
   font-size: var(--text-xs);
   color: var(--text-dim);
 }

@@ -365,56 +365,184 @@
     });
   }
 
-  /* ======== LIVE THREAT FEED ======== */
-  var threatMessages = [
-    { type: 'block', msg: 'Threat blocked from Frankfurt — IP 203.0.113.42' },
-    { type: 'detect', msg: 'Phishing attempt detected — domain spoofing' },
-    { type: 'block', msg: 'Brute force blocked — 47 failed SSH attempts' },
-    { type: 'detect', msg: 'Anomaly flagged by AI — unusual traffic spike' },
-    { type: 'clear', msg: 'Scan complete — all systems nominal' },
-    { type: 'block', msg: 'Malware signature matched — Trojan.Gen' },
-    { type: 'detect', msg: 'Port scan detected — 192.168.1.0/24 range' },
-    { type: 'clear', msg: 'Firewall rules updated — 12 new entries' },
-    { type: 'block', msg: 'DDoS mitigation active — 2.4Gbps blocked' },
-    { type: 'detect', msg: 'Suspicious login — geo anomaly flagged' }
-  ];
-  var feedIdx = 0;
+  /* ======== SESSION ACTIVITY MONITOR ======== */
+  var sessionLog = null;
+  var ssScrollEl = null;
+  var ssEventsEl = null;
+  var ssStatusEl = null;
+  var sessionStartTime = Date.now();
+  var sessionEventCount = 0;
+  var MAX_LOG_ENTRIES = 15;
+  var lastScrollPct = -1;
+  var lastSectionLogged = '';
+  var idleTimer = null;
+  var isIdle = false;
+  var IDLE_TIMEOUT = 8000;
 
-  function initThreatFeed() {
-    var feedList = qs('#threat-feed');
-    if (!feedList) return;
+  function getSessionTime() {
+    return Math.floor((Date.now() - sessionStartTime) / 1000);
+  }
 
-    function getTimestamp() {
-      var now = new Date();
-      var h = String(now.getHours()).padStart(2, '0');
-      var m = String(now.getMinutes()).padStart(2, '0');
-      var s = String(now.getSeconds()).padStart(2, '0');
-      return h + ':' + m + ':' + s;
+  function addSessionLog(text, type) {
+    if (!sessionLog) return;
+    sessionEventCount++;
+    if (ssEventsEl) ssEventsEl.textContent = sessionEventCount;
+
+    var li = document.createElement('li');
+    var typeClass = 'sl-' + (type || 'scroll');
+    li.innerHTML = '<span class="sl-time">[' + getSessionTime() + 's]</span> <span class="' + typeClass + '">' + text + '</span>';
+    sessionLog.appendChild(li);
+
+    // Keep max entries
+    while (sessionLog.children.length > MAX_LOG_ENTRIES) {
+      sessionLog.removeChild(sessionLog.firstChild);
     }
 
-    function addEntry() {
-      var entry = threatMessages[feedIdx % threatMessages.length];
-      feedIdx++;
-      var li = document.createElement('li');
-      var typeClass = 'tf-type-' + entry.type;
-      li.innerHTML = '<span class="tf-time">[' + getTimestamp() + ']</span> <span class="' + typeClass + '">' +
-        (entry.type === 'block' ? 'BLOCKED' : entry.type === 'detect' ? 'DETECT' : 'CLEAR') +
-        '</span> ' + entry.msg;
-      feedList.insertBefore(li, feedList.firstChild);
+    // Auto-scroll to bottom
+    sessionLog.scrollTop = sessionLog.scrollHeight;
+  }
 
-      // Keep max 5 items
-      while (feedList.children.length > 5) {
-        feedList.removeChild(feedList.lastChild);
+  /* Idle detection */
+  function resetIdleTimer() {
+    if (isIdle) {
+      isIdle = false;
+      if (ssStatusEl) {
+        ssStatusEl.textContent = 'ACTIVE';
+        ssStatusEl.classList.add('active-status');
+        ssStatusEl.classList.remove('idle-status');
       }
+      addSessionLog('User active again', 'section');
     }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      isIdle = true;
+      if (ssStatusEl) {
+        ssStatusEl.textContent = 'IDLE';
+        ssStatusEl.classList.remove('active-status');
+        ssStatusEl.classList.add('idle-status');
+      }
+      addSessionLog('User idle\u2026', 'idle');
+    }, IDLE_TIMEOUT);
+  }
 
-    // Initial entries
-    addEntry();
-    setTimeout(function () { addEntry(); }, 600);
-    setTimeout(function () { addEntry(); }, 1200);
+  /* Scroll tracking (debounced) */
+  var sectionNames = {
+    hero: 'Hero',
+    about: 'About Section',
+    timeline: 'Timeline Section',
+    projects: 'Projects Section',
+    services: 'Services Section',
+    tools: 'Tools Section',
+    certifications: 'Certifications Section',
+    why: 'Why Hire Me Section',
+    contact: 'Contact Section'
+  };
 
-    // Cycle
-    setInterval(addEntry, 3000);
+  var debouncedSessionScroll = debounce(function () {
+    var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    var scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (scrollHeight <= 0) return;
+    var pct = Math.round(scrollTop / scrollHeight * 100);
+    if (ssScrollEl) ssScrollEl.textContent = pct + '%';
+
+    // Only log at every 25% milestone
+    var milestone = Math.floor(pct / 25) * 25;
+    if (milestone > 0 && milestone !== lastScrollPct) {
+      lastScrollPct = milestone;
+      addSessionLog('Scrolled to ' + pct + '%', 'scroll');
+    }
+    resetIdleTimer();
+  }, 100);
+
+  /* Section visibility via IntersectionObserver */
+  function initSectionTracking() {
+    var tracked = qsa('section[id]');
+    if (!tracked.length) return;
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          var id = entry.target.getAttribute('id');
+          var name = sectionNames[id] || id;
+          if (name !== lastSectionLogged) {
+            lastSectionLogged = name;
+            addSessionLog('Entered ' + name, 'section');
+          }
+        }
+      });
+    }, { threshold: 0.3 });
+    tracked.forEach(function (sec) { observer.observe(sec); });
+  }
+
+  /* Click tracking */
+  function initClickTracking() {
+    document.addEventListener('click', function (e) {
+      var target = e.target.closest('a, button');
+      if (!target) return;
+
+      var label = '';
+      // Nav links
+      if (target.closest('.nav-links')) {
+        label = 'Nav: ' + (target.textContent || '').trim();
+      }
+      // CTA buttons
+      else if (target.classList.contains('btn-primary') || target.classList.contains('btn-secondary')) {
+        label = 'CTA: ' + (target.textContent || '').trim().substring(0, 30);
+      }
+      // Submit button
+      else if (target.classList.contains('btn-submit')) {
+        label = 'Submitted Contact Form';
+      }
+      // Project links
+      else if (target.classList.contains('project-link')) {
+        var card = target.closest('.project-card');
+        var pname = card ? (card.querySelector('.project-name') || {}).textContent : '';
+        label = 'Project: ' + (pname || 'link').trim();
+      }
+      // Social links
+      else if (target.closest('.socials')) {
+        var ariaLabel = target.getAttribute('aria-label') || '';
+        label = 'Social: ' + ariaLabel;
+      }
+      // Floating CTA
+      else if (target.closest('.floating-cta')) {
+        label = 'Floating CTA';
+      }
+      // Hamburger
+      else if (target.classList.contains('hamburger') || target.closest('.hamburger')) {
+        label = 'Toggle Menu';
+      }
+      else {
+        return; // Ignore untracked clicks
+      }
+
+      addSessionLog('Clicked: ' + label, 'click');
+      resetIdleTimer();
+    });
+  }
+
+  function initSessionMonitor() {
+    sessionLog = qs('#session-log');
+    ssScrollEl = qs('#ss-scroll');
+    ssEventsEl = qs('#ss-events');
+    ssStatusEl = qs('#ss-status');
+    if (!sessionLog) return;
+
+    addSessionLog('Session started', 'section');
+    addSessionLog('Monitoring user activity\u2026', 'scroll');
+
+    initSectionTracking();
+    initClickTracking();
+
+    // Listen for scroll
+    window.addEventListener('scroll', debouncedSessionScroll, { passive: true });
+
+    // Listen for activity to reset idle
+    ['mousemove', 'keydown', 'touchstart'].forEach(function (evt) {
+      document.addEventListener(evt, debounce(resetIdleTimer, 200), { passive: true });
+    });
+
+    // Start idle timer
+    resetIdleTimer();
   }
 
   /* ======== CONTACT FORM ======== */
@@ -529,7 +657,7 @@
     initTimeline();
     animateCounters();
     animateMetrics();
-    initThreatFeed();
+    initSessionMonitor();
     initTiltCards();
     initMagneticButtons();
   }
