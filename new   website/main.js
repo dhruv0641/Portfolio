@@ -497,47 +497,7 @@
     observer.observe(whySection);
   }
 
-  /* ======== METRICS BAR — COUNTER ANIMATION ======== */
-  function animateMetrics() {
-    var threatsEl = qs('#m-threats');
-    var detectionEl = qs('#m-detection');
-    if (!threatsEl && !detectionEl) return;
 
-    function countUp(el, target, decimals, suffix, duration) {
-      if (!el) return;
-      var start = 0;
-      var startTime = null;
-      var factor = Math.pow(10, decimals);
-      function step(ts) {
-        if (!startTime) startTime = ts;
-        var progress = Math.min((ts - startTime) / duration, 1);
-        var eased = progress < 0.5
-          ? 2 * progress * progress
-          : -1 + (4 - 2 * progress) * progress;
-        var val = eased * target;
-        if (decimals > 0) {
-          el.textContent = (Math.round(val * factor) / factor).toFixed(decimals) + suffix;
-        } else {
-          el.textContent = Math.floor(val).toLocaleString() + suffix;
-        }
-        if (progress < 1) requestAnimationFrame(step);
-        else {
-          if (decimals > 0) {
-            el.textContent = target.toFixed(decimals) + suffix;
-          } else {
-            el.textContent = target.toLocaleString() + suffix;
-          }
-        }
-      }
-      requestAnimationFrame(step);
-    }
-
-    // Animate after loader hides
-    setTimeout(function () {
-      countUp(threatsEl, 12847, 0, '+', 2000);
-      countUp(detectionEl, 99.4, 1, '%', 2000);
-    }, 200);
-  }
 
   /* ======== MOUSE SPOTLIGHT (desktop only) ======== */
   function initMouseSpotlight() {
@@ -882,7 +842,6 @@
     initReveals();
     initTimeline();
     animateCounters();
-    animateMetrics();
     initSessionMonitor();
     initTiltCards();
     initMagneticButtons();
