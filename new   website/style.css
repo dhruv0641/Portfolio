@@ -1778,15 +1778,98 @@ footer {
 
 /* ---------- 25. RESPONSIVE ---------- */
 
-/* 1200px */
+/* Body scroll lock when mobile menu is open */
+body.menu-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* 1200px — Desktop grid adjustments */
 @media (max-width: 1200px) {
   .expertise-grid { grid-template-columns: repeat(2, 1fr); }
   .services-grid { grid-template-columns: repeat(2, 1fr); }
   .tools-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
-/* 1024px */
+/* 1024px — Tablet & Mobile Navigation */
 @media (max-width: 1024px) {
+
+  /* ── Full-screen overlay navigation ── */
+  .hamburger {
+    display: flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-links {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(11,15,25,0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: var(--s-3);
+    z-index: 1005;
+    padding: var(--s-16) var(--s-6);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .3s ease, visibility .3s ease;
+  }
+  .nav-links.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .nav-links a {
+    font-size: var(--text-2xl);
+    font-family: var(--font-display);
+    font-weight: 600;
+    padding: var(--s-4) var(--s-8);
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    border-radius: var(--r-lg);
+    transition: color var(--motion-medium), background var(--motion-medium);
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  .nav-links.open a {
+    transform: translateY(0);
+    opacity: 1;
+    transition: color var(--motion-medium), background var(--motion-medium),
+                transform .4s cubic-bezier(.16,1,.3,1), opacity .4s ease;
+  }
+  .nav-links.open a:nth-child(1) { transition-delay: .05s; }
+  .nav-links.open a:nth-child(2) { transition-delay: .10s; }
+  .nav-links.open a:nth-child(3) { transition-delay: .15s; }
+  .nav-links.open a:nth-child(4) { transition-delay: .20s; }
+  .nav-links.open a:nth-child(5) { transition-delay: .25s; }
+  .nav-links.open a:nth-child(6) { transition-delay: .30s; }
+
+  .nav-links a:hover,
+  .nav-links a:active {
+    color: #fff;
+    background: rgba(0,245,255,0.06);
+  }
+
+  /* Nav CTA in overlay */
+  .nav-links .nav-cta {
+    margin-top: var(--s-6);
+    font-size: var(--text-xl) !important;
+    padding: var(--s-4) var(--s-10) !important;
+    min-height: 56px;
+  }
+
+  /* ── Layout stacking ── */
   .hero-split {
     grid-template-columns: 1fr;
     gap: var(--s-10);
@@ -1827,42 +1910,35 @@ footer {
   .projects-grid { grid-template-columns: 1fr; }
   .contact-grid { grid-template-columns: 1fr; gap: var(--s-10); }
 
-  .hamburger { display: flex; }
-  .nav-links {
-    position: fixed;
-    top: 0; right: -100%;
-    width: 280px; height: 100vh;
-    background: var(--bg-surface);
-    border-left: 1px solid var(--border);
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: var(--s-2);
-    transition: right .35s ease;
-    z-index: 1005;
-    padding: var(--s-10);
-  }
-  .nav-links.open { right: 0; }
-  .nav-links a { font-size: var(--text-lg); padding: var(--s-3) var(--s-6); }
-
   .tools-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Reduce glows on tablet */
+  .hero-glow { width: 500px; height: 350px; }
+  .mouse-spotlight { display: none; }
 }
 
-/* 768px */
+/* 768px — Mobile */
 @media (max-width: 768px) {
-  html { scroll-padding-top: 100px; }
+  html { scroll-padding-top: 80px; }
   section { padding: var(--s-16) 0; }
   .section-title { font-size: var(--text-3xl); }
+  .section-subtitle { font-size: var(--text-base); }
 
-  #hero { padding-top: 120px; }
+  /* ── Hero mobile ── */
+  #hero { padding-top: 100px; padding-bottom: var(--s-10); min-height: auto; }
   .hero-name { font-size: clamp(2rem, 10vw, 3.5rem); }
   .hero-title { font-size: var(--text-xl); }
-  .hero-desc { font-size: var(--text-base); }
+  .hero-desc { font-size: var(--text-base); margin-bottom: var(--s-8); }
+  .hero-badge { margin-bottom: var(--s-6); }
+  .hero-glow { width: 350px; height: 250px; opacity: 0.5; }
   .cyber-ring-wrap { width: 150px; height: 150px; }
   .shield-center { width: 70px; height: 82px; }
 
+  /* ── Cards & grids single-column ── */
   .expertise-grid { grid-template-columns: 1fr; }
   .services-grid { grid-template-columns: 1fr; }
+  .expertise-card { padding: var(--s-6); }
+  .service-card { padding: var(--s-6); }
 
   .cert-card { flex-direction: column; gap: var(--s-4); text-align: center; }
   .cert-verified { justify-content: center; }
@@ -1871,45 +1947,208 @@ footer {
   .why-stats { grid-template-columns: repeat(2, 1fr); }
   .form-row { grid-template-columns: 1fr; }
 
-
-
   .tools-grid { grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
 
+  /* ── Footer mobile ── */
   .footer-inner { flex-direction: column; text-align: center; gap: var(--s-4); }
   .footer-right { align-items: center; }
   .footer-links { flex-wrap: wrap; justify-content: center; }
+
+  /* ── Touch-friendly buttons (48px min tap targets) ── */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 48px;
+    padding: var(--s-3) var(--s-6);
+    font-size: var(--text-base);
+  }
+  .btn-submit {
+    min-height: 52px;
+    padding: var(--s-4) var(--s-8);
+    font-size: var(--text-base);
+  }
+  .btn-email-me {
+    min-height: 48px;
+    padding: var(--s-3) var(--s-6);
+  }
+
+  /* ── Form inputs — 16px font prevents iOS zoom on focus ── */
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px;
+    padding: var(--s-4);
+    min-height: 48px;
+  }
+  .form-group label {
+    font-size: var(--text-base);
+    margin-bottom: var(--s-2);
+  }
+  .form-box { padding: var(--s-6); }
+
+  /* ── Contact items touch targets ── */
+  .contact-item { padding: var(--s-3) 0; }
+  .ci-icon { width: 44px; height: 44px; }
+
+  /* ── Social buttons 44px touch ── */
+  .social-btn { width: 44px; height: 44px; }
+
+  /* ── Reduce expensive shadows on mobile ── */
+  .project-card:hover,
+  .service-card:hover,
+  .expertise-card:hover,
+  .tool-item:hover,
+  .cert-card:hover {
+    box-shadow: 0 0 12px rgba(0,245,255,0.1);
+  }
+
+  /* Remove hover transforms on mobile (they stick on touch) */
+  .project-card:hover,
+  .service-card:hover,
+  .expertise-card:hover {
+    transform: none;
+  }
+
+  /* ── Cyber grid — tighter pattern on mobile ── */
+  .cyber-grid { background-size: 40px 40px; }
+
+  /* ── Project cards mobile ── */
+  .project-header { padding: var(--s-6) var(--s-5) 0; }
+  .project-info { padding: var(--s-5); }
+  .project-img-bg { width: 64px; height: 64px; }
+  .project-link { min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* ── Timeline compact ── */
+  .timeline-track { padding-left: var(--s-10); }
+  .tl-node { width: 40px; height: 40px; }
+  .tl-card { padding: var(--s-4); }
+  .tl-card h3 { font-size: var(--text-sm); }
+
+  /* ── Mission quote ── */
+  .mission-quote { padding: var(--s-8) var(--s-6); }
+  .mission-quote p { font-size: var(--text-lg); }
+
+  /* ── Why section ── */
+  .why-box { padding: var(--s-12) var(--s-6); }
 }
 
-/* 480px */
+/* 480px — Small phones */
 @media (max-width: 480px) {
   .container { padding: 0 var(--s-4); }
-  section { padding: var(--s-12) 0; }
+  section { padding: var(--s-10) 0; }
   #navbar { padding: var(--s-3) var(--s-4); }
   .section-title { font-size: var(--text-2xl); }
+  .section-label { font-size: 0.65rem; }
 
+  /* ── Hero compact ── */
+  #hero { padding-top: 80px; padding-bottom: var(--s-8); }
   .hero-badge { font-size: 0.65rem; padding: 6px 12px; }
-  .hero-ctas { flex-direction: column; align-items: center; }
+  .hero-desc { font-size: var(--text-sm); }
+  .hero-ctas { flex-direction: column; align-items: center; width: 100%; }
   .hero-ctas .btn-primary,
-  .hero-ctas .btn-secondary { width: 100%; justify-content: center; max-width: 280px; }
+  .hero-ctas .btn-secondary { width: 100%; justify-content: center; max-width: 300px; }
 
   .scroll-indicator { display: none; }
   .cyber-command-panel { padding: var(--s-5); }
   .cyber-ring-wrap { width: 120px; height: 120px; }
   .shield-center { width: 56px; height: 66px; }
 
+  /* ── Why section ── */
   .why-stats { grid-template-columns: repeat(2, 1fr); gap: var(--s-4); }
   .why-num { font-size: var(--text-3xl); }
-  .why-box { padding: var(--s-10) var(--s-6); }
+  .why-box { padding: var(--s-8) var(--s-4); }
 
-  .tools-grid { grid-template-columns: repeat(2, 1fr); }
-  .mission-quote { padding: var(--s-6); }
+  /* ── Tools grid 2-col ── */
+  .tools-grid { grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
+  .tool-item { padding: var(--s-4) var(--s-2); }
+  .tool-icon { width: 38px; height: 38px; }
+  .tool-name { font-size: var(--text-xs); }
+
+  /* ── Mission quote ── */
+  .mission-quote { padding: var(--s-6) var(--s-4); }
   .mission-quote p { font-size: var(--text-base); }
 
+  /* ── Floating CTA ── */
   .floating-cta { bottom: var(--s-4); right: var(--s-4); width: 46px; height: 46px; }
 
+  /* ── Form compact ── */
+  .form-box { padding: var(--s-5); }
+  .form-group input,
+  .form-group textarea { padding: var(--s-3) var(--s-4); }
+
+  /* ── Nav overlay text smaller on small phones ── */
+  .nav-links a { font-size: var(--text-xl); }
+
+  /* ── Cards internal padding ── */
+  .expertise-card { padding: var(--s-5); }
+  .service-card { padding: var(--s-5); }
+  .cert-card { padding: var(--s-5); }
+
+  /* ── Footer ── */
+  .footer-links { gap: var(--s-3); }
+  .footer-links a { font-size: var(--text-xs); }
+
+  /* ── About avatar smaller ── */
+  .about-avatar { width: 120px; height: 120px; }
+
+  /* ── Hide decorative elements to save paint ── */
+  .hero-glow { display: none; }
+  .cyber-grid { display: none; }
 }
 
-/* ---------- 26. PREFERS REDUCED MOTION ---------- */
+/* 360px — Very small phones */
+@media (max-width: 360px) {
+  .hero-name { font-size: 1.75rem; }
+  .hero-title { font-size: var(--text-lg); }
+  .section-title { font-size: var(--text-xl); }
+  .nav-links a { font-size: var(--text-lg); padding: var(--s-3) var(--s-6); }
+  .btn-primary, .btn-secondary { font-size: var(--text-sm); }
+  .why-num { font-size: var(--text-2xl); }
+  .about-avatar { width: 100px; height: 100px; }
+  .cyber-ring-wrap { width: 100px; height: 100px; }
+  .shield-center { width: 48px; height: 56px; }
+}
+
+/* ---------- 26. TOUCH DEVICES ---------- */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove sticky hover effects on touch devices */
+  .project-card:hover,
+  .service-card:hover,
+  .expertise-card:hover,
+  .tool-item:hover,
+  .cert-card:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border);
+  }
+
+  /* Active state for touch feedback */
+  .project-card:active,
+  .service-card:active,
+  .expertise-card:active,
+  .tool-item:active,
+  .cert-card:active {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 12px rgba(0,245,255,0.1);
+    transition-duration: 0.1s;
+  }
+
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-submit:active,
+  .btn-email-me:active {
+    transform: scale(0.97);
+    transition-duration: 0.1s;
+  }
+
+  /* Remove 3D tilt on touch */
+  .tilt-card { transform: none !important; }
+
+  /* Disable scan-line & ring animations (saves battery) */
+  .scan-line { display: none; }
+  .cyber-command-panel::before { display: none; }
+  .ring-outer, .ring-mid, .ring-inner { animation: none; }
+}
+
+/* ---------- 27. PREFERS REDUCED MOTION ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

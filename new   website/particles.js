@@ -12,7 +12,7 @@
   // Detect low-end device
   const isLowEnd = navigator.hardwareConcurrency < 4;
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
-  const PARTICLE_COUNT = isLowEnd ? 60 : (isMobile ? 80 : 160);
+  const PARTICLE_COUNT = isLowEnd ? 40 : (isMobile ? 50 : 160);
   const ENABLE_PARALLAX = !isMobile && !isLowEnd;
 
   let W = 0, H = 0;

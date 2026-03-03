@@ -370,22 +370,44 @@
     var btn = qs('.hamburger');
     var menu = qs('.nav-links');
     if (!btn || !menu) return;
+
+    function openMenu() {
+      btn.classList.add('open');
+      menu.classList.add('open');
+      document.body.classList.add('menu-open');
+    }
+    function closeMenu() {
+      btn.classList.remove('open');
+      menu.classList.remove('open');
+      document.body.classList.remove('menu-open');
+    }
+
     btn.addEventListener('click', function () {
-      btn.classList.toggle('open');
-      menu.classList.toggle('open');
+      if (menu.classList.contains('open')) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
     });
+
     // Close on link click
     qsa('.nav-links a').forEach(function (a) {
       a.addEventListener('click', function () {
-        btn.classList.remove('open');
-        menu.classList.remove('open');
+        closeMenu();
       });
     });
+
     // Close on ESC
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && menu.classList.contains('open')) {
-        btn.classList.remove('open');
-        menu.classList.remove('open');
+        closeMenu();
+      }
+    });
+
+    // Close on tap outside — clicking the overlay background itself
+    menu.addEventListener('click', function (e) {
+      if (e.target === menu) {
+        closeMenu();
       }
     });
   }
