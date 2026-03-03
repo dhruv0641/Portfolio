@@ -12,6 +12,7 @@ const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
 const { asyncHandler, ApiError } = require('../lib/errorHandler');
 const { encrypt, decrypt } = require('../lib/encryption');
 const { isEnabled } = require('../lib/featureFlags');
+const { sendContactNotification } = require('../lib/mailer');
 
 // GET /api/messages — Auth required
 router.get('/', authenticate, (req, res) => {
@@ -44,6 +45,16 @@ router.post('/', validate(messageCreateSchema), asyncHandler(async (req, res) =>
   };
 
   const newMessage = db.messages.create(encryptedData);
+
+  // Fire-and-forget email notification (non-blocking)
+  sendContactNotification({
+    name: data.name,
+    email: data.email,
+    subject: data.subject,
+    message: data.message,
+    ip: req.ip || req.headers['x-forwarded-for'] || 'Unknown',
+  });
+
   res.status(201).json({ message: 'Message sent successfully' });
 }));
 
