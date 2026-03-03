@@ -1412,6 +1412,46 @@ section {
 .ci-text { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.6; }
 .ci-text strong { display: block; color: #fff; font-weight: 600; margin-bottom: 2px; }
 
+/* Email Me Button */
+.btn-email-me {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+  padding: var(--s-3) var(--s-6);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #0B0F19;
+  background: var(--gradient-accent);
+  border: none;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: all var(--motion-slow) ease;
+  will-change: transform, box-shadow;
+  position: relative;
+  overflow: hidden;
+}
+.btn-email-me::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.15);
+  opacity: 0;
+  transition: opacity var(--motion-slow) ease;
+}
+.btn-email-me:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0,245,255,0.4), 0 0 40px rgba(0,245,255,0.15);
+  color: #0B0F19;
+}
+.btn-email-me:hover::before { opacity: 1; }
+.btn-email-me:active { transform: translateY(0); }
+.btn-email-me svg { flex-shrink: 0; }
+
 /* Form box */
 .form-box {
   background: var(--bg-card);
