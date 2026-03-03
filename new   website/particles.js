@@ -31,16 +31,19 @@
   function createParticle() {
     const colorRand = Math.random();
     let color;
-    if (colorRand < 0.65) {
-      // White/grey stars (majority)
+    if (colorRand < 0.50) {
+      // Cyan stars (dominant — matches --accent #00F5FF)
+      color = `rgb(${Math.floor(Math.random() * 40)},${Math.floor(200 + Math.random() * 55)},${Math.floor(220 + Math.random() * 35)})`;
+    } else if (colorRand < 0.75) {
+      // White/silver stars
       const g = Math.floor(180 + Math.random() * 75);
-      color = `rgb(${g},${g},${g + Math.floor(Math.random() * 20)})`;
-    } else if (colorRand < 0.82) {
-      // Blue tinted
-      color = `rgb(${Math.floor(80 + Math.random() * 80)},${Math.floor(160 + Math.random() * 80)},255)`;
+      color = `rgb(${g},${g},${g + Math.floor(Math.random() * 15)})`;
+    } else if (colorRand < 0.90) {
+      // Blue tinted (matches --cyber-blue #0066FF)
+      color = `rgb(${Math.floor(Math.random() * 50)},${Math.floor(80 + Math.random() * 60)},255)`;
     } else {
-      // Purple tinted
-      color = `rgb(${Math.floor(140 + Math.random() * 80)},${Math.floor(80 + Math.random() * 80)},255)`;
+      // Green tinted (matches --neon-green #10B981)
+      color = `rgb(${Math.floor(Math.random() * 40)},${Math.floor(160 + Math.random() * 60)},${Math.floor(100 + Math.random() * 60)})`;
     }
 
     return {

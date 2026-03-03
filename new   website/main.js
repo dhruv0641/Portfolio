@@ -1,406 +1,333 @@
-/**
- * MAIN.JS — Dhruv Dobariya Cybersecurity Portfolio
- * Handles: Loader, Nav, Scroll Reveal, Form, VFX Name Animation
- */
+/* ============================================================
+   MAIN.JS — Cybersecurity Portfolio
+   Handles: Loader, Navbar, Typing, Reveals, Form, Stats, etc.
+   ============================================================ */
 (function () {
-    'use strict';
+  'use strict';
 
-    /* ============================================
-       LOADER SEQUENCE
-    ============================================ */
-    function initLoader() {
-        const loader = document.getElementById('loader');
-        if (!loader) return;
+  /* ---------- LOADER ---------- */
+  window.addEventListener('load', function () {
+    const loader = document.getElementById('loader');
+    if (loader) {
+      setTimeout(function () {
+        loader.classList.add('hidden');
+        // After fade-out, trigger hero reveals
+        setTimeout(startHeroSequence, 400);
+      }, 1400);
+    } else {
+      startHeroSequence();
+    }
+  });
 
-        // CSS handles the line-wipe animation (starts at 0.4s, duration 1.1s → done at 1.5s)
-        // Sub text fades in at 1.65s — hide loader at 2.3s then fire arrow
-        setTimeout(() => {
-            loader.classList.add('hidden');
-            setTimeout(() => initArrowThenName(), 500);
-        }, 2300);
+  /* ---------- HERO ANIMATION SEQUENCE ---------- */
+  function startHeroSequence() {
+    // Character reveal on hero name
+    var nameEl = document.querySelector('.vfx-pending');
+    if (nameEl) {
+      var text = nameEl.textContent.trim();
+      var html = '';
+      for (var i = 0; i < text.length; i++) {
+        if (text[i] === ' ') {
+          html += ' ';
+        } else {
+          html += '<span class="char-wrap"><span class="char" style="--d:' + (i * 0.04) + 's">' + text[i] + '</span></span>';
+        }
+      }
+      nameEl.innerHTML = html;
+      nameEl.classList.remove('vfx-pending');
+      nameEl.classList.add('vfx-ready');
     }
 
-
-    /* ============================================
-       ARROW VFX → NAME REVEAL
-       1. Neon arrow shoots left→right (CSS anim)
-       2. Impact burst at center
-       3. Name + subtitle fade in
-    ============================================ */
-    function initArrowThenName() {
-        const arrowEl = document.getElementById('arrow-vfx');
-        const nameEl = document.getElementById('hero-heading');
-        const titleEl = document.querySelector('.hero-title');
-
-        // Show arrow and start its CSS animations
-        if (arrowEl) {
-            arrowEl.classList.add('active');
-        }
-
-        // After arrow + impact burst completes (~1100ms) → reveal name
-        setTimeout(() => {
-            if (arrowEl) {
-                arrowEl.style.opacity = '0';
-                arrowEl.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => { arrowEl.style.display = 'none'; }, 350);
-            }
-            if (nameEl) nameEl.classList.add('vfx-ready');
-            if (titleEl) titleEl.classList.add('vfx-ready');
-        }, 1100);
-    }
-
-    /* ============================================
-       HERO NAME — CINEMATIC VFX SCRAMBLE
-       Letters scramble through random chaos chars
-       then lock one-by-one with neon glow burst
-    ============================================ */
-    function initNameVFX() {
-        const nameEl = document.getElementById('hero-heading');
-        if (!nameEl) return;
-
-        // Chaos character pool
-        const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*!?<>/\\|[]{}^~';
-        const rnd = () => CHARS[Math.floor(Math.random() * CHARS.length)];
-
-        // Split name preserving <br> — collect word lines
-        // Original: "MEET<br>KOTHIYA"  →  two lines
-        const lines = nameEl.innerHTML.split(/<br\s*\/?>/i);
-
-        // Build spans for each letter, wrapped in line divs
-        nameEl.innerHTML = '';
-        const allSpans = [];
-
-        lines.forEach((lineText, li) => {
-            const lineDiv = document.createElement('div');
-            lineDiv.style.display = 'block';
-            const chars = lineText.trim().split('');
-            chars.forEach(ch => {
-                if (ch === ' ') {
-                    const sp = document.createElement('span');
-                    sp.textContent = '\u00a0'; // non-breaking space
-                    sp.classList.add('vfx-letter', 'vfx-space');
-                    lineDiv.appendChild(sp);
-                    allSpans.push({ el: sp, char: '\u00a0', isSpace: true });
-                } else {
-                    const sp = document.createElement('span');
-                    sp.classList.add('vfx-letter');
-                    sp.textContent = rnd(); // start as chaos
-                    sp.setAttribute('data-char', ch);
-                    lineDiv.appendChild(sp);
-                    allSpans.push({ el: sp, char: ch, isSpace: false });
-                }
-            });
-            nameEl.appendChild(lineDiv);
-            // Add <br> effect between lines
-            if (li < lines.length - 1) {
-                // already block divs, no extra needed
-            }
-        });
-
-        // Phase 1: Rapid scramble all letters for 600ms
-        let scrambleRaf;
-        const startTime = performance.now();
-        const SCRAMBLE_DURATION = 600;
-
-        function scrambleAll(now) {
-            const elapsed = now - startTime;
-            allSpans.forEach(({ el, isSpace }) => {
-                if (!isSpace && !el.classList.contains('vfx-locked')) {
-                    el.textContent = rnd();
-                }
-            });
-            if (elapsed < SCRAMBLE_DURATION) {
-                scrambleRaf = requestAnimationFrame(scrambleAll);
-            } else {
-                cancelAnimationFrame(scrambleRaf);
-                lockLetters();
-            }
-        }
-        scrambleRaf = requestAnimationFrame(scrambleAll);
-
-        // Phase 2: Lock letters one-by-one left to right
-        function lockLetters() {
-            const nonSpaces = allSpans.filter(s => !s.isSpace);
-            const LOCK_INTERVAL = 85; // ms per letter
-
-            // Continue scrambling unlocked letters
-            let miniScramble;
-            function scrambleUnlocked(now) {
-                nonSpaces.forEach(({ el }) => {
-                    if (!el.classList.contains('vfx-locked')) {
-                        el.textContent = rnd();
-                    }
-                });
-                miniScramble = requestAnimationFrame(scrambleUnlocked);
-            }
-            miniScramble = requestAnimationFrame(scrambleUnlocked);
-
-            nonSpaces.forEach(({ el, char }, i) => {
-                setTimeout(() => {
-                    el.textContent = char;
-                    el.classList.add('vfx-locked');
-                    el.classList.add('vfx-flash');
-                    setTimeout(() => el.classList.remove('vfx-flash'), 400);
-
-                    // Last letter: cancel scramble + do final glitch pulse
-                    if (i === nonSpaces.length - 1) {
-                        cancelAnimationFrame(miniScramble);
-                        setTimeout(() => {
-                            nameEl.classList.add('vfx-glitch');
-                            setTimeout(() => {
-                                nameEl.classList.remove('vfx-glitch');
-                                nameEl.classList.add('vfx-complete');
-                            }, 500);
-                        }, 120);
-                    }
-                }, i * LOCK_INTERVAL);
-            });
-        }
-    }
-
-    /* ============================================
-       NAVIGATION
-    ============================================ */
-    function initNav() {
-        const navbar = document.getElementById('navbar');
-        const hamburger = document.querySelector('.hamburger');
-        const navLinks = document.querySelector('.nav-links');
-        const links = document.querySelectorAll('.nav-links a[href^="#"]');
-
-        // Scroll state
-        function onScroll() {
-            if (!navbar) return;
-            if (window.scrollY > 60) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-            updateActiveLink();
-        }
-
-        // Active link tracking
-        function updateActiveLink() {
-            const sections = document.querySelectorAll('section[id]');
-            let current = '';
-            sections.forEach(sec => {
-                if (window.scrollY >= sec.offsetTop - 140) {
-                    current = sec.getAttribute('id');
-                }
-            });
-            links.forEach(a => {
-                a.classList.toggle('active', a.getAttribute('href') === '#' + current);
-            });
-        }
-
-        // Hamburger toggle
-        if (hamburger && navLinks) {
-            hamburger.addEventListener('click', () => {
-                hamburger.classList.toggle('open');
-                navLinks.classList.toggle('open');
-                document.body.style.overflow = navLinks.classList.contains('open') ? 'hidden' : '';
-            });
-        }
-
-        // Close mobile menu on link click
-        links.forEach(a => {
-            a.addEventListener('click', e => {
-                e.preventDefault();
-                const target = document.querySelector(a.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-                hamburger && hamburger.classList.remove('open');
-                navLinks && navLinks.classList.remove('open');
-                document.body.style.overflow = '';
-            });
-        });
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        onScroll();
-    }
-
-    /* ============================================
-       SCROLL REVEAL (IntersectionObserver)
-       Supports: .reveal, .reveal-scale, .reveal-left, .reveal-right
-    ============================================ */
-    function initScrollReveal() {
-        const selectors = '.reveal, .reveal-scale, .reveal-left, .reveal-right';
-        const els = document.querySelectorAll(selectors);
-        if (!('IntersectionObserver' in window)) {
-            els.forEach(el => el.classList.add('visible'));
-            return;
-        }
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-        els.forEach(el => observer.observe(el));
-    }
-
-    /* ============================================
-       MAGNETIC HOVER (Cards tilt toward cursor)
-       GPU-only: uses transform: perspective + rotate
-    ============================================ */
-    function initMagneticHover() {
-        const cards = document.querySelectorAll('.service-card, .project-card, .expertise-card');
-        cards.forEach(card => {
-            card.addEventListener('mousemove', (e) => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-                const rotateX = ((y - centerY) / centerY) * -4;
-                const rotateY = ((x - centerX) / centerX) * 4;
-                card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-6px) translateZ(0)`;
-            }, { passive: true });
-
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0) translateZ(0)';
-            }, { passive: true });
-        });
-    }
-
-    /* ============================================
-       CONTACT FORM
-    ============================================ */
-    function initForm() {
-        const form = document.getElementById('contact-form');
-        const successEl = document.querySelector('.form-success');
-        if (!form) return;
-
-        function validateField(group, input, condition, msg) {
-            const errEl = group.querySelector('.form-err');
-            if (!condition) {
-                group.classList.add('error');
-                if (errEl) errEl.textContent = msg;
-                return false;
-            }
-            group.classList.remove('error');
-            return true;
-        }
-
-        function clearError(group) {
-            group.classList.remove('error');
-        }
-
-        // Real-time clearing
-        form.querySelectorAll('input, textarea').forEach(inp => {
-            inp.addEventListener('input', () => clearError(inp.closest('.form-group')));
-        });
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nameInput = form.querySelector('#f-name');
-            const emailInput = form.querySelector('#f-email');
-            const projectInput = form.querySelector('#f-project');
-            const msgInput = form.querySelector('#f-msg');
-
-            const nameGroup = nameInput?.closest('.form-group');
-            const emailGroup = emailInput?.closest('.form-group');
-            const projectGroup = projectInput?.closest('.form-group');
-            const msgGroup = msgInput?.closest('.form-group');
-
-            let valid = true;
-            if (nameGroup) valid &= validateField(nameGroup, nameInput, nameInput.value.trim().length >= 2, 'Please enter your name');
-            if (emailGroup) valid &= validateField(emailGroup, emailInput, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value), 'Enter a valid email address');
-            if (projectGroup) valid &= validateField(projectGroup, projectInput, projectInput.value.trim().length >= 2, 'Please describe your project');
-            if (msgGroup) valid &= validateField(msgGroup, msgInput, msgInput.value.trim().length >= 10, 'Message must be at least 10 characters');
-
-            if (!valid) return;
-
-            const btn = form.querySelector('.btn-submit');
-            if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-
-            // Send to real API with fallback
-            try {
-                const apiBase = window.location.origin;
-                const response = await fetch(`${apiBase}/api/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: nameInput.value.trim(),
-                        email: emailInput.value.trim(),
-                        subject: projectInput.value.trim(),
-                        message: msgInput.value.trim()
-                    })
-                });
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to send');
-                }
-            } catch (err) {
-                // Graceful fallback if API unreachable
-                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                    console.warn('API unreachable, simulating send');
-                    await new Promise(r => setTimeout(r, 1200));
-                } else {
-                    console.error('Send error:', err.message);
-                    await new Promise(r => setTimeout(r, 1200));
-                }
-            }
-
-            if (btn) { btn.disabled = false; btn.textContent = "Send Message →"; }
-            if (successEl) successEl.classList.add('show');
-        });
-    }
-
-    /* ============================================
-       ANIMATED COUNTERS
-    ============================================ */
-    function initCounters() {
-        const counters = document.querySelectorAll('[data-count]');
-        if (!('IntersectionObserver' in window)) return;
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (!entry.isIntersecting) return;
-                const el = entry.target;
-                const target = parseInt(el.dataset.count, 10);
-                const suffix = el.dataset.suffix || '';
-                const duration = 1800;
-                const start = performance.now();
-                function update(now) {
-                    const elapsed = now - start;
-                    const progress = Math.min(elapsed / duration, 1);
-                    const eased = 1 - Math.pow(1 - progress, 3);
-                    el.textContent = Math.floor(eased * target) + suffix;
-                    if (progress < 1) requestAnimationFrame(update);
-                }
-                requestAnimationFrame(update);
-                observer.unobserve(el);
-            });
-        }, { threshold: 0.5 });
-
-        counters.forEach(c => observer.observe(c));
-    }
-
-    /* ============================================
-       SMOOTH CTA BUTTONS (non-link)
-    ============================================ */
-    function initCTAButtons() {
-        document.querySelectorAll('[data-scroll-to]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const target = document.querySelector(btn.dataset.scrollTo);
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
-        });
-    }
-
-    /* ============================================
-       INIT
-    ============================================ */
-    document.addEventListener('DOMContentLoaded', () => {
-        initLoader();
-        initNav();
-        initScrollReveal();
-        initMagneticHover();
-        initForm();
-        initCounters();
-        initCTAButtons();
+    // Reveal hero elements
+    var heroReveals = document.querySelectorAll('.reveal-hero');
+    heroReveals.forEach(function (el) {
+      el.classList.add('visible');
     });
+
+    // Start typing animation
+    setTimeout(startTyping, 800);
+  }
+
+  /* ---------- TYPING ANIMATION ---------- */
+  var typingPhrases = [
+    'SOC Analyst & Security Engineer',
+    'SIEM Investigation Specialist',
+    'Cloud Security Enthusiast',
+    'AI-Driven Threat Detection',
+    'Incident Response & Triage',
+    'Google Cybersecurity Certified'
+  ];
+
+  function startTyping() {
+    var target = document.getElementById('typed-text');
+    if (!target) return;
+
+    var phraseIdx = 0;
+    var charIdx = 0;
+    var isDeleting = false;
+    var typeSpeed = 60;
+    var deleteSpeed = 30;
+    var pauseEnd = 2000;
+    var pauseDelete = 400;
+
+    function tick() {
+      var phrase = typingPhrases[phraseIdx];
+
+      if (!isDeleting) {
+        target.textContent = phrase.substring(0, charIdx + 1);
+        charIdx++;
+        if (charIdx === phrase.length) {
+          setTimeout(function () { isDeleting = true; tick(); }, pauseEnd);
+          return;
+        }
+        setTimeout(tick, typeSpeed);
+      } else {
+        target.textContent = phrase.substring(0, charIdx - 1);
+        charIdx--;
+        if (charIdx === 0) {
+          isDeleting = false;
+          phraseIdx = (phraseIdx + 1) % typingPhrases.length;
+          setTimeout(tick, pauseDelete);
+          return;
+        }
+        setTimeout(tick, deleteSpeed);
+      }
+    }
+
+    tick();
+  }
+
+  /* ---------- NAVBAR ---------- */
+  var navbar = document.getElementById('navbar');
+  var hamburger = document.getElementById('hamburger');
+  var navMenu = document.getElementById('nav-menu');
+
+  // Scroll state
+  function onScroll() {
+    if (!navbar) return;
+    if (window.scrollY > 60) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+
+    // Floating CTA
+    var floatingCta = document.getElementById('floating-cta');
+    if (floatingCta) {
+      if (window.scrollY > 600) {
+        floatingCta.classList.add('visible');
+      } else {
+        floatingCta.classList.remove('visible');
+      }
+    }
+
+    // Active nav link
+    updateActiveNav();
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Active nav tracking
+  function updateActiveNav() {
+    var sections = document.querySelectorAll('section[id]');
+    var scrollPos = window.scrollY + 150;
+    var links = document.querySelectorAll('.nav-links a');
+
+    sections.forEach(function (sec) {
+      var top = sec.offsetTop;
+      var bottom = top + sec.offsetHeight;
+      var id = sec.getAttribute('id');
+      if (scrollPos >= top && scrollPos < bottom) {
+        links.forEach(function (lnk) {
+          lnk.classList.remove('active');
+          if (lnk.getAttribute('href') === '#' + id) {
+            lnk.classList.add('active');
+          }
+        });
+      }
+    });
+  }
+
+  // Hamburger toggle
+  if (hamburger && navMenu) {
+    hamburger.addEventListener('click', function () {
+      hamburger.classList.toggle('open');
+      navMenu.classList.toggle('open');
+      var expanded = hamburger.classList.contains('open');
+      hamburger.setAttribute('aria-expanded', String(expanded));
+      document.body.style.overflow = expanded ? 'hidden' : '';
+    });
+
+    // Close on link click
+    navMenu.querySelectorAll('a').forEach(function (lnk) {
+      lnk.addEventListener('click', function () {
+        hamburger.classList.remove('open');
+        navMenu.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+      });
+    });
+
+    // Close on ESC
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && navMenu.classList.contains('open')) {
+        hamburger.classList.remove('open');
+        navMenu.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+      }
+    });
+  }
+
+  /* ---------- SMOOTH SCROLL ---------- */
+  document.querySelectorAll('[data-scroll-to]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      var target = document.querySelector(el.getAttribute('data-scroll-to'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  /* ---------- INTERSECTION OBSERVER — REVEAL ---------- */
+  if ('IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      revealObserver.observe(el);
+    });
+  } else {
+    // Fallback: show all immediately
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      el.classList.add('visible');
+    });
+  }
+
+  /* ---------- STAT COUNTER ANIMATION ---------- */
+  function animateCounter(el, target, suffix) {
+    var duration = 1800;
+    var start = performance.now();
+
+    function step(now) {
+      var elapsed = now - start;
+      var progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(eased * target);
+      el.textContent = current + (suffix || '');
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Observe "why" section for stat counters
+  var whySection = document.getElementById('why');
+  if (whySection && 'IntersectionObserver' in window) {
+    var statsAnimated = false;
+    var statsObserver = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting && !statsAnimated) {
+        statsAnimated = true;
+        var nums = whySection.querySelectorAll('.why-num[data-count]');
+        nums.forEach(function (el) {
+          var target = parseInt(el.getAttribute('data-count'), 10);
+          var suffix = el.getAttribute('data-suffix') || '';
+          animateCounter(el, target, suffix);
+        });
+        statsObserver.unobserve(whySection);
+      }
+    }, { threshold: 0.3 });
+    statsObserver.observe(whySection);
+  }
+
+  /* ---------- CONTACT FORM ---------- */
+  var contactForm = document.getElementById('contact-form');
+  if (contactForm) {
+    contactForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      // Clear previous errors
+      contactForm.querySelectorAll('.form-group').forEach(function (g) {
+        g.classList.remove('has-error');
+        var err = g.querySelector('.form-err');
+        if (err) err.textContent = '';
+      });
+
+      var nameVal = contactForm.querySelector('#f-name').value.trim();
+      var emailVal = contactForm.querySelector('#f-email').value.trim();
+      var projectVal = contactForm.querySelector('#f-project').value.trim();
+      var msgVal = contactForm.querySelector('#f-msg').value.trim();
+      var valid = true;
+
+      function showError(inputId, msg) {
+        var input = contactForm.querySelector(inputId);
+        if (!input) return;
+        var group = input.closest('.form-group');
+        group.classList.add('has-error');
+        var err = group.querySelector('.form-err');
+        if (err) err.textContent = msg;
+        valid = false;
+      }
+
+      if (!nameVal) showError('#f-name', 'Name is required');
+      if (!emailVal) {
+        showError('#f-email', 'Email is required');
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+        showError('#f-email', 'Enter a valid email');
+      }
+      if (!projectVal) showError('#f-project', 'Inquiry type is required');
+      if (!msgVal) {
+        showError('#f-msg', 'Message is required');
+      } else if (msgVal.length < 10) {
+        showError('#f-msg', 'Message must be at least 10 characters');
+      }
+
+      if (!valid) return;
+
+      var btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending...';
+
+      // Send to backend
+      var API_BASE = window.location.origin;
+      fetch(API_BASE + '/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: nameVal,
+          email: emailVal,
+          project: projectVal,
+          message: msgVal
+        })
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('Network error');
+          return res.json();
+        })
+        .then(function () {
+          contactForm.style.display = 'none';
+          var success = contactForm.parentElement.querySelector('.form-success');
+          if (success) success.classList.add('visible');
+        })
+        .catch(function () {
+          // Fallback: still show success (graceful degradation)
+          contactForm.style.display = 'none';
+          var success = contactForm.parentElement.querySelector('.form-success');
+          if (success) success.classList.add('visible');
+        });
+    });
+  }
+
+  /* ---------- SPIN ANIMATION (for button loading) ---------- */
+  var spinStyle = document.createElement('style');
+  spinStyle.textContent = '.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(spinStyle);
+
 })();
