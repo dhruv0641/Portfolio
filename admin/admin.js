@@ -505,10 +505,32 @@
   // ═══════════════════════════════════════════
   // DASHBOARD LAYOUT
   // ═══════════════════════════════════════════
+
+  // ─── Mobile sidebar helpers ───
+  function isMobile() { return window.innerWidth <= 768; }
+
+  function openSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar) sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('active');
+    document.body.classList.add('menu-open');
+  }
+
+  function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.classList.remove('menu-open');
+  }
+
   function renderDashboard() {
     app.innerHTML = `
       <div class="app-layout">
-        <aside class="sidebar">
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">☰</button>
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <aside class="sidebar" id="admin-sidebar">
           <div class="sidebar-logo">
             Dhruvkumar Dobariya
             <small>Admin Panel</small>
@@ -530,15 +552,32 @@
       </div>
     `;
 
-    // Nav events
+    // Hamburger toggle
+    document.getElementById('hamburger-btn').addEventListener('click', () => {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar && sidebar.classList.contains('open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+
+    // Overlay click closes sidebar
+    document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
+
+    // Nav events — close sidebar on mobile after navigation
     document.querySelectorAll('#sidebar-nav a[data-page]').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
+        if (isMobile()) closeSidebar();
         navigate(a.dataset.page);
       });
     });
 
-    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      if (isMobile()) closeSidebar();
+      logout();
+    });
 
     // Render current page
     const pageContent = document.getElementById('page-content');
