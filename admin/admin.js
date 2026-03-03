@@ -657,16 +657,17 @@
       if (stats.recentMessages.length === 0) {
         msgsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>No messages yet</p></div>';
       } else {
-        msgsEl.innerHTML = `<table>
-          <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>${stats.recentMessages.map(m => `
-            <tr>
-              <td>${escapeHtml(m.name)}</td>
-              <td>${escapeHtml(m.email)}</td>
-              <td><span class="badge ${m.status === 'unread' ? 'badge-orange' : 'badge-green'}">${m.status}</span></td>
-              <td>${new Date(m.createdAt).toLocaleDateString()}</td>
-            </tr>`).join('')}
-          </tbody></table>`;
+        msgsEl.innerHTML = `<div class="item-cards item-cards--compact">${stats.recentMessages.map(m => `
+          <div class="item-card item-card--compact">
+            <div class="item-card-header">
+              <span class="item-card-icon" style="font-size:1rem">${m.status === 'unread' ? '🔔' : '📩'}</span>
+              <div class="item-card-meta">
+                <h3 class="item-card-title" style="font-size:0.84rem">${escapeHtml(m.name)}</h3>
+                <p class="item-card-desc" style="font-size:0.78rem">${escapeHtml(m.email)}</p>
+              </div>
+              <span class="badge ${m.status === 'unread' ? 'badge-orange' : 'badge-green'}">${m.status}</span>
+            </div>
+          </div>`).join('')}</div>`;
       }
     } catch (err) {
       document.getElementById('stats-grid').innerHTML = '<p style="color:var(--red)">Failed to load stats. Is the API server running?</p>';
@@ -699,20 +700,38 @@
         return;
       }
 
-      listEl.innerHTML = `<div class="card"><table>
-        <thead><tr><th></th><th>Title</th><th>Technologies</th><th>Featured</th><th>Actions</th></tr></thead>
-        <tbody>${projects.map(p => `
-          <tr>
-            <td style="font-size:1.5rem">${p.emoji || '🔒'}</td>
-            <td><strong>${escapeHtml(p.title)}</strong><br><small style="color:var(--text-muted)">${escapeHtml((p.description || '').substring(0, 80))}...</small></td>
-            <td>${(p.technologies || []).map(t => `<span class="badge badge-cyan">${escapeHtml(t)}</span> `).join('')}</td>
-            <td>${p.featured ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-red">No</span>'}</td>
-            <td>
-              <button class="btn-icon edit-project" data-id="${p.id}" title="Edit">✏️</button>
-              <button class="btn-icon delete-project" data-id="${p.id}" title="Delete" style="margin-left:4px">🗑️</button>
-            </td>
-          </tr>`).join('')}
-        </tbody></table></div>`;
+      listEl.innerHTML = `<div class="item-cards">${projects.map(p => `
+        <div class="item-card">
+          <div class="item-card-header">
+            <span class="item-card-icon">${p.emoji || '🔒'}</span>
+            <div class="item-card-meta">
+              <h3 class="item-card-title">${escapeHtml(p.title)}</h3>
+              <p class="item-card-desc">${escapeHtml((p.description || '').substring(0, 120))}</p>
+            </div>
+            ${p.featured ? '<span class="badge badge-green">Featured</span>' : ''}
+          </div>
+          ${(p.technologies || []).length ? `<div class="item-card-tags">${(p.technologies || []).map(t => `<span class="badge badge-cyan">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+          <div class="item-card-actions">
+            <button class="btn btn-sm btn-ghost view-project" data-id="${p.id}">View</button>
+            <button class="btn btn-sm btn-ghost edit-project" data-id="${p.id}">✏️ Edit</button>
+            <button class="btn btn-sm btn-danger delete-project" data-id="${p.id}">🗑️ Delete</button>
+          </div>
+        </div>`).join('')}</div>`;
+
+      listEl.querySelectorAll('.view-project').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = projects.find(x => x.id === btn.dataset.id);
+          if (p) showDetailModal('Project Details', [
+            { label: 'Title', value: `${p.emoji || '🔒'} ${p.title}` },
+            { label: 'Description', value: p.description || '—' },
+            { label: 'Technologies', value: (p.technologies || []).join(', ') || '—' },
+            { label: 'Impact', value: p.impact || '—' },
+            { label: 'GitHub', value: p.githubLink || '—', isLink: true },
+            { label: 'Featured', value: p.featured ? 'Yes' : 'No' },
+            { label: 'Created', value: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—' }
+          ]);
+        });
+      });
 
       listEl.querySelectorAll('.edit-project').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -733,6 +752,38 @@
       });
 
     } catch (err) { /* */ }
+  }
+
+  // ─── VIEW DETAILS MODAL ───
+  function showDetailModal(title, fields) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal detail-modal">
+        <div class="modal-header">
+          <h3 class="modal-title">${escapeHtml(title)}</h3>
+          <button class="btn-icon modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          ${fields.map(f => `
+            <div class="detail-row">
+              <span class="detail-label">${escapeHtml(f.label)}</span>
+              <span class="detail-value">${
+                f.isLink && f.value && f.value !== '—'
+                  ? `<a href="${f.linkPrefix || ''}${escapeHtml(f.value)}" target="_blank" rel="noopener">${escapeHtml(f.value)}</a>`
+                  : escapeHtml(f.value)
+              }</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost modal-close">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    backdrop.querySelectorAll('.modal-close').forEach(b => b.addEventListener('click', () => backdrop.remove()));
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
   }
 
   function showProjectModal(project = null) {
@@ -847,19 +898,32 @@
         return;
       }
 
-      listEl.innerHTML = `<div class="card"><table>
-        <thead><tr><th></th><th>Title</th><th>Description</th><th>Actions</th></tr></thead>
-        <tbody>${services.map(s => `
-          <tr>
-            <td style="font-size:1.5rem">${s.icon || '🔒'}</td>
-            <td><strong>${escapeHtml(s.title)}</strong></td>
-            <td style="color:var(--text-secondary);max-width:300px">${escapeHtml((s.description || '').substring(0, 100))}...</td>
-            <td>
-              <button class="btn-icon edit-service" data-id="${s.id}" title="Edit">✏️</button>
-              <button class="btn-icon delete-service" data-id="${s.id}" title="Delete" style="margin-left:4px">🗑️</button>
-            </td>
-          </tr>`).join('')}
-        </tbody></table></div>`;
+      listEl.innerHTML = `<div class="item-cards">${services.map(s => `
+        <div class="item-card">
+          <div class="item-card-header">
+            <span class="item-card-icon">${s.icon || '🔒'}</span>
+            <div class="item-card-meta">
+              <h3 class="item-card-title">${escapeHtml(s.title)}</h3>
+              <p class="item-card-desc">${escapeHtml((s.description || '').substring(0, 120))}</p>
+            </div>
+          </div>
+          <div class="item-card-actions">
+            <button class="btn btn-sm btn-ghost view-service" data-id="${s.id}">View</button>
+            <button class="btn btn-sm btn-ghost edit-service" data-id="${s.id}">✏️ Edit</button>
+            <button class="btn btn-sm btn-danger delete-service" data-id="${s.id}">🗑️ Delete</button>
+          </div>
+        </div>`).join('')}</div>`;
+
+      listEl.querySelectorAll('.view-service').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const s = services.find(x => x.id === btn.dataset.id);
+          if (s) showDetailModal('Service Details', [
+            { label: 'Title', value: `${s.icon || '🔒'} ${s.title}` },
+            { label: 'Description', value: s.description || '—' },
+            { label: 'Created', value: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—' }
+          ]);
+        });
+      });
 
       listEl.querySelectorAll('.edit-service').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -965,21 +1029,38 @@
         return;
       }
 
-      listEl.innerHTML = `<div class="card"><table>
-        <thead><tr><th>Name</th><th>Email</th><th>Message</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
-        <tbody>${messages.map(m => `
-          <tr style="${m.status === 'unread' ? 'background:rgba(6,182,212,0.03)' : ''}">
-            <td><strong>${escapeHtml(m.name)}</strong></td>
-            <td><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a></td>
-            <td style="max-width:250px;color:var(--text-secondary)">${escapeHtml((m.message || '').substring(0, 80))}...</td>
-            <td><span class="badge ${m.status === 'unread' ? 'badge-orange' : 'badge-green'}">${m.status}</span></td>
-            <td>${new Date(m.createdAt).toLocaleDateString()}</td>
-            <td>
-              ${m.status === 'unread' ? `<button class="btn btn-sm btn-ghost mark-read" data-id="${m.id}">Mark Read</button>` : ''}
-              <button class="btn-icon delete-msg" data-id="${m.id}" title="Delete" style="margin-left:4px">🗑️</button>
-            </td>
-          </tr>`).join('')}
-        </tbody></table></div>`;
+      listEl.innerHTML = `<div class="item-cards">${messages.map(m => `
+        <div class="item-card${m.status === 'unread' ? ' item-card--unread' : ''}">
+          <div class="item-card-header">
+            <span class="item-card-icon">${m.status === 'unread' ? '🔔' : '📬'}</span>
+            <div class="item-card-meta">
+              <h3 class="item-card-title">${escapeHtml(m.name)}</h3>
+              <p class="item-card-desc">${escapeHtml((m.message || '').substring(0, 120))}</p>
+            </div>
+            <span class="badge ${m.status === 'unread' ? 'badge-orange' : 'badge-green'}">${m.status}</span>
+          </div>
+          <div class="item-card-footer">
+            <span class="item-card-sub"><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a> · ${new Date(m.createdAt).toLocaleDateString()}</span>
+            <div class="item-card-actions-inline">
+              <button class="btn btn-sm btn-ghost view-msg" data-id="${m.id}">View</button>
+              ${m.status === 'unread' ? `<button class="btn btn-sm btn-ghost mark-read" data-id="${m.id}">✓ Read</button>` : ''}
+              <button class="btn btn-sm btn-danger delete-msg" data-id="${m.id}">🗑️</button>
+            </div>
+          </div>
+        </div>`).join('')}</div>`;
+
+      listEl.querySelectorAll('.view-msg').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = messages.find(x => x.id === btn.dataset.id);
+          if (m) showDetailModal('Message Details', [
+            { label: 'From', value: m.name },
+            { label: 'Email', value: m.email, isLink: true, linkPrefix: 'mailto:' },
+            { label: 'Message', value: m.message || '—' },
+            { label: 'Status', value: m.status },
+            { label: 'Received', value: m.createdAt ? new Date(m.createdAt).toLocaleString() : '—' }
+          ]);
+        });
+      });
 
       listEl.querySelectorAll('.mark-read').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1281,17 +1362,18 @@
           'SERVICE_DELETE': 'badge-red', 'MESSAGE_DELETE': 'badge-red', 'SETTINGS_UPDATE': 'badge-orange'
         };
 
-        listEl.innerHTML = `<table>
-          <thead><tr><th>Time</th><th>Action</th><th>User</th><th>IP</th><th>Details</th></tr></thead>
-          <tbody>${data.logs.map(log => `
-            <tr>
-              <td style="white-space:nowrap">${new Date(log.timestamp).toLocaleString()}</td>
-              <td><span class="badge ${actionColors[log.action] || 'badge-cyan'}">${escapeHtml(log.action)}</span></td>
-              <td>${escapeHtml(log.username || '—')}</td>
-              <td style="font-family:monospace;font-size:0.8rem">${escapeHtml(log.ip || '—')}</td>
-              <td style="font-size:0.8rem;color:var(--text-muted)">${escapeHtml(log.details || '—')}</td>
-            </tr>`).join('')}
-          </tbody></table>`;
+        listEl.innerHTML = `<div class="item-cards item-cards--compact">${data.logs.map(log => `
+          <div class="item-card item-card--compact">
+            <div class="item-card-header">
+              <span class="badge ${actionColors[log.action] || 'badge-cyan'}">${escapeHtml(log.action)}</span>
+              <span class="item-card-sub">${new Date(log.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="item-card-audit-details">
+              <span>👤 ${escapeHtml(log.username || '—')}</span>
+              <span style="font-family:monospace;font-size:0.78rem">🌐 ${escapeHtml(log.ip || '—')}</span>
+            </div>
+            ${log.details ? `<p class="item-card-desc" style="margin-top:6px">${escapeHtml(log.details)}</p>` : ''}
+          </div>`).join('')}</div>`;
       } catch (err) {
         document.getElementById('audit-list').innerHTML = '<p style="color:var(--red);padding:1rem">Failed to load audit logs</p>';
       }
