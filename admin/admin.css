@@ -1682,10 +1682,13 @@ body.menu-open {
   .main-content { padding: var(--sp-6); }
 
   .topbar { padding: 0 var(--sp-6); }
+
+  /* Reduce expensive effects */
+  body::before { background-size: 45px 45px; }
 }
 
 /* ═══════════════════════════════════════════
-   RESPONSIVE — 768px
+   RESPONSIVE — 768px (Tablet / Mobile)
    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
   .hamburger-btn { display: flex; }
@@ -1701,25 +1704,60 @@ body.menu-open {
     grid-template-columns: 1fr;
   }
 
+  /* ── Full-screen sidebar overlay ── */
   .sidebar {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 280px;
+    inset: 0;
+    width: 100%;
     height: 100vh;
+    height: 100dvh;
     z-index: 1050;
+    background: rgba(10,15,28,0.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     transform: translateX(-100%);
-    transition: transform 0.3s var(--ease-out);
+    transition: transform 0.3s var(--ease-out), opacity 0.3s ease;
+    opacity: 0;
     box-shadow: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .sidebar.open {
     transform: translateX(0);
-    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.5);
+    opacity: 1;
   }
 
   .sidebar-collapse-btn { display: none; }
 
+  /* ── Sidebar nav — larger touch targets ── */
+  .sidebar-nav a, .sidebar-nav button {
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--text-base);
+    min-height: 48px;
+    border-radius: var(--radius-md);
+  }
+
+  .sidebar-logo {
+    min-height: 64px;
+    padding: var(--sp-5) var(--sp-6);
+  }
+
+  .sidebar-logo-text { font-size: var(--text-lg); }
+
+  .sidebar-section-label {
+    padding: var(--sp-5) var(--sp-6) var(--sp-2);
+  }
+
+  .sidebar-nav {
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .sidebar-user {
+    padding: var(--sp-5) var(--sp-6);
+  }
+
+  /* ── Topbar ── */
   .topbar {
     padding: 0 var(--sp-4);
     padding-left: 58px;
@@ -1728,6 +1766,7 @@ body.menu-open {
 
   .topbar-breadcrumb { display: none; }
 
+  /* ── Main content ── */
   .main-content {
     padding: var(--sp-5) var(--sp-4);
     min-height: calc(100vh - 54px);
@@ -1742,6 +1781,7 @@ body.menu-open {
 
   .page-title { font-size: var(--text-xl); }
 
+  /* ── Stats grid ── */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--sp-3);
@@ -1759,8 +1799,47 @@ body.menu-open {
   .dashboard-hero { flex-direction: column; align-items: flex-start; }
   .hero-right { display: none; }
 
+  /* ── Forms ── */
   .form-row { grid-template-columns: 1fr; }
 
+  /* 16px font prevents iOS auto-zoom on focus */
+  .form-input, .form-textarea, .form-select {
+    font-size: 16px;
+    padding: var(--sp-3) var(--sp-4);
+    min-height: 48px;
+  }
+
+  .form-label {
+    font-size: var(--text-sm);
+    margin-bottom: var(--sp-2);
+  }
+
+  .form-textarea { min-height: 120px; }
+
+  /* ── Buttons — 48px min touch targets ── */
+  .btn {
+    min-height: 44px;
+    padding: var(--sp-3) var(--sp-5);
+    font-size: var(--text-sm);
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* ── Hamburger — 48px touch target ── */
+  .hamburger-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* ── Cards ── */
   .card {
     padding: var(--sp-4);
     border-radius: var(--radius-md);
@@ -1785,8 +1864,10 @@ body.menu-open {
     justify-content: flex-end;
   }
 
+  /* ── Detail rows ── */
   .detail-row { padding: var(--sp-3) var(--sp-4); }
 
+  /* ── Modals — bottom-sheet style ── */
   .modal-backdrop {
     padding: var(--sp-3);
     align-items: flex-end;
@@ -1810,6 +1891,7 @@ body.menu-open {
     z-index: 1;
   }
 
+  /* ── Toast ── */
   .toast {
     right: var(--sp-3);
     left: var(--sp-3);
@@ -1818,27 +1900,58 @@ body.menu-open {
     justify-content: center;
   }
 
+  /* ── Login ── */
   .login-wrapper { padding: var(--sp-4); }
 
   .login-card { padding: var(--sp-6) var(--sp-5); }
 
   .login-logo { font-size: var(--text-lg); }
 
+  /* ── Other ── */
   .empty-state { padding: var(--sp-8) var(--sp-4); }
 
   .search-bar { max-width: 100%; }
+
+  /* ── Reduce glow/shadow on mobile ── */
+  .stat-card:hover,
+  .item-card:hover,
+  .card:hover {
+    box-shadow: 0 0 12px rgba(0, 245, 255, 0.06);
+    transform: none;
+  }
+
+  .item-card:hover::before { opacity: 0; }
+  .stat-card:hover::before { opacity: 0.6; }
+
+  /* ── Remove grid overlay on mobile ── */
+  body::before { opacity: 0.4; background-size: 40px 40px; }
+
+  /* ── Social/topbar buttons touch ── */
+  .topbar-btn {
+    min-height: 40px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  .topbar-avatar {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 /* ═══════════════════════════════════════════
-   RESPONSIVE — 480px
+   RESPONSIVE — 480px (Small phones)
    ═══════════════════════════════════════════ */
 @media (max-width: 480px) {
   .topbar {
-    padding-left: 52px;
+    padding-left: 56px;
     height: 48px;
   }
 
   .topbar-title { font-size: var(--text-md); }
+
+  /* Hide logout text, keep icon */
+  .topbar-btn span { display: none; }
+  .topbar-btn { padding: var(--sp-2); min-width: 40px; min-height: 40px; justify-content: center; }
 
   .main-content { padding: var(--sp-4) var(--sp-3); }
 
@@ -1852,11 +1965,12 @@ body.menu-open {
   .btn {
     padding: var(--sp-2) var(--sp-3);
     font-size: var(--text-xs);
+    min-height: 40px;
   }
 
-  .sidebar { width: 260px; }
-
   .item-card-header { flex-wrap: wrap; }
+  .item-card-title { font-size: var(--text-sm); }
+  .item-card-desc { font-size: var(--text-xs); }
 
   .badge { font-size: 0.63rem; padding: 2px 7px; }
 
@@ -1866,6 +1980,105 @@ body.menu-open {
     max-height: 95vh;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
+
+  /* ── Login compact ── */
+  .login-card { padding: var(--sp-5) var(--sp-4); }
+  .shield-anim { width: 64px; height: 64px; margin-bottom: var(--sp-4); }
+
+  /* ── Remove decorative effects ── */
+  body::before { display: none; }
+
+  /* ── Sidebar full-screen adjustments ── */
+  .sidebar-nav a, .sidebar-nav button {
+    font-size: var(--text-md);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  /* ── Page header actions stack ── */
+  .page-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .page-header-actions .btn { flex: 1; min-width: 0; }
+
+  /* ── Detail rows stack on small screens ── */
+  .detail-row {
+    flex-direction: column;
+    gap: var(--sp-1);
+  }
+
+  .detail-value { text-align: left; }
+  .detail-label { min-width: auto; }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — 360px (Very small phones)
+   ═══════════════════════════════════════════ */
+@media (max-width: 360px) {
+  .main-content { padding: var(--sp-3) var(--sp-2); }
+
+  .page-title { font-size: var(--text-md); }
+
+  .stat-value { font-size: 1.2rem; }
+  .stat-label { font-size: 0.65rem; }
+
+  .topbar { padding-left: 50px; }
+
+  .sidebar-logo-text { font-size: var(--text-base); }
+
+  .modal-header, .modal-body, .modal-footer { padding: var(--sp-3); }
+
+  .card { padding: var(--sp-3); }
+  .item-card { padding: var(--sp-3); }
+
+  .item-card-icon { width: 30px; height: 30px; }
+
+  .login-wrapper { padding: var(--sp-3); }
+  .login-card { padding: var(--sp-4) var(--sp-3); }
+  .login-logo { font-size: var(--text-md); }
+}
+
+/* ═══════════════════════════════════════════
+   TOUCH DEVICES
+   ═══════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove sticky hover effects that persist on touch */
+  .stat-card:hover,
+  .item-card:hover,
+  .card:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border);
+  }
+
+  .item-card:hover::before { opacity: 0; }
+  .stat-card:hover::before { opacity: 0.6; }
+
+  /* Active press feedback for touch */
+  .stat-card:active,
+  .item-card:active,
+  .card:active {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 12px rgba(0, 245, 255, 0.06);
+    transition-duration: 0.1s;
+  }
+
+  .btn:active,
+  .btn-primary:active,
+  .btn-danger:active {
+    transform: scale(0.97);
+    transition-duration: 0.1s;
+  }
+
+  .btn:hover { transform: none; }
+
+  /* Disable costly animations on touch to save battery */
+  .scan-line { display: none; }
+  .threat-radar::after { animation: none; }
+  .radar-blip { animation: none; opacity: 1; }
+  .shield-ring { animation: none; }
+  .cyber-loader-ring { animation-duration: 2s; }
 }
 
 /* ═══════════════════════════════════════════
@@ -2218,15 +2431,25 @@ body.menu-open {
 @media (max-width: 768px) {
   .cuz-tabs {
     gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--sp-2);
+    scrollbar-width: none;
   }
+  .cuz-tabs::-webkit-scrollbar { display: none; }
   .cuz-tab span {
     display: none;
   }
   .cuz-tab {
-    padding: 8px 10px;
+    padding: 10px 12px;
+    min-height: 40px;
+    flex-shrink: 0;
   }
   .cuz-grid {
     grid-template-columns: 1fr;
+  }
+  .cuz-panel {
+    padding: var(--sp-4);
   }
   .cuz-sections-header,
   .cuz-section-row {
@@ -2236,9 +2459,41 @@ body.menu-open {
     display: none;
   }
   .cuz-preview-iframe {
-    height: 400px;
+    height: 350px;
+  }
+  .cuz-range::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  .cuz-range::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  .cuz-switch {
+    width: 50px;
+    height: 28px;
+  }
+  .cuz-slider::before {
+    width: 22px;
+    height: 22px;
+  }
+  .cuz-color {
+    width: 48px;
+    height: 44px;
   }
   .page-header-actions {
     flex-wrap: wrap;
   }
+}
+
+@media (max-width: 480px) {
+  .cuz-sections-header,
+  .cuz-section-row {
+    grid-template-columns: 1fr 50px;
+  }
+  .cuz-section-handle { display: none; }
+  .cuz-order-input { display: none; }
+  .cuz-preview-iframe { height: 280px; }
+  .cuz-preview-actions { flex-wrap: wrap; }
+  .cuz-preview-actions .btn { flex: 1; min-width: 0; }
 }
