@@ -49,16 +49,20 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://esm.sh", "blob:"],
+      scriptSrcAttr: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https://lottie.host", "https://esm.sh", "https://dhruvkumar.tech"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
+      workerSrc: ["'self'", "blob:"],
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'same-site' },
   hsts: {
     maxAge: 31536000,     // 1 year
     includeSubDomains: true,
@@ -251,9 +255,35 @@ logger.info('Admin directory resolved', {
   cssExists: fs.existsSync(path.join(adminDir, 'admin.css')),
 });
 
+// ─── Temporary debug logging for admin requests (REMOVE after fix verified) ───
+app.use('/admin', (req, res, next) => {
+  logger.info('[ADMIN DEBUG] Admin route hit', {
+    method: req.method,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    requestId: req.requestId,
+  });
+  next();
+});
+
 // Serve admin static files
 // express.static handles: /admin → 301 /admin/ → serve index.html (redirect: true default)
-app.use('/admin', express.static(adminDir, { index: 'index.html' }));
+app.use('/admin', express.static(adminDir, {
+  index: 'index.html',
+  fallthrough: true,
+  setHeaders: (res, filePath) => {
+    logger.info('[ADMIN DEBUG] Static file served', { filePath });
+  },
+}));
+
+// Explicit fallback: if express.static didn't find the file, serve admin/index.html for /admin or /admin/
+// This prevents the SPA catch-all from intercepting admin routes
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(adminDir, 'index.html'));
+});
+app.get('/admin/', (req, res) => {
+  res.sendFile(path.join(adminDir, 'index.html'));
+});
 
 // Serve SEO files
 app.get('/robots.txt', (req, res) => {
@@ -284,18 +314,26 @@ app.get('/', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// ERROR HANDLING + CATCH-ALL (Express 5 safe — must be LAST)
+// ERROR HANDLING + CATCH-ALL (Express 4 + 5 safe — must be LAST)
 // ═══════════════════════════════════════════
 app.use('/api', notFoundHandler);
 
 // SPA catch-all: any unmatched GET serves the main frontend
 // Must be AFTER /admin static, AFTER /api routes
-app.get('/{*splat}', (req, res) => {
+// Uses middleware instead of route pattern for Express 4/5 compatibility
+app.use((req, res, next) => {
+  // Only handle GET requests
+  if (req.method !== 'GET') return next();
   // Never override /admin or /api — those are handled above
   if (req.path.startsWith('/admin') || req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Not found' });
+    return next();
   }
-  res.sendFile(path.join(siteDir, 'index.html'));
+  res.sendFile(path.join(siteDir, 'index.html'), (err) => {
+    if (err) {
+      logger.error('SPA catch-all sendFile error', { error: err.message, path: req.path });
+      next(err);
+    }
+  });
 });
 
 app.use(errorHandler);

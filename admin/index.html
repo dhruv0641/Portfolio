@@ -10,7 +10,31 @@
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <!-- Fallback: visible only if admin.js fails to load/execute -->
+    <div id="load-fallback" style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#9090b8;font-family:Inter,system-ui,sans-serif;flex-direction:column;gap:1rem">
+      <p>Loading admin...</p>
+    </div>
+  </div>
+
+  <!-- TEMP DEBUG: Global error handler — shows JS errors on screen (REMOVE after fix verified) -->
+  <script>
+    window.onerror = function(msg, src, line, col, err) {
+      var el = document.getElementById('load-fallback');
+      if (!el) { el = document.createElement('div'); document.body.appendChild(el); }
+      el.style.cssText = 'padding:2rem;color:#ef4444;font-family:monospace;font-size:0.85rem;white-space:pre-wrap;background:#0a0a0f;min-height:100vh';
+      el.innerHTML = '<h2 style="color:#ef4444;margin-bottom:1rem">⚠ Admin JS Error</h2>'
+        + '<p><strong>Message:</strong> ' + msg + '</p>'
+        + '<p><strong>Source:</strong> ' + src + '</p>'
+        + '<p><strong>Line:</strong> ' + line + ':' + col + '</p>'
+        + (err && err.stack ? '<pre style="margin-top:1rem;color:#f59e0b">' + err.stack + '</pre>' : '');
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('[Admin] Unhandled rejection:', e.reason);
+    });
+  </script>
+
   <script src="admin.js"></script>
 </body>
 </html>
