@@ -1487,6 +1487,19 @@ section {
 .form-group.has-error input,
 .form-group.has-error textarea { border-color: var(--danger); }
 
+/* Submission error banner */
+.form-error-banner {
+  display: none;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid var(--danger);
+  color: #FCA5A5;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+  margin-bottom: var(--s-4);
+  text-align: center;
+}
+
 /* Encrypting overlay */
 .form-encrypting {
   display: none;

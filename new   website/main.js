@@ -598,7 +598,7 @@
         var payload = {
           name: nameField.value.trim(),
           email: emailField.value.trim(),
-          project: projectField.value.trim(),
+          subject: projectField.value.trim(),
           message: messageField.value.trim()
         };
 
@@ -614,9 +614,19 @@
         .then(function () {
           showSuccess();
         })
-        .catch(function () {
-          // Graceful fallback — show success anyway
-          showSuccess();
+        .catch(function (err) {
+          if (encryptingOverlay) encryptingOverlay.classList.remove('active');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Secure Message';
+          var errEl = qs('.form-error-banner');
+          if (!errEl) {
+            errEl = document.createElement('div');
+            errEl.className = 'form-error-banner';
+            form.prepend(errEl);
+          }
+          errEl.textContent = 'Message failed to send. Please try again or email directly.';
+          errEl.style.display = 'block';
+          setTimeout(function () { errEl.style.display = 'none'; }, 6000);
         });
       }, 1500);
 
