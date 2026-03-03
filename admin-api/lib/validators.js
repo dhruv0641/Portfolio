@@ -276,8 +276,9 @@ function validate(schema) {
       next();
     } catch (err) {
       if (err instanceof z.ZodError) {
-        const errors = err.errors.map(e => ({
-          field: e.path.join('.'),
+        const issues = err.issues || err.errors || [];
+        const errors = issues.map(e => ({
+          field: (e.path || []).join('.'),
           message: e.message,
         }));
         return res.status(400).json({

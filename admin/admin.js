@@ -1924,7 +1924,7 @@
     });
     ['baseFontSize','headingScale','borderRadius','glowOpacity'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
-      if (el) theme[k] = parseFloat(el.value);
+      if (el) { var v = parseFloat(el.value); if (!isNaN(v)) theme[k] = v; }
     });
     if (Object.keys(theme).length) data.theme = theme;
 
@@ -1960,7 +1960,7 @@
     document.querySelectorAll('.section-order').forEach(function(el) {
       var key = el.dataset.key;
       if (!sections[key]) sections[key] = {};
-      sections[key].order = parseInt(el.value, 10);
+      sections[key].order = parseInt(el.value, 10) || 1;
     });
     if (Object.keys(sections).length) data.sections = sections;
 
@@ -1968,7 +1968,7 @@
     var animations = {};
     ['globalSpeed','glowIntensity','particleCount','particleSpeed','particleOpacity','typingSpeed'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
-      if (el) animations[k] = parseFloat(el.value);
+      if (el) { var v = parseFloat(el.value); if (!isNaN(v)) animations[k] = v; }
     });
     var revealType = document.getElementById('cuz-revealType');
     if (revealType) animations.revealType = revealType.value;
@@ -1982,7 +1982,7 @@
     var layout = {};
     ['glassBgOpacity','glassBlur','maxWidth','sectionSpacing'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
-      if (el) layout[k] = parseFloat(el.value);
+      if (el) { var v = parseFloat(el.value); if (!isNaN(v)) layout[k] = v; }
     });
     ['glassmorphism','navbarBlur','showBackToTop','showProgressBar'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
@@ -2026,7 +2026,7 @@
     var ux = {};
     ['smoothScrollSpeed','loaderDuration','scrollRevealOffset'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
-      if (el) ux[k] = parseFloat(el.value);
+      if (el) { var v = parseFloat(el.value); if (!isNaN(v)) ux[k] = v; }
     });
     ['customCursor','loaderEnabled','progressBarEnabled','hoverEffects'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
@@ -2058,7 +2058,7 @@
     });
     ['idleTimeout'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);
-      if (el) dataControl[k] = parseInt(el.value, 10);
+      if (el) { var v = parseInt(el.value, 10); if (!isNaN(v)) dataControl[k] = v; }
     });
     ['idleMessage','analyticsId'].forEach(function(k) {
       var el = document.getElementById('cuz-' + k);

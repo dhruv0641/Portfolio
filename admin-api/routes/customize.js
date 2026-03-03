@@ -51,10 +51,9 @@ router.put('/', authenticate, validate(customizeUpdateSchema), asyncHandler(asyn
   const updated = deepMerge(current, req.validatedBody);
   db.customize.set(updated);
 
-  logAudit(AuditAction.SETTINGS_UPDATE, {
-    ...getAuditMeta(req),
-    details: 'Customization settings updated — sections: ' + Object.keys(req.validatedBody).join(', '),
-  });
+  try {
+    logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings updated — sections: ' + Object.keys(req.validatedBody).join(', ') });
+  } catch (_) { /* audit log failure must not block save */ }
 
   res.json(updated);
 }));
@@ -122,10 +121,9 @@ router.post('/reset', authenticate, asyncHandler(async (req, res) => {
 
   db.customize.set(defaults);
 
-  logAudit(AuditAction.SETTINGS_UPDATE, {
-    ...getAuditMeta(req),
-    details: 'Customization settings reset to defaults',
-  });
+  try {
+    logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings reset to defaults' });
+  } catch (_) { /* audit log failure must not block reset */ }
 
   res.json(defaults);
 }));
