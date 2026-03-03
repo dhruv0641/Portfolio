@@ -282,6 +282,7 @@ section {
 .section-label {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--s-3);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -305,12 +306,16 @@ section {
   line-height: 1.15;
   color: #fff;
   margin-bottom: var(--s-4);
+  text-align: center;
 }
 
 .section-subtitle {
   font-size: var(--text-lg);
   color: var(--text-muted);
   max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
 }
 
 .gradient-text {
@@ -475,6 +480,10 @@ section {
 
 .hero-left {
   max-width: 560px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Hero badge */
@@ -512,6 +521,7 @@ section {
   color: #fff;
   margin-bottom: var(--s-4);
   letter-spacing: 0.02em;
+  text-align: center;
 }
 
 .hero-title {
@@ -520,6 +530,7 @@ section {
   color: var(--text-secondary);
   margin-bottom: var(--s-6);
   min-height: 2em;
+  text-align: center;
 }
 .typed-cursor {
   display: inline-block;
@@ -536,8 +547,11 @@ section {
   font-size: var(--text-lg);
   color: var(--text-muted);
   max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: var(--s-10);
   line-height: 1.7;
+  text-align: center;
 }
 .hero-desc strong {
   color: var(--text-primary);
@@ -548,6 +562,7 @@ section {
   display: flex;
   gap: var(--s-4);
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* ---------- 11. CYBER COMMAND PANEL ---------- */
@@ -805,6 +820,7 @@ section {
   color: var(--text-secondary);
   line-height: 1.7;
   margin-bottom: var(--s-4);
+  text-align: center;
 }
 .about-desc strong {
   color: var(--text-primary);
@@ -851,7 +867,6 @@ section {
   text-align: center;
   margin-bottom: var(--s-16);
 }
-.timeline-header .section-label { justify-content: center; }
 
 .timeline-track {
   display: flex;
@@ -942,12 +957,6 @@ section {
 .tools-header {
   text-align: center;
   margin-bottom: var(--s-16);
-}
-.projects-header .section-label,
-.services-header .section-label,
-.cert-header .section-label,
-.tools-header .section-label {
-  justify-content: center;
 }
 
 .projects-grid {
@@ -1395,6 +1404,7 @@ section {
   color: var(--text-secondary);
   line-height: 1.7;
   margin-bottom: var(--s-8);
+  text-align: center;
 }
 
 .contact-items { display: flex; flex-direction: column; gap: var(--s-4); }
@@ -1783,7 +1793,6 @@ footer {
     text-align: center;
   }
   .hero-left { max-width: none; }
-  .hero-ctas { justify-content: center; }
   .hero-right { justify-content: center; }
   .cyber-command-panel { max-width: 380px; }
 
@@ -1792,9 +1801,6 @@ footer {
     gap: var(--s-10);
     text-align: center;
   }
-  .about-right .section-label { justify-content: center; }
-  .about-right .section-title { text-align: center; }
-  .about-desc { text-align: center; }
 
   .timeline-track {
     flex-direction: column;
