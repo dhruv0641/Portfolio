@@ -797,12 +797,16 @@
      ═══════════════════════════════════════════ */
   function isMobile() { return window.innerWidth <= 768; }
 
+  var _scrollY = 0; // saved scroll position for body lock
+
   function openSidebar() {
     var sidebar = document.querySelector('.sidebar');
     var overlay = document.querySelector('.sidebar-overlay');
+    _scrollY = window.scrollY || window.pageYOffset || 0;
     if (sidebar) sidebar.classList.add('open');
     if (overlay) overlay.classList.add('active');
     document.body.classList.add('menu-open');
+    document.body.style.top = '-' + _scrollY + 'px';
   }
 
   function closeSidebar() {
@@ -811,6 +815,8 @@
     if (sidebar) sidebar.classList.remove('open');
     if (overlay) overlay.classList.remove('active');
     document.body.classList.remove('menu-open');
+    document.body.style.top = '';
+    window.scrollTo(0, _scrollY);
   }
 
   function toggleSidebarCollapse() {

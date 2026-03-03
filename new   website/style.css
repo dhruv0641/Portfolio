@@ -427,8 +427,19 @@ section {
   background: none;
   border: none;
   cursor: pointer;
-  padding: var(--s-2);
+  padding: var(--s-3);
   z-index: 1010;
+  min-width: 48px;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: var(--r-md);
+  transition: background var(--motion-medium);
+  margin-right: calc(-1 * var(--s-2));
+}
+.hamburger:active {
+  background: rgba(255,255,255,0.06);
 }
 .hamburger span {
   display: block;
@@ -1781,7 +1792,12 @@ footer {
 /* Body scroll lock when mobile menu is open */
 body.menu-open {
   overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
   touch-action: none;
+  -webkit-overflow-scrolling: none;
+  overscroll-behavior: none;
 }
 
 /* 1200px — Desktop grid adjustments */

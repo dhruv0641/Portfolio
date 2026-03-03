@@ -370,16 +370,23 @@
     var btn = qs('.hamburger');
     var menu = qs('.nav-links');
     if (!btn || !menu) return;
+    var _savedY = 0;
 
     function openMenu() {
+      _savedY = window.scrollY || window.pageYOffset || 0;
       btn.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
       menu.classList.add('open');
       document.body.classList.add('menu-open');
+      document.body.style.top = '-' + _savedY + 'px';
     }
     function closeMenu() {
       btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
       menu.classList.remove('open');
       document.body.classList.remove('menu-open');
+      document.body.style.top = '';
+      window.scrollTo(0, _savedY);
     }
 
     btn.addEventListener('click', function () {
