@@ -266,7 +266,7 @@
       successEl.style.display = 'none';
 
       try {
-        const res = await fetch(\`\${API}/auth/forgot-password\`, {
+        const res = await fetch(`${API}/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -327,7 +327,7 @@
           <form id="reset-form">
             <div class="form-group">
               <label class="form-label">Reset Code</label>
-              <input type="text" class="form-input" id="reset-token" placeholder="Paste your reset code" value="\${pendingResetToken || ''}" required>
+              <input type="text" class="form-input" id="reset-token" placeholder="Paste your reset code" value="${pendingResetToken || ''}" required>
             </div>
             <div class="form-group">
               <label class="form-label">New Password</label>
@@ -385,7 +385,7 @@
       }
 
       try {
-        const res = await fetch(\`\${API}/auth/reset-password\`, {
+        const res = await fetch(`${API}/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
