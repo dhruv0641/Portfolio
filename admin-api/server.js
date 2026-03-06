@@ -97,15 +97,6 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// 8. Strict auth rate limiter
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: config.rateLimit.authMax,
-  message: { error: 'Too many authentication attempts. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // ═══════════════════════════════════════════
 // DATA INITIALIZATION
 // ═══════════════════════════════════════════
@@ -235,7 +226,7 @@ initData();
 // ═══════════════════════════════════════════
 // API ROUTES
 // ═══════════════════════════════════════════
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/messages', messageRoutes);
