@@ -1720,25 +1720,20 @@ body::before {
    ═══════════════════════════════════════════ */
 .hamburger-btn {
   display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1100;
-  width: 54px;
-  height: 54px;
-  border-radius: 0;
-  border: none;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: none;
   color: var(--text-primary);
   cursor: pointer;
   align-items: center;
   justify-content: center;
   transition: color var(--transition), background var(--transition);
   padding: 0;
+  flex-shrink: 0;
 }
 
 .hamburger-btn:hover {
@@ -2013,11 +2008,10 @@ body.menu-open {
     min-height: 44px;
   }
 
-  /* ── Hamburger — flush corner, matches topbar height ── */
+  /* ── Hamburger — inside topbar ── */
   .hamburger-btn {
-    width: 54px;
-    height: 54px;
-    background: rgba(13, 20, 40, 0.95);
+    width: 44px;
+    height: 44px;
   }
 
   /* ── Cards ── */
@@ -2164,13 +2158,12 @@ body.menu-open {
    ═══════════════════════════════════════════ */
 @media (max-width: 480px) {
   .topbar {
-    padding-left: 52px;
     height: 48px;
   }
 
   .hamburger-btn {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
   }
 
   .topbar-title {
@@ -2251,7 +2244,7 @@ body.menu-open {
   .stat-value { font-size: 1.2rem; }
   .stat-label { font-size: 0.65rem; }
 
-  .topbar { padding-left: 50px; }
+  .topbar { padding-left: var(--sp-3); }
 
   .topbar-title { max-width: calc(100vw - 130px); }
 

@@ -1034,7 +1034,6 @@
     app.innerHTML =
       '<a class="skip-link" href="#page-content">Skip to content</a>' +
       '<div class="app-layout' + (sidebarCollapsed ? ' sidebar-collapsed' : '') + '">' +
-        '<button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">' + icon('menu', 20) + '</button>' +
         '<div class="sidebar-overlay" id="sidebar-overlay"></div>' +
         '<aside class="sidebar" id="admin-sidebar" role="navigation">' +
           '<div class="sidebar-logo">' +
@@ -1063,6 +1062,7 @@
         '</aside>' +
         '<header class="topbar">' +
           '<div class="topbar-left">' +
+            '<button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">' + icon('menu', 20) + '</button>' +
             '<span class="topbar-title" id="topbar-title">Dashboard</span>' +
             '<span class="topbar-breadcrumb" id="topbar-breadcrumb">/ SOC / Dashboard</span>' +
           '</div>' +
