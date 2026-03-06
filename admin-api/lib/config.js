@@ -15,9 +15,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 function requireEnvInProd(key, fallback) {
   const val = process.env[key];
-  if (!val && isProduction && !fallback) {
-    console.error(`[FATAL] Missing required env var: ${key}`);
-    process.exit(1);
+  if (!val && isProduction) {
+    if (!fallback) {
+      console.error(`[FATAL] Missing required env var: ${key}`);
+      process.exit(1);
+    }
+    console.warn(`[WARN] ${key} not set in production — using fallback. Set this properly!`);
   }
   return val || fallback;
 }
@@ -28,10 +31,10 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction,
 
-  // JWT
+  // JWT — secrets MUST be set in production (no fallback)
   jwt: {
-    secret: requireEnvInProd('JWT_SECRET', crypto.randomBytes(64).toString('hex')),
-    refreshSecret: requireEnvInProd('JWT_REFRESH_SECRET', crypto.randomBytes(64).toString('hex')),
+    secret: requireEnvInProd('JWT_SECRET', isProduction ? undefined : crypto.randomBytes(64).toString('hex')),
+    refreshSecret: requireEnvInProd('JWT_REFRESH_SECRET', isProduction ? undefined : crypto.randomBytes(64).toString('hex')),
     expiry: process.env.JWT_EXPIRY || '15m',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
   },
@@ -42,9 +45,11 @@ const config = {
     algorithm: 'aes-256-gcm',
   },
 
-  // CORS (includes production domain)
+  // CORS — production excludes localhost
   cors: {
-    origins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:4200,http://127.0.0.1:3000,https://dhruvkumar.tech').split(',').map(s => s.trim()),
+    origins: isProduction
+      ? (process.env.ALLOWED_ORIGINS || 'https://dhruvkumar.tech').split(',').map(s => s.trim())
+      : ['http://localhost:3000', 'http://localhost:4200', 'http://127.0.0.1:3000', 'http://localhost:4000'],
   },
 
   // Rate Limiting

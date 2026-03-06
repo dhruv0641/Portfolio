@@ -158,4 +158,14 @@
   raf = requestAnimationFrame(draw);
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+  // Pause animation when tab is hidden to save CPU/battery
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      cancelAnimationFrame(raf);
+      raf = null;
+    } else if (!raf) {
+      raf = requestAnimationFrame(draw);
+    }
+  });
 })();

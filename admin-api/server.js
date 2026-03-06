@@ -112,29 +112,28 @@ const authLimiter = rateLimit({
 function initData() {
   const existing = db.admin.get();
   if (!existing || !existing.username) {
-    const hash = bcrypt.hashSync('admin123', 12);
+    // Admin credentials from environment variables — never hardcoded
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    const adminEmail = process.env.ADMIN_EMAIL || '';
+    if (!adminUser || !adminPass) {
+      if (config.isProduction) {
+        logger.error('FATAL: ADMIN_USERNAME and ADMIN_PASSWORD env vars required in production');
+        process.exit(1);
+      }
+      logger.warn('No ADMIN_USERNAME/ADMIN_PASSWORD set — using development defaults. DO NOT use in production.');
+    }
+    const username = adminUser || 'admin';
+    const password = adminPass || 'Dev_Temp_Pass_2026!';
+    const hash = bcrypt.hashSync(password, 12);
     db.admin.set({
-      username: 'admin',
+      username,
       passwordHash: hash,
-      email: 'dobariyadhurvvipulbhai@gmail.com',
+      email: adminEmail,
       role: 'super_admin',
       tenantId: 'default',
     });
-    logger.info('Default admin created', { username: 'admin', warning: 'CHANGE PASSWORD IMMEDIATELY' });
-  }
-
-  // ─── Safe admin credential reset via environment variable ───
-  // Set RESET_ADMIN=true in Render env vars, deploy once, then REMOVE the var
-  if (process.env.RESET_ADMIN === 'true') {
-    const current = db.admin.get();
-    const hash = bcrypt.hashSync('admin123', 12);
-    db.admin.set({
-      ...current,
-      username: 'admin',
-      passwordHash: hash,
-    });
-    logger.info('⚠️  Admin credentials reset via RESET_ADMIN env var', { username: 'admin' });
-    logger.info('⚠️  REMOVE RESET_ADMIN env var immediately after deploy!');
+    logger.info('Admin account initialized', { username });
   }
 
   if (!db.projects.getAll().length) {
@@ -244,8 +243,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/customize', customizeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Health check
+// Health check (supports monitoring tools)
 app.get('/api/health', (req, res) => {
+  const memUsage = process.memoryUsage();
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -253,6 +253,11 @@ app.get('/api/health', (req, res) => {
     environment: config.nodeEnv,
     uptime: Math.floor(process.uptime()),
     requestId: req.requestId,
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024),       // MB
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+    },
   });
 });
 
@@ -270,25 +275,13 @@ logger.info('Admin directory resolved', {
   cssExists: fs.existsSync(path.join(adminDir, 'admin.css')),
 });
 
-// ─── Temporary debug logging for admin requests (REMOVE after fix verified) ───
-app.use('/admin', (req, res, next) => {
-  logger.info('[ADMIN DEBUG] Admin route hit', {
-    method: req.method,
-    path: req.path,
-    originalUrl: req.originalUrl,
-    requestId: req.requestId,
-  });
-  next();
-});
+// Admin static files served below (debug logging removed)
 
 // Serve admin static files
 // express.static handles: /admin → 301 /admin/ → serve index.html (redirect: true default)
 app.use('/admin', express.static(adminDir, {
   index: 'index.html',
   fallthrough: true,
-  setHeaders: (res, filePath) => {
-    logger.info('[ADMIN DEBUG] Static file served', { filePath });
-  },
 }));
 
 // Explicit fallback: if express.static didn't find the file, serve admin/index.html for /admin or /admin/
@@ -398,6 +391,6 @@ server = app.listen(config.port, () => {
   console.log(`🖥️  Admin Dashboard: http://localhost:${config.port}/admin`);
   console.log(`🔐 Environment: ${config.nodeEnv}`);
   if (!config.isProduction) {
-    console.log(`⚠️  Default login — admin / admin123 (CHANGE IMMEDIATELY)\n`);
+    console.log(`⚠️  Running in development mode — set ADMIN_USERNAME/ADMIN_PASSWORD env vars\n`);
   }
 });

@@ -2121,6 +2121,13 @@ body.menu-open {
   .about-avatar { width: 100px; height: 100px; }
   .cyber-ring-wrap { width: 100px; height: 100px; }
   .shield-center { width: 48px; height: 56px; }
+
+  /* Prevent long tech tags from overflowing card bounds */
+  .project-tags { flex-wrap: wrap; }
+  .project-tag { word-break: break-word; max-width: 100%; }
+
+  /* Ensure form box doesn't overflow viewport */
+  .form-box { max-width: calc(100vw - var(--s-8)); }
 }
 
 /* ---------- 26. TOUCH DEVICES ---------- */

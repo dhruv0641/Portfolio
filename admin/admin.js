@@ -71,7 +71,8 @@
   var API = window.location.origin + '/api';
   var app = document.getElementById('app');
 
-  var token = localStorage.getItem('admin_token') || null;
+  // Auth state is tracked in-memory only — tokens live in HTTP-only cookies, never localStorage
+  var token = null;
   var currentPage = 'dashboard';
   var pending2FA = null;
   var authView = 'login';
@@ -127,8 +128,7 @@
       if (!res.ok) return false;
       var data = await res.json();
       if (data.accessToken) {
-        token = data.accessToken;
-        localStorage.setItem('admin_token', token);
+        token = data.accessToken; // in-memory only for UI state tracking
       }
       return true;
     } catch (e) { return false; }
@@ -437,7 +437,6 @@
     authView = 'login';
     pendingResetToken = null;
     layoutRendered = false;
-    localStorage.removeItem('admin_token');
     window.location.hash = '';
     render();
   }
@@ -714,8 +713,7 @@
           return;
         }
 
-        token = data.accessToken || data.token;
-        localStorage.setItem('admin_token', token);
+        token = data.accessToken || data.token; // in-memory only — cookie is the real auth
         currentPage = 'dashboard';
         window.location.hash = 'dashboard';
         render();
@@ -959,8 +957,7 @@
           return;
         }
 
-        token = data.accessToken || data.token;
-        localStorage.setItem('admin_token', token);
+        token = data.accessToken || data.token; // in-memory only
         pending2FA = null;
         currentPage = 'dashboard';
         window.location.hash = 'dashboard';
@@ -2747,9 +2744,20 @@
   }
 
   /* ═══════════════════════════════════════════
-     INIT
+     INIT — restore session via HTTP-only cookie
      ═══════════════════════════════════════════ */
   initCyberBackground();
-  render();
+
+  // Check if we have an active session (cookie-based)
+  (async function restoreSession() {
+    try {
+      var res = await fetch(API + '/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        var data = await res.json();
+        token = data.username || 'active'; // in-memory flag only
+      }
+    } catch (e) { /* no session */ }
+    render();
+  })();
 
 })();

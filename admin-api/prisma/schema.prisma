@@ -1,0 +1,151 @@
+// ═══════════════════════════════════════════════════════════
+// Dhruvkumar Dobariya — Prisma Schema (PostgreSQL)
+// Production-grade database schema replacing JSON file storage
+// ═══════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Admin users ───
+model Admin {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @db.VarChar(255)
+  email        String   @db.VarChar(255)
+  role         String   @default("admin") @db.VarChar(20)
+  tenantId     String   @default("default") @db.VarChar(50)
+  totpSecret   String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("admins")
+}
+
+// ─── Portfolio projects ───
+model Project {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String   @db.VarChar(200)
+  description  String   @default("") @db.Text
+  technologies String[] @default([])
+  emoji        String   @default("🔒") @db.VarChar(10)
+  impact       String   @default("") @db.VarChar(500)
+  githubLink   String   @default("#") @db.VarChar(500)
+  featured     Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  tenantId     String   @default("default") @db.VarChar(50)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([featured])
+  @@index([sortOrder])
+  @@map("projects")
+}
+
+// ─── Services offered ───
+model Service {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(200)
+  icon        String   @default("🔒") @db.VarChar(10)
+  description String   @default("") @db.Text
+  sortOrder   Int      @default(0)
+  tenantId    String   @default("default") @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("services")
+}
+
+// ─── Contact form messages ───
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(100)
+  email     String   @db.Text // encrypted at rest
+  subject   String   @default("") @db.VarChar(200)
+  message   String   @db.Text // encrypted at rest
+  status    String   @default("unread") @db.VarChar(20)
+  tenantId  String   @default("default") @db.VarChar(50)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+// ─── Site settings (singleton per tenant) ───
+model SiteSettings {
+  id             String   @id @default(uuid()) @db.Uuid
+  siteName       String   @default("Dhruvkumar Dobariya") @db.VarChar(100)
+  fullName       String   @default("Dhruvkumar Dobariya") @db.VarChar(100)
+  tagline        String   @default("") @db.VarChar(300)
+  email          String   @default("") @db.VarChar(255)
+  location       String   @default("") @db.VarChar(200)
+  linkedIn       String   @default("") @db.VarChar(500)
+  github         String   @default("") @db.VarChar(500)
+  seoTitle       String   @default("") @db.VarChar(200)
+  seoDescription String   @default("") @db.VarChar(500)
+  featureFlags   Json?
+  tenantId       String   @default("default") @db.VarChar(50)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([tenantId])
+  @@map("site_settings")
+}
+
+// ─── Theme customization (singleton per tenant) ───
+model Customize {
+  id        String   @id @default(uuid()) @db.Uuid
+  config    Json     // structured theme config — NO raw CSS
+  tenantId  String   @default("default") @db.VarChar(50)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId])
+  @@map("customizations")
+}
+
+// ─── Audit log (append-only, immutable) ───
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  action       String   @db.VarChar(100)
+  adminId      String   @default("anonymous") @db.VarChar(50)
+  ip           String   @default("unknown") @db.VarChar(45) // IPv6 max
+  userAgent    String   @default("unknown") @db.VarChar(255)
+  resourceId   String?  @db.Uuid
+  resourceType String?  @db.VarChar(50)
+  details      Json?
+  requestId    String?  @db.VarChar(50)
+  createdAt    DateTime @default(now())
+
+  @@index([action])
+  @@index([adminId])
+  @@index([createdAt(sort: Desc)])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+// ─── Refresh tokens (for DB-backed token store; Redis preferred in prod) ───
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @db.VarChar(64)
+  username  String   @db.VarChar(50)
+  family    String   @db.VarChar(50)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@index([family])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}

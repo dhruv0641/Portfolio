@@ -201,11 +201,9 @@ const customizeSecuritySchema = z.object({
   badgeStyle: z.enum(['pill', 'square', 'rounded']).optional(),
 }).strict().optional();
 
-const customizeCodeSchema = z.object({
-  customCSS: z.string().max(10000).optional(),
-  customHeadHTML: z.string().max(5000).optional(),
-  customFooterHTML: z.string().max(5000).optional(),
-}).strict().optional();
+// NOTE: customCSS / customHeadHTML / customFooterHTML REMOVED — raw CSS/HTML injection is an XSS vector.
+// Theme customization is applied exclusively through structured CSS variables on the server.
+const customizeCodeSchema = z.object({}).strict().optional();
 
 const customizeUxSchema = z.object({
   smoothScrollSpeed: z.number().min(100).max(3000).optional(),

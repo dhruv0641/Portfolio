@@ -188,16 +188,8 @@
       if (ux.focusRingColor) root.style.setProperty('--focus-ring', ux.focusRingColor);
     }
 
-    /* ── Custom CSS injection ── */
-    var cc = cfg.customCode;
-    if (cc && cc.customCSS) {
-      var existing = qs('#custom-css-inject');
-      if (existing) existing.remove();
-      var styleTag = document.createElement('style');
-      styleTag.id = 'custom-css-inject';
-      styleTag.textContent = cc.customCSS;
-      document.head.appendChild(styleTag);
-    }
+    /* ── Custom code block removed — raw CSS/HTML injection is an XSS vector.
+       Theme styling is applied exclusively through structured CSS variables above. ── */
   }
 
   function setMeta(name, content) {
@@ -698,83 +690,7 @@
   initHamburger();
   initSmoothScroll();
   initContactForm();
-  initFrontendShield();
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll(); // Initial call
-
-  /* ======== FRONTEND SHIELD — CLIENT-SIDE PROTECTION ======== */
-  function initFrontendShield() {
-    // Skip protection for bots / crawlers (preserve SEO)
-    var ua = navigator.userAgent || '';
-    if (/bot|crawl|spider|slurp|facebookexternalhit|Mediapartners|Googlebot/i.test(ua)) return;
-
-    // 1. Disable right-click context menu (except on inputs/textareas for usability)
-    document.addEventListener('contextmenu', function (e) {
-      var tag = (e.target.tagName || '').toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      e.preventDefault();
-    }, false);
-
-    // 2. Block DevTools keyboard shortcuts silently
-    document.addEventListener('keydown', function (e) {
-      // F12
-      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return; }
-      // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-      if (e.ctrlKey && e.shiftKey && /^[IJCijc]$/.test(e.key)) { e.preventDefault(); return; }
-      // Ctrl+U (view source)
-      if (e.ctrlKey && (e.key === 'u' || e.key === 'U') && !e.shiftKey) { e.preventDefault(); return; }
-      // Ctrl+S (save page)
-      if (e.ctrlKey && (e.key === 's' || e.key === 'S') && !e.shiftKey) { e.preventDefault(); return; }
-      // Cmd equivalents for macOS
-      if (e.metaKey && e.altKey && /^[IJCijc]$/.test(e.key)) { e.preventDefault(); return; }
-      if (e.metaKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); return; }
-    }, true);
-
-    // 3. DevTools detection via window outer/inner size difference
-    var devToolsOpen = false;
-    var shieldOverlay = null;
-    var CHECK_INTERVAL = 1500;
-
-    function createShieldOverlay() {
-      if (shieldOverlay) return shieldOverlay;
-      shieldOverlay = document.createElement('div');
-      shieldOverlay.id = 'shield-overlay';
-      shieldOverlay.setAttribute('aria-hidden', 'true');
-      shieldOverlay.innerHTML =
-        '<div style="text-align:center;max-width:440px;padding:0 20px">' +
-        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00F5FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
-        '<h2 style="font-size:1.4rem;font-weight:700;color:#fff;margin:0 0 8px">Inspection Disabled</h2>' +
-        '<p style="font-size:0.9rem;color:#8892B0;line-height:1.6;margin:0">Developer tools are not available on this site.<br>Close DevTools to continue browsing.</p>' +
-        '</div>';
-      var s = shieldOverlay.style;
-      s.position = 'fixed'; s.inset = '0'; s.zIndex = '999999';
-      s.background = 'rgba(11,15,25,0.97)';
-      s.display = 'none'; s.alignItems = 'center'; s.justifyContent = 'center';
-      s.fontFamily = 'Inter,system-ui,sans-serif';
-      document.body.appendChild(shieldOverlay);
-      return shieldOverlay;
-    }
-
-    function checkDevTools() {
-      var widthDiff = window.outerWidth - window.innerWidth > 160;
-      var heightDiff = window.outerHeight - window.innerHeight > 160;
-      var isOpen = widthDiff || heightDiff;
-
-      if (isOpen && !devToolsOpen) {
-        devToolsOpen = true;
-        var overlay = createShieldOverlay();
-        overlay.style.display = 'flex';
-      } else if (!isOpen && devToolsOpen) {
-        devToolsOpen = false;
-        if (shieldOverlay) shieldOverlay.style.display = 'none';
-      }
-    }
-
-    // Only run detection on desktop (mobile has variable chrome heights)
-    var isDesktop = window.innerWidth > 768 && !/Mobi|Android|iPhone|iPad/i.test(ua);
-    if (isDesktop) {
-      setInterval(checkDevTools, CHECK_INTERVAL);
-    }
-  }
 
 })();

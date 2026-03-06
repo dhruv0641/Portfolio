@@ -28,6 +28,13 @@ dist-ssr
 admin-api/.env
 admin-api/data/
 
+# SSL certificates
+nginx/certs/
+
+# Docker volumes
+pgdata/
+redisdata/
+
 node_modules
 .angular
 .env

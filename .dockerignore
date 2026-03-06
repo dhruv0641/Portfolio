@@ -1,0 +1,15 @@
+# Docker ignore patterns for build context optimization
+node_modules
+npm-debug.log*
+.git
+.gitignore
+.env
+.env.*
+*.md
+.vscode
+.idea
+*.swp
+*.swo
+monitoring/
+.github/
+nginx/certs/

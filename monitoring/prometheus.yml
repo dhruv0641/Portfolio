@@ -1,0 +1,29 @@
+# ═══════════════════════════════════════════════════════════
+# Prometheus Configuration — Portfolio Monitoring
+# Scrape targets: API health endpoint, node exporter, nginx
+# ═══════════════════════════════════════════════════════════
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  scrape_timeout: 10s
+
+# ─── Alerting rules ───
+rule_files:
+  - "alerts.yml"
+
+# ─── Scrape targets ───
+scrape_configs:
+  # API health metrics
+  - job_name: "portfolio-api"
+    metrics_path: /api/health
+    scheme: http
+    static_configs:
+      - targets: ["api:4000"]
+        labels:
+          service: "portfolio-api"
+          environment: "production"
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
