@@ -104,7 +104,60 @@ const settingsUpdateSchema = z.object({
 // CUSTOMIZE SCHEMAS
 // ═══════════════════════════════════════════
 const hexColor = z.string().regex(/^#([0-9a-fA-F]{3,8})$|^rgba?\(/).or(z.string().max(50));
-const cssUnit = z.number().min(0).max(9999);
+
+/**
+ * Clamped number: coerces to number, clamps to [min,max], falls back to defaultVal.
+ * NEVER rejects — always produces a valid value.
+ */
+function clampedNumber(min, max, defaultVal) {
+  return z.any().transform(v => {
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    if (isNaN(n)) return defaultVal;
+    return Math.max(min, Math.min(max, n));
+  }).pipe(z.number());
+}
+
+// ─── Centralized defaults (used by schema, route, and sanitization) ───
+const CUSTOMIZE_DEFAULTS = {
+  theme: {
+    primaryColor: '#00F5FF', secondaryColor: '#0066FF', accentColor: '#10B981',
+    successColor: '#00FF88', dangerColor: '#FF3B3B', warningColor: '#FF9F1A',
+    bgColor: '#0B0F19', bgCardColor: 'rgba(13,20,40,0.65)',
+    textPrimary: '#E8ECF4', textSecondary: '#94A3B8',
+    fontPrimary: 'Inter', fontSecondary: 'Rajdhani',
+    baseFontSize: 15, headingScale: 1.25, borderRadius: 12, glowOpacity: 0.15,
+  },
+  hero: {
+    title: 'CYBER COMMAND', subtitle: 'Dhruvkumar Dobariya',
+    typingPhrases: ['SOC Analyst & Threat Hunter', 'SIEM Engineer & Log Analyst', 'Incident Response Specialist', 'AI Security Researcher', 'Cloud Security Architect'],
+    ctaPrimaryText: 'View Operations', ctaPrimaryLink: '#projects',
+    ctaSecondaryText: 'Contact HQ', ctaSecondaryLink: '#contact',
+    layout: 'split', showStatusBadge: true, statusText: 'SYSTEMS ONLINE', showScanLine: true,
+  },
+  animations: {
+    globalSpeed: 1.0, glowEnabled: true, glowIntensity: 0.15,
+    particlesEnabled: true, particleCount: 80, particleSpeed: 0.5, particleOpacity: 0.4,
+    revealType: 'fade-up', typingSpeed: 80, cursorBlink: true,
+    smoothScroll: true, parallaxEnabled: true, tiltEnabled: true, magneticButtons: true,
+  },
+  layout: {
+    glassmorphism: true, glassBgOpacity: 0.65, glassBlur: 20,
+    cardStyle: 'glass', navbarStyle: 'floating', navbarBlur: true,
+    footerStyle: 'minimal', maxWidth: 1400, sectionSpacing: 120,
+    showBackToTop: true, showProgressBar: true,
+  },
+  ux: {
+    smoothScrollSpeed: 800, customCursor: false, cursorStyle: 'default',
+    loaderEnabled: true, loaderStyle: 'cyber', loaderDuration: 2000,
+    progressBarEnabled: true, progressBarColor: '#00F5FF',
+    buttonStyle: 'glow', hoverEffects: true, focusRingColor: '#00F5FF', scrollRevealOffset: 100,
+  },
+  dataControl: {
+    activityMonitorEnabled: true, activityPanelVisible: true, idleTimeout: 300,
+    idleMessage: 'Session Idle', showScrollProgress: true, showSectionTracking: true,
+    showClickTracking: true, analyticsEnabled: false, analyticsId: '',
+  },
+};
 
 const customizeThemeSchema = z.object({
   primaryColor: hexColor.optional(),
@@ -119,10 +172,10 @@ const customizeThemeSchema = z.object({
   textSecondary: hexColor.optional(),
   fontPrimary: safeString.pipe(z.string().max(60)).optional(),
   fontSecondary: safeString.pipe(z.string().max(60)).optional(),
-  baseFontSize: z.number().min(10).max(24).optional(),
-  headingScale: z.number().min(1).max(2).optional(),
-  borderRadius: z.number().min(0).max(50).optional(),
-  glowOpacity: z.number().min(0).max(1).optional(),
+  baseFontSize: clampedNumber(10, 24, 15).optional(),
+  headingScale: clampedNumber(1, 2, 1.25).optional(),
+  borderRadius: clampedNumber(0, 50, 12).optional(),
+  glowOpacity: clampedNumber(0, 1, 0.15).optional(),
 }).strict().optional();
 
 const customizeHeroSchema = z.object({
@@ -141,22 +194,22 @@ const customizeHeroSchema = z.object({
 
 const sectionConfigSchema = z.object({
   visible: z.boolean().optional(),
-  order: z.number().min(1).max(20).optional(),
+  order: clampedNumber(1, 20, 1).optional(),
   label: safeString.pipe(z.string().max(60)).optional(),
 }).strict();
 
 const customizeSectionsSchema = z.record(z.string(), sectionConfigSchema).optional();
 
 const customizeAnimationsSchema = z.object({
-  globalSpeed: z.number().min(0.1).max(5).optional(),
+  globalSpeed: clampedNumber(0.1, 5, 1.0).optional(),
   glowEnabled: z.boolean().optional(),
-  glowIntensity: z.number().min(0).max(1).optional(),
+  glowIntensity: clampedNumber(0, 1, 0.15).optional(),
   particlesEnabled: z.boolean().optional(),
-  particleCount: z.number().min(0).max(300).optional(),
-  particleSpeed: z.number().min(0).max(5).optional(),
-  particleOpacity: z.number().min(0).max(1).optional(),
+  particleCount: clampedNumber(0, 300, 80).optional(),
+  particleSpeed: clampedNumber(0, 5, 0.5).optional(),
+  particleOpacity: clampedNumber(0, 1, 0.4).optional(),
   revealType: z.enum(['fade-up', 'fade-in', 'slide-left', 'slide-right', 'zoom', 'none']).optional(),
-  typingSpeed: z.number().min(20).max(300).optional(),
+  typingSpeed: clampedNumber(20, 300, 80).optional(),
   cursorBlink: z.boolean().optional(),
   smoothScroll: z.boolean().optional(),
   parallaxEnabled: z.boolean().optional(),
@@ -166,14 +219,14 @@ const customizeAnimationsSchema = z.object({
 
 const customizeLayoutSchema = z.object({
   glassmorphism: z.boolean().optional(),
-  glassBgOpacity: z.number().min(0).max(1).optional(),
-  glassBlur: z.number().min(0).max(50).optional(),
+  glassBgOpacity: clampedNumber(0, 1, 0.65).optional(),
+  glassBlur: clampedNumber(0, 50, 20).optional(),
   cardStyle: z.enum(['glass', 'solid', 'outline', 'minimal']).optional(),
   navbarStyle: z.enum(['floating', 'fixed', 'transparent', 'solid']).optional(),
   navbarBlur: z.boolean().optional(),
   footerStyle: z.enum(['minimal', 'detailed', 'hidden']).optional(),
-  maxWidth: z.number().min(800).max(2400).optional(),
-  sectionSpacing: z.number().min(40).max(300).optional(),
+  maxWidth: clampedNumber(800, 2400, 1400).optional(),
+  sectionSpacing: clampedNumber(40, 300, 120).optional(),
   showBackToTop: z.boolean().optional(),
   showProgressBar: z.boolean().optional(),
 }).strict().optional();
@@ -202,28 +255,27 @@ const customizeSecuritySchema = z.object({
 }).strict().optional();
 
 // NOTE: customCSS / customHeadHTML / customFooterHTML REMOVED — raw CSS/HTML injection is an XSS vector.
-// Theme customization is applied exclusively through structured CSS variables on the server.
 const customizeCodeSchema = z.object({}).strict().optional();
 
 const customizeUxSchema = z.object({
-  smoothScrollSpeed: z.number().min(100).max(3000).optional(),
+  smoothScrollSpeed: clampedNumber(100, 3000, 800).optional(),
   customCursor: z.boolean().optional(),
   cursorStyle: z.enum(['default', 'dot', 'ring', 'crosshair']).optional(),
   loaderEnabled: z.boolean().optional(),
   loaderStyle: z.enum(['cyber', 'minimal', 'pulse', 'none']).optional(),
-  loaderDuration: z.number().min(0).max(10000).optional(),
+  loaderDuration: clampedNumber(0, 10000, 2000).optional(),
   progressBarEnabled: z.boolean().optional(),
   progressBarColor: hexColor.optional(),
   buttonStyle: z.enum(['glow', 'solid', 'outline', 'gradient']).optional(),
   hoverEffects: z.boolean().optional(),
   focusRingColor: hexColor.optional(),
-  scrollRevealOffset: z.number().min(0).max(500).optional(),
+  scrollRevealOffset: clampedNumber(0, 500, 100).optional(),
 }).strict().optional();
 
 const customizeDataControlSchema = z.object({
   activityMonitorEnabled: z.boolean().optional(),
   activityPanelVisible: z.boolean().optional(),
-  idleTimeout: z.number().min(30).max(3600).optional(),
+  idleTimeout: clampedNumber(30, 3600, 300).optional(),
   idleMessage: safeString.pipe(z.string().max(100)).optional(),
   showScrollProgress: z.boolean().optional(),
   showSectionTracking: z.boolean().optional(),
@@ -240,12 +292,12 @@ const customizeUpdateSchema = z.object({
     showBadges: z.boolean().optional(),
     showRiskLevel: z.boolean().optional(),
     cardStyle: z.enum(['glassmorphic', 'solid', 'outline']).optional(),
-    maxDisplay: z.number().min(1).max(50).optional(),
+    maxDisplay: clampedNumber(1, 50, 6).optional(),
     riskLevels: z.array(safeString).max(10).optional(),
   }).strict().optional(),
   servicesExtended: z.object({
     layout: z.enum(['grid', 'list', 'carousel']).optional(),
-    columns: z.number().min(1).max(6).optional(),
+    columns: clampedNumber(1, 6, 3).optional(),
     showIcons: z.boolean().optional(),
     cardStyle: z.enum(['glassmorphic', 'solid', 'outline']).optional(),
   }).strict().optional(),
@@ -297,6 +349,7 @@ module.exports = {
   totpVerifySchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  CUSTOMIZE_DEFAULTS,
   projectCreateSchema,
   projectUpdateSchema,
   serviceCreateSchema,

@@ -2005,11 +2005,16 @@
   }
 
   function cuzNumberInput(id, label, value, min, max, step) {
+    min = min != null ? min : 0;
+    max = max != null ? max : 100;
+    step = step || 1;
+    // Use min as fallback when value is undefined/null — never default to 0 if min > 0
+    var safeVal = (value != null && value !== '') ? value : min;
     return '<div class="cuz-field">' +
-      '<label class="cuz-label">' + escapeHtml(label) + '</label>' +
+      '<label class="cuz-label">' + escapeHtml(label) + ' <span class="cuz-range-hint">(' + min + ' — ' + max + ')</span></label>' +
       '<div class="cuz-range-wrap">' +
-        '<input type="range" class="cuz-range" id="' + id + '-range" value="' + (value || 0) + '" min="' + (min || 0) + '" max="' + (max || 100) + '" step="' + (step || 1) + '">' +
-        '<input type="number" class="form-input cuz-number" id="' + id + '" value="' + (value || 0) + '" min="' + (min || 0) + '" max="' + (max || 100) + '" step="' + (step || 1) + '">' +
+        '<input type="range" class="cuz-range" id="' + id + '-range" value="' + safeVal + '" min="' + min + '" max="' + max + '" step="' + step + '">' +
+        '<input type="number" class="form-input cuz-number" id="' + id + '" value="' + safeVal + '" min="' + min + '" max="' + max + '" step="' + step + '">' +
       '</div>' +
     '</div>';
   }
@@ -2555,6 +2560,21 @@
       if (!numInput) return;
       range.addEventListener('input', function() { numInput.value = range.value; });
       numInput.addEventListener('input', function() { range.value = numInput.value; });
+    });
+
+    // Auto-clamp number inputs on blur — prevents out-of-range values from reaching the server
+    container.querySelectorAll('.cuz-number').forEach(function(numInput) {
+      numInput.addEventListener('blur', function() {
+        var min = parseFloat(numInput.min);
+        var max = parseFloat(numInput.max);
+        var val = parseFloat(numInput.value);
+        if (isNaN(val)) { numInput.value = min; val = min; }
+        else if (val < min) { numInput.value = min; val = min; }
+        else if (val > max) { numInput.value = max; val = max; }
+        // Sync the paired range slider
+        var rangeInput = document.getElementById(numInput.id + '-range');
+        if (rangeInput) rangeInput.value = val;
+      });
     });
 
     // Track dirty state for unsaved changes detection

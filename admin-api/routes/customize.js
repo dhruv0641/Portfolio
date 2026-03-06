@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../lib/dataLayer');
 const { authenticate } = require('../lib/auth');
-const { validate, customizeUpdateSchema } = require('../lib/validators');
+const { validate, customizeUpdateSchema, CUSTOMIZE_DEFAULTS } = require('../lib/validators');
 const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
 const { asyncHandler } = require('../lib/errorHandler');
 const config = require('../lib/config');
@@ -39,10 +39,26 @@ function deepMerge(target, source) {
   return result;
 }
 
+/**
+ * Ensure stored config has safe defaults for every section.
+ * Protects against corrupted/partial data returning invalid values to the frontend.
+ */
+function ensureDefaults(data) {
+  const safe = { ...data };
+  for (const section of Object.keys(CUSTOMIZE_DEFAULTS)) {
+    if (!safe[section] || typeof safe[section] !== 'object') {
+      safe[section] = { ...CUSTOMIZE_DEFAULTS[section] };
+    } else {
+      safe[section] = { ...CUSTOMIZE_DEFAULTS[section], ...safe[section] };
+    }
+  }
+  return safe;
+}
+
 // ─── GET /api/customize (public) ───
 router.get('/', asyncHandler(async (req, res) => {
   const data = db.customize.get();
-  res.json(data);
+  res.json(ensureDefaults(data));
 }));
 
 // ─── PUT /api/customize (authenticated, validated) ───
@@ -63,60 +79,11 @@ router.post('/reset', authenticate, asyncHandler(async (req, res) => {
   const defaultsPath = path.join(config.paths.data, 'customize_defaults.json');
   let defaults = {};
 
-  // Try loading saved defaults, otherwise use hardcoded fallback
+  // Try loading saved defaults, otherwise use centralized CUSTOMIZE_DEFAULTS
   if (fs.existsSync(defaultsPath)) {
     defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf-8'));
   } else {
-    // Fallback: return the current customize.json as shipped
-    defaults = {
-      theme: {
-        primaryColor: '#00F5FF',
-        secondaryColor: '#0066FF',
-        accentColor: '#10B981',
-        successColor: '#00FF88',
-        dangerColor: '#FF3B3B',
-        warningColor: '#FF9F1A',
-        bgColor: '#0B0F19',
-        bgCardColor: 'rgba(13,20,40,0.65)',
-        textPrimary: '#E8ECF4',
-        textSecondary: '#94A3B8',
-        fontPrimary: 'Inter',
-        fontSecondary: 'Rajdhani',
-        baseFontSize: 15,
-        headingScale: 1.25,
-        borderRadius: 12,
-        glowOpacity: 0.15,
-      },
-      hero: {
-        title: 'CYBER COMMAND',
-        subtitle: 'Dhruvkumar Dobariya',
-        typingPhrases: ['SOC Analyst & Threat Hunter', 'SIEM Engineer & Log Analyst', 'Incident Response Specialist', 'AI Security Researcher', 'Cloud Security Architect'],
-        ctaPrimaryText: 'View Operations',
-        ctaPrimaryLink: '#projects',
-        ctaSecondaryText: 'Contact HQ',
-        ctaSecondaryLink: '#contact',
-        layout: 'split',
-        showStatusBadge: true,
-        statusText: 'SYSTEMS ONLINE',
-        showScanLine: true,
-      },
-      animations: {
-        globalSpeed: 1.0,
-        glowEnabled: true,
-        glowIntensity: 0.15,
-        particlesEnabled: true,
-        particleCount: 80,
-        particleSpeed: 0.5,
-        particleOpacity: 0.4,
-        revealType: 'fade-up',
-        typingSpeed: 80,
-        cursorBlink: true,
-        smoothScroll: true,
-        parallaxEnabled: true,
-        tiltEnabled: true,
-        magneticButtons: true,
-      },
-    };
+    defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
   }
 
   db.customize.set(defaults);

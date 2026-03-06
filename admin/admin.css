@@ -2453,6 +2453,14 @@ body.menu-open {
   letter-spacing: 0.05em;
 }
 
+.cuz-range-hint {
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.85em;
+}
+
 /* Color input */
 .cuz-color-wrap {
   display: flex;
