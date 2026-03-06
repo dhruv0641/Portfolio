@@ -64,7 +64,7 @@ const config = {
 
   // Brute Force Protection
   bruteForce: {
-    maxAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5', 10),
+    maxAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || '10', 10),
     lockoutMinutes: parseInt(process.env.LOGIN_LOCKOUT_MINUTES || '15', 10),
   },
 
