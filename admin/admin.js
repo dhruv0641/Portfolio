@@ -466,7 +466,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'projects', 'services', 'messages', 'audit', 'settings', 'customize'];
+    var valid = ['dashboard', 'projects', 'services', 'methodology', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -1703,6 +1703,7 @@
           '<button class="btn btn-primary" id="add-methodology-btn">' + icon('plus', 16) + ' Add Step</button>' +
         '</div>' +
       '</div>' +
+      '<div id="methodology-order-panel" class="order-panel" style="display:none"></div>' +
       '<div id="methodology-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="methodology-pagination"></div>';
 
@@ -1712,6 +1713,48 @@
       var items = _cache.methodology || await api('/methodology');
       _cache.methodology = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      // Build order management panel
+      var orderPanel = document.getElementById('methodology-order-panel');
+      function buildOrderPanel() {
+        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+        orderPanel.style.display = 'block';
+        orderPanel.innerHTML =
+          '<div class="order-panel-inner">' +
+            '<div class="order-panel-header">' +
+              '<h3>' + icon('sliders', 16) + ' Reorder Steps</h3>' +
+              '<button class="btn btn-sm btn-primary" id="apply-methodology-order">' + icon('check', 14) + ' Apply Order</button>' +
+            '</div>' +
+            '<table class="order-table"><thead><tr><th>Title</th><th>Icon</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
+            sorted.map(function(m) {
+              return '<tr>' +
+                '<td>' + escapeHtml(m.title) + '</td>' +
+                '<td>' + icon(m.icon || 'activity', 16) + ' ' + escapeHtml(m.icon || 'activity') + '</td>' +
+                '<td><span class="badge badge-cyan">' + (m.order || 0) + '</span></td>' +
+                '<td><input type="number" class="form-input order-input" data-id="' + m.id + '" value="' + (m.order || 0) + '" min="0" style="width:70px"></td>' +
+                '<td><span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table>' +
+          '</div>';
+
+        document.getElementById('apply-methodology-order').addEventListener('click', async function () {
+          var btn = this;
+          var inputs = orderPanel.querySelectorAll('.order-input');
+          var orderData = [];
+          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
+          orderData.sort(function(a, b) { return a.order - b.order; });
+          orderData.forEach(function(item, idx) { item.order = idx + 1; });
+          setButtonLoading(btn, true, 'Applying...');
+          try {
+            await api('/methodology', { method: 'PUT', body: JSON.stringify(orderData) });
+            invalidateCache('methodology');
+            showToast('Order updated');
+            renderMethodology(container);
+          } catch (err) { setButtonLoading(btn, false); }
+        });
+      }
+      buildOrderPanel();
 
       function getFiltered() {
         if (!_searchTerm) return items;
@@ -1920,6 +1963,7 @@
           '<button class="btn btn-primary" id="add-tool-btn">' + icon('plus', 16) + ' Add Tool</button>' +
         '</div>' +
       '</div>' +
+      '<div id="tools-order-panel" class="order-panel" style="display:none"></div>' +
       '<div id="tools-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="tools-pagination"></div>';
 
@@ -1929,6 +1973,48 @@
       var items = _cache.tools || await api('/tools');
       _cache.tools = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      // Build order management panel
+      var toolsOrderPanel = document.getElementById('tools-order-panel');
+      function buildToolsOrderPanel() {
+        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+        toolsOrderPanel.style.display = 'block';
+        toolsOrderPanel.innerHTML =
+          '<div class="order-panel-inner">' +
+            '<div class="order-panel-header">' +
+              '<h3>' + icon('sliders', 16) + ' Reorder Tools</h3>' +
+              '<button class="btn btn-sm btn-primary" id="apply-tools-order">' + icon('check', 14) + ' Apply Order</button>' +
+            '</div>' +
+            '<table class="order-table"><thead><tr><th>Name</th><th>Category</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
+            sorted.map(function(t) {
+              return '<tr>' +
+                '<td>' + icon(t.icon || 'terminal', 16) + ' ' + escapeHtml(t.name) + '</td>' +
+                '<td>' + escapeHtml(t.category || '') + '</td>' +
+                '<td><span class="badge badge-cyan">' + (t.order || 0) + '</span></td>' +
+                '<td><input type="number" class="form-input order-input" data-id="' + t.id + '" value="' + (t.order || 0) + '" min="0" style="width:70px"></td>' +
+                '<td><span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table>' +
+          '</div>';
+
+        document.getElementById('apply-tools-order').addEventListener('click', async function () {
+          var btn = this;
+          var inputs = toolsOrderPanel.querySelectorAll('.order-input');
+          var orderData = [];
+          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
+          orderData.sort(function(a, b) { return a.order - b.order; });
+          orderData.forEach(function(item, idx) { item.order = idx + 1; });
+          setButtonLoading(btn, true, 'Applying...');
+          try {
+            await api('/tools', { method: 'PUT', body: JSON.stringify(orderData) });
+            invalidateCache('tools');
+            showToast('Order updated');
+            renderTools(container);
+          } catch (err) { setButtonLoading(btn, false); }
+        });
+      }
+      buildToolsOrderPanel();
 
       function getFiltered() {
         if (!_searchTerm) return items;
@@ -2136,6 +2222,7 @@
           '<button class="btn btn-primary" id="add-certificate-btn">' + icon('plus', 16) + ' Add Certificate</button>' +
         '</div>' +
       '</div>' +
+      '<div id="certificates-order-panel" class="order-panel" style="display:none"></div>' +
       '<div id="certificates-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="certificates-pagination"></div>';
 
@@ -2145,6 +2232,48 @@
       var items = _cache.certificates || await api('/certificates');
       _cache.certificates = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      // Build order management panel
+      var certsOrderPanel = document.getElementById('certificates-order-panel');
+      function buildCertsOrderPanel() {
+        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+        certsOrderPanel.style.display = 'block';
+        certsOrderPanel.innerHTML =
+          '<div class="order-panel-inner">' +
+            '<div class="order-panel-header">' +
+              '<h3>' + icon('sliders', 16) + ' Reorder Certificates</h3>' +
+              '<button class="btn btn-sm btn-primary" id="apply-certificates-order">' + icon('check', 14) + ' Apply Order</button>' +
+            '</div>' +
+            '<table class="order-table"><thead><tr><th>Title</th><th>Issuer</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
+            sorted.map(function(c) {
+              return '<tr>' +
+                '<td>' + icon(c.badgeIcon || 'shield-check', 16) + ' ' + escapeHtml(c.title) + '</td>' +
+                '<td>' + escapeHtml(c.issuer || '') + '</td>' +
+                '<td><span class="badge badge-cyan">' + (c.order || 0) + '</span></td>' +
+                '<td><input type="number" class="form-input order-input" data-id="' + c.id + '" value="' + (c.order || 0) + '" min="0" style="width:70px"></td>' +
+                '<td><span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table>' +
+          '</div>';
+
+        document.getElementById('apply-certificates-order').addEventListener('click', async function () {
+          var btn = this;
+          var inputs = certsOrderPanel.querySelectorAll('.order-input');
+          var orderData = [];
+          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
+          orderData.sort(function(a, b) { return a.order - b.order; });
+          orderData.forEach(function(item, idx) { item.order = idx + 1; });
+          setButtonLoading(btn, true, 'Applying...');
+          try {
+            await api('/certificates', { method: 'PUT', body: JSON.stringify(orderData) });
+            invalidateCache('certificates');
+            showToast('Order updated');
+            renderCertificates(container);
+          } catch (err) { setButtonLoading(btn, false); }
+        });
+      }
+      buildCertsOrderPanel();
 
       function getFiltered() {
         if (!_searchTerm) return items;

@@ -2915,3 +2915,68 @@ body.menu-open {
 .icon-picker-preview span {
   color: var(--muted);
 }
+
+/* ═══════════════════════════════════════════
+   ORDER MANAGEMENT PANEL
+   ═══════════════════════════════════════════ */
+.order-panel {
+  margin-bottom: 20px;
+}
+.order-panel-inner {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.order-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.order-panel-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.order-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.order-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+  vertical-align: middle;
+}
+.order-table tr:last-child td {
+  border-bottom: none;
+}
+.order-table tr:hover td {
+  background: var(--hover);
+}
+.order-table .order-input {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .order-table { font-size: 0.75rem; }
+  .order-table th, .order-table td { padding: 6px 8px; }
+  .order-table .order-input { width: 55px !important; }
+}
