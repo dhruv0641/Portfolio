@@ -78,6 +78,7 @@
   var pendingResetToken = null;
   var layoutRendered = false;
   var sidebarCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+  var _customizeDirty = false;
 
   /* ═══════════════════════════════════════════
      API HELPER (supports cookie & Bearer auth)
@@ -143,10 +144,15 @@
 
     var el = document.createElement('div');
     el.className = 'toast toast-' + type;
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'assertive');
     var ic = type === 'success' ? icon('check', 16) : icon('alert-triangle', 16);
-    el.innerHTML = '<span class="toast-icon">' + ic + '</span> ' + escapeHtml(msg);
+    el.innerHTML = '<span class="toast-icon">' + ic + '</span><span class="toast-msg">' + escapeHtml(msg) + '</span><button class="toast-close" aria-label="Dismiss">' + icon('x', 14) + '</button>';
     document.body.appendChild(el);
-    setTimeout(function () { if (el.parentNode) el.remove(); }, 3500);
+    el.querySelector('.toast-close').addEventListener('click', function () { if (el.parentNode) el.remove(); });
+    if (type !== 'error') {
+      setTimeout(function () { if (el.parentNode) el.remove(); }, 3500);
+    }
   }
 
   /* ═══════════════════════════════════════════
@@ -189,6 +195,99 @@
       return '<div class="item-cards">' + items + '</div>';
     }
     return '<div class="skeleton skeleton-text" style="width:100%;height:100px"></div>';
+  }
+
+  /* ═══════════════════════════════════════════
+     DATA CACHE
+     ═══════════════════════════════════════════ */
+  var _cache = { projects: null, services: null, messages: null };
+  function invalidateCache(key) {
+    if (key) _cache[key] = null;
+    else { _cache.projects = null; _cache.services = null; _cache.messages = null; }
+  }
+
+  /* ═══════════════════════════════════════════
+     BUTTON LOADING STATE
+     ═══════════════════════════════════════════ */
+  function setButtonLoading(btn, loading, text) {
+    if (!btn) return;
+    if (loading) {
+      btn._origHtml = btn._origHtml || btn.innerHTML;
+      btn.disabled = true;
+      btn.classList.add('btn-loading');
+      btn.innerHTML = '<span class="btn-spinner"></span> ' + (text || 'Processing...');
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.innerHTML = btn._origHtml || btn.innerHTML;
+      delete btn._origHtml;
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     PAGINATION HELPER
+     ═══════════════════════════════════════════ */
+  function renderPagination(containerId, currentPg, totalPages, totalItems, itemName, onPageChange) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    if (totalPages <= 1) {
+      el.innerHTML = totalItems > 0 ? '<div class="pagination"><span class="pagination-info">' + totalItems + ' ' + itemName + (totalItems !== 1 ? 's' : '') + '</span></div>' : '';
+      return;
+    }
+    var html = '<div class="pagination">';
+    html += '<button class="pagination-btn" data-pg="prev"' + (currentPg <= 1 ? ' disabled' : '') + '>&laquo;</button>';
+    for (var i = 1; i <= totalPages; i++) {
+      html += '<button class="pagination-btn' + (i === currentPg ? ' active' : '') + '" data-pg="' + i + '">' + i + '</button>';
+    }
+    html += '<button class="pagination-btn" data-pg="next"' + (currentPg >= totalPages ? ' disabled' : '') + '>&raquo;</button>';
+    html += '<span class="pagination-info">' + totalItems + ' ' + itemName + (totalItems !== 1 ? 's' : '') + '</span>';
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.pagination-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var pg = btn.dataset.pg;
+        if (pg === 'prev') onPageChange(Math.max(1, currentPg - 1));
+        else if (pg === 'next') onPageChange(Math.min(totalPages, currentPg + 1));
+        else onPageChange(parseInt(pg, 10));
+      });
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     OVERFLOW MENU (mobile card actions)
+     ═══════════════════════════════════════════ */
+  function showOverflowMenu(triggerBtn, actions) {
+    closeOverflowMenu();
+    var rect = triggerBtn.getBoundingClientRect();
+    var backdrop = document.createElement('div');
+    backdrop.className = 'overflow-menu-backdrop';
+    var menu = document.createElement('div');
+    menu.className = 'overflow-menu';
+    menu.setAttribute('role', 'menu');
+    actions.forEach(function(a) {
+      var btn = document.createElement('button');
+      btn.className = 'overflow-menu-item' + (a.danger ? ' overflow-menu-item--danger' : '');
+      btn.setAttribute('role', 'menuitem');
+      btn.innerHTML = a.icon + ' ' + a.label;
+      btn.addEventListener('click', function() { closeOverflowMenu(); a.action(); });
+      menu.appendChild(btn);
+    });
+    var top = rect.bottom + 4;
+    var left = rect.right - 160;
+    if (left < 8) left = 8;
+    if (top + 200 > window.innerHeight) top = rect.top - 4 - (actions.length * 44);
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+    backdrop.addEventListener('click', closeOverflowMenu);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(menu);
+  }
+
+  function closeOverflowMenu() {
+    var m = document.querySelector('.overflow-menu');
+    var b = document.querySelector('.overflow-menu-backdrop');
+    if (m) m.remove();
+    if (b) b.remove();
   }
 
   /* ═══════════════════════════════════════════
@@ -309,6 +408,13 @@
     }
   });
 
+  window.addEventListener('beforeunload', function (e) {
+    if (_customizeDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
   /* ═══════════════════════════════════════════
      MAIN RENDER
      ═══════════════════════════════════════════ */
@@ -358,7 +464,10 @@
   function updateActiveNav() {
     var links = document.querySelectorAll('#sidebar-nav a[data-page]');
     links.forEach(function (a) {
-      a.classList.toggle('active', a.dataset.page === currentPage);
+      var isActive = a.dataset.page === currentPage;
+      a.classList.toggle('active', isActive);
+      if (isActive) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     });
   }
 
@@ -375,6 +484,7 @@
      CYBER BACKGROUND ANIMATION
      ═══════════════════════════════════════════ */
   function initCyberBackground() {
+    if (window.innerWidth <= 768) return;
     var canvas = document.getElementById('cyber-bg');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
@@ -440,6 +550,14 @@
     resize();
     createParticles();
     animate();
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+      } else {
+        if (!animId) animate();
+      }
+    });
 
     var resizeTimer;
     window.addEventListener('resize', function () {
@@ -802,9 +920,11 @@
   function openSidebar() {
     var sidebar = document.querySelector('.sidebar');
     var overlay = document.querySelector('.sidebar-overlay');
+    var hamburger = document.getElementById('hamburger-btn');
     _scrollY = window.scrollY || window.pageYOffset || 0;
     if (sidebar) sidebar.classList.add('open');
     if (overlay) overlay.classList.add('active');
+    if (hamburger) hamburger.setAttribute('aria-label', 'Close menu');
     document.body.classList.add('menu-open');
     document.body.style.top = '-' + _scrollY + 'px';
   }
@@ -812,8 +932,10 @@
   function closeSidebar() {
     var sidebar = document.querySelector('.sidebar');
     var overlay = document.querySelector('.sidebar-overlay');
+    var hamburger = document.getElementById('hamburger-btn');
     if (sidebar) sidebar.classList.remove('open');
     if (overlay) overlay.classList.remove('active');
+    if (hamburger) hamburger.setAttribute('aria-label', 'Open menu');
     document.body.classList.remove('menu-open');
     document.body.style.top = '';
     window.scrollTo(0, _scrollY);
@@ -848,6 +970,7 @@
     }).join('');
 
     app.innerHTML =
+      '<a class="skip-link" href="#page-content">Skip to content</a>' +
       '<div class="app-layout' + (sidebarCollapsed ? ' sidebar-collapsed' : '') + '">' +
         '<button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">' + icon('menu', 20) + '</button>' +
         '<div class="sidebar-overlay" id="sidebar-overlay"></div>' +
@@ -901,6 +1024,15 @@
     document.querySelectorAll('#sidebar-nav a[data-page]').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
+        if (_customizeDirty && currentPage === 'customize') {
+          customConfirm('Unsaved changes will be lost. Continue?', { title: 'Unsaved Changes', type: 'warning', confirmText: 'Continue' }).then(function(ok) {
+            if (!ok) return;
+            _customizeDirty = false;
+            if (isMobile()) closeSidebar();
+            navigate(a.dataset.page);
+          });
+          return;
+        }
         if (isMobile()) closeSidebar();
         navigate(a.dataset.page);
       });
@@ -921,6 +1053,27 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && isMobile()) closeSidebar();
     });
+
+    /* Swipe left to close sidebar on mobile */
+    (function() {
+      var startX = 0, startY = 0, tracking = false;
+      var sidebar = document.getElementById('admin-sidebar');
+      if (!sidebar) return;
+      sidebar.addEventListener('touchstart', function(e) {
+        var t = e.touches[0];
+        startX = t.clientX;
+        startY = t.clientY;
+        tracking = true;
+      }, { passive: true });
+      sidebar.addEventListener('touchend', function(e) {
+        if (!tracking) return;
+        tracking = false;
+        var t = e.changedTouches[0];
+        var dx = t.clientX - startX;
+        var dy = Math.abs(t.clientY - startY);
+        if (dx < -60 && dy < 80) closeSidebar();
+      }, { passive: true });
+    })();
   }
 
   /* ═══════════════════════════════════════════
@@ -996,77 +1149,133 @@
      PROJECTS PAGE
      ═══════════════════════════════════════════ */
   async function renderProjects(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
     container.innerHTML =
       '<div class="page-header">' +
         '<div><h1 class="page-title">Projects</h1><p class="page-subtitle">Manage your security lab projects</p></div>' +
-        '<button class="btn btn-primary" id="add-project-btn">' + icon('plus', 16) + ' Add Project</button>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="projects-search" placeholder="Search projects..." type="text" aria-label="Search projects"></div>' +
+          '<button class="btn btn-primary" id="add-project-btn">' + icon('plus', 16) + ' Add Project</button>' +
+        '</div>' +
       '</div>' +
-      '<div id="projects-list">' + skeleton('cards', 3) + '</div>';
+      '<div id="projects-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="projects-pagination"></div>';
 
     document.getElementById('add-project-btn').addEventListener('click', function () { showProjectModal(); });
 
     try {
-      var projects = await api('/projects');
-      var listEl = document.getElementById('projects-list');
-      if (!listEl) return;
+      var projects = _cache.projects || await api('/projects');
+      _cache.projects = projects;
 
-      if (projects.length === 0) {
-        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('shield', 36) + '</div><p>No projects yet. Add your first one!</p></div>';
-        return;
+      function getFiltered() {
+        if (!_searchTerm) return projects;
+        var term = _searchTerm.toLowerCase();
+        return projects.filter(function(p) {
+          return (p.title || '').toLowerCase().indexOf(term) !== -1 ||
+                 (p.description || '').toLowerCase().indexOf(term) !== -1 ||
+                 (p.technologies || []).join(' ').toLowerCase().indexOf(term) !== -1;
+        });
       }
 
-      listEl.innerHTML = '<div class="item-cards">' + projects.map(function (p) {
-        return '<div class="item-card">' +
-          '<div class="item-card-header">' +
-            '<span class="item-card-icon">' + icon('shield-check', 20) + '</span>' +
-            '<div class="item-card-meta">' +
-              '<h3 class="item-card-title">' + escapeHtml(p.title) + '</h3>' +
-              '<p class="item-card-desc">' + escapeHtml((p.description || '').substring(0, 120)) + '</p>' +
+      function renderList() {
+        var listEl = document.getElementById('projects-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('shield', 36) + '</div><p>' + (_searchTerm ? 'No projects match your search.' : 'No projects yet. Add your first one!') + '</p></div>';
+          var pe = document.getElementById('projects-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (p) {
+          return '<div class="item-card">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + icon('shield-check', 20) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(p.title) + '</h3>' +
+                '<p class="item-card-desc">' + escapeHtml((p.description || '').substring(0, 120)) + '</p>' +
+              '</div>' +
+              (p.featured ? '<span class="badge badge-green">' + icon('star', 10) + ' Featured</span>' : '') +
             '</div>' +
-            (p.featured ? '<span class="badge badge-green">' + icon('star', 10) + ' Featured</span>' : '') +
-          '</div>' +
-          ((p.technologies || []).length ? '<div class="item-card-tags">' + (p.technologies || []).map(function (t) { return '<span class="badge badge-cyan">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' : '') +
-          '<div class="item-card-actions">' +
-            '<button class="btn btn-sm btn-ghost view-project" data-id="' + p.id + '">' + icon('eye', 14) + ' View</button>' +
-            '<button class="btn btn-sm btn-ghost edit-project" data-id="' + p.id + '">' + icon('edit', 14) + ' Edit</button>' +
-            '<button class="btn btn-sm btn-danger delete-project" data-id="' + p.id + '">' + icon('trash', 14) + ' Delete</button>' +
-          '</div>' +
-        '</div>';
-      }).join('') + '</div>';
+            ((p.technologies || []).length ? '<div class="item-card-tags">' + (p.technologies || []).map(function (t) { return '<span class="badge badge-cyan">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' : '') +
+            '<div class="item-card-actions">' +
+              '<button class="btn btn-sm btn-ghost view-project" data-id="' + p.id + '">' + icon('eye', 14) + ' View</button>' +
+              '<button class="btn btn-sm btn-ghost edit-project" data-id="' + p.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-project" data-id="' + p.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+            '<button class="overflow-menu-trigger" data-id="' + p.id + '" aria-label="Actions">⋮</button>' +
+          '</div>';
+        }).join('') + '</div>';
 
-      listEl.querySelectorAll('.view-project').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var p = projects.find(function (x) { return x.id === btn.dataset.id; });
-          if (p) showDetailModal('Project Details', [
-            { label: 'Title', value: p.title },
-            { label: 'Description', value: p.description || '\u2014' },
-            { label: 'Technologies', value: (p.technologies || []).join(', ') || '\u2014' },
-            { label: 'Impact', value: p.impact || '\u2014' },
-            { label: 'GitHub', value: p.githubLink || '\u2014', isLink: true },
-            { label: 'Featured', value: p.featured ? 'Yes' : 'No' },
-            { label: 'Created', value: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '\u2014' }
-          ]);
+        renderPagination('projects-pagination', _page, totalPages, filtered.length, 'project', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.view-project').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var p = projects.find(function (x) { return x.id === btn.dataset.id; });
+            if (p) showDetailModal('Project Details', [
+              { label: 'Title', value: p.title },
+              { label: 'Description', value: p.description || '\u2014' },
+              { label: 'Technologies', value: (p.technologies || []).join(', ') || '\u2014' },
+              { label: 'Impact', value: p.impact || '\u2014' },
+              { label: 'GitHub', value: p.githubLink || '\u2014', isLink: true },
+              { label: 'Featured', value: p.featured ? 'Yes' : 'No' },
+              { label: 'Created', value: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '\u2014' }
+            ]);
+          });
         });
+
+        listEl.querySelectorAll('.edit-project').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var project = projects.find(function (p) { return p.id === btn.dataset.id; });
+            if (project) showProjectModal(project);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-project').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var p = projects.find(function (x) { return x.id === btn.dataset.id; });
+            var name = p ? p.title : 'this project';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This action cannot be undone.', { title: 'Delete Project', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/projects/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('projects');
+              showToast('Project deleted');
+              renderProjects(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            showOverflowMenu(btn, [
+              { icon: 'eye', label: 'View', action: function () { listEl.querySelector('.view-project[data-id="' + id + '"]').click(); } },
+              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-project[data-id="' + id + '"]').click(); } },
+              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-project[data-id="' + id + '"]').click(); } }
+            ]);
+          });
+        });
+      }
+
+      document.getElementById('projects-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
       });
 
-      listEl.querySelectorAll('.edit-project').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var project = projects.find(function (p) { return p.id === btn.dataset.id; });
-          if (project) showProjectModal(project);
-        });
-      });
-
-      listEl.querySelectorAll('.delete-project').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-          var confirmed = await customConfirm('Are you sure you want to delete this project? This action cannot be undone.', { title: 'Delete Project', type: 'danger' });
-          if (!confirmed) return;
-          try {
-            await api('/projects/' + btn.dataset.id, { method: 'DELETE' });
-            showToast('Project deleted');
-            renderProjects(container);
-          } catch (err) { /* toast shown by api() */ }
-        });
-      });
+      renderList();
     } catch (err) { /* */ }
   }
 
@@ -1152,6 +1361,8 @@
 
       if (!body.title) { showToast('Title is required', 'error'); return; }
 
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
       try {
         if (isEdit) {
           await api('/projects/' + project.id, { method: 'PUT', body: JSON.stringify(body) });
@@ -1160,10 +1371,11 @@
           await api('/projects', { method: 'POST', body: JSON.stringify(body) });
           showToast('Project created');
         }
+        invalidateCache('projects');
         backdrop.remove();
         document.removeEventListener('keydown', onEsc);
         renderProjects(document.getElementById('page-content'));
-      } catch (err) { /* */ }
+      } catch (err) { setButtonLoading(saveBtn, false); }
     });
   }
 
@@ -1171,71 +1383,126 @@
      SERVICES PAGE
      ═══════════════════════════════════════════ */
   async function renderServices(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
     container.innerHTML =
       '<div class="page-header">' +
         '<div><h1 class="page-title">Services</h1><p class="page-subtitle">Manage your cybersecurity service offerings</p></div>' +
-        '<button class="btn btn-primary" id="add-service-btn">' + icon('plus', 16) + ' Add Service</button>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="services-search" placeholder="Search services..." type="text" aria-label="Search services"></div>' +
+          '<button class="btn btn-primary" id="add-service-btn">' + icon('plus', 16) + ' Add Service</button>' +
+        '</div>' +
       '</div>' +
-      '<div id="services-list">' + skeleton('cards', 3) + '</div>';
+      '<div id="services-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="services-pagination"></div>';
 
     document.getElementById('add-service-btn').addEventListener('click', function () { showServiceModal(); });
 
     try {
-      var services = await api('/services');
-      var listEl = document.getElementById('services-list');
-      if (!listEl) return;
+      var services = _cache.services || await api('/services');
+      _cache.services = services;
 
-      if (services.length === 0) {
-        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('server', 36) + '</div><p>No services yet.</p></div>';
-        return;
+      function getFiltered() {
+        if (!_searchTerm) return services;
+        var term = _searchTerm.toLowerCase();
+        return services.filter(function(s) {
+          return (s.title || '').toLowerCase().indexOf(term) !== -1 ||
+                 (s.description || '').toLowerCase().indexOf(term) !== -1;
+        });
       }
 
-      listEl.innerHTML = '<div class="item-cards">' + services.map(function (s) {
-        return '<div class="item-card">' +
-          '<div class="item-card-header">' +
-            '<span class="item-card-icon">' + icon('server', 20) + '</span>' +
-            '<div class="item-card-meta">' +
-              '<h3 class="item-card-title">' + escapeHtml(s.title) + '</h3>' +
-              '<p class="item-card-desc">' + escapeHtml((s.description || '').substring(0, 120)) + '</p>' +
+      function renderList() {
+        var listEl = document.getElementById('services-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('server', 36) + '</div><p>' + (_searchTerm ? 'No services match your search.' : 'No services yet.') + '</p></div>';
+          var pe = document.getElementById('services-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (s) {
+          return '<div class="item-card">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + icon('server', 20) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(s.title) + '</h3>' +
+                '<p class="item-card-desc">' + escapeHtml((s.description || '').substring(0, 120)) + '</p>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
-          '<div class="item-card-actions">' +
-            '<button class="btn btn-sm btn-ghost view-service" data-id="' + s.id + '">' + icon('eye', 14) + ' View</button>' +
-            '<button class="btn btn-sm btn-ghost edit-service" data-id="' + s.id + '">' + icon('edit', 14) + ' Edit</button>' +
-            '<button class="btn btn-sm btn-danger delete-service" data-id="' + s.id + '">' + icon('trash', 14) + ' Delete</button>' +
-          '</div>' +
-        '</div>';
-      }).join('') + '</div>';
+            '<div class="item-card-actions">' +
+              '<button class="btn btn-sm btn-ghost view-service" data-id="' + s.id + '">' + icon('eye', 14) + ' View</button>' +
+              '<button class="btn btn-sm btn-ghost edit-service" data-id="' + s.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-service" data-id="' + s.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+            '<button class="overflow-menu-trigger" data-id="' + s.id + '" aria-label="Actions">⋮</button>' +
+          '</div>';
+        }).join('') + '</div>';
 
-      listEl.querySelectorAll('.view-service').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var s = services.find(function (x) { return x.id === btn.dataset.id; });
-          if (s) showDetailModal('Service Details', [
-            { label: 'Title', value: s.title },
-            { label: 'Description', value: s.description || '\u2014' },
-            { label: 'Created', value: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '\u2014' }
-          ]);
+        renderPagination('services-pagination', _page, totalPages, filtered.length, 'service', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.view-service').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var s = services.find(function (x) { return x.id === btn.dataset.id; });
+            if (s) showDetailModal('Service Details', [
+              { label: 'Title', value: s.title },
+              { label: 'Description', value: s.description || '\u2014' },
+              { label: 'Created', value: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '\u2014' }
+            ]);
+          });
         });
+
+        listEl.querySelectorAll('.edit-service').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var svc = services.find(function (s) { return s.id === btn.dataset.id; });
+            if (svc) showServiceModal(svc);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-service').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var s = services.find(function (x) { return x.id === btn.dataset.id; });
+            var name = s ? s.title : 'this service';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Service', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/services/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('services');
+              showToast('Service deleted');
+              renderServices(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            showOverflowMenu(btn, [
+              { icon: 'eye', label: 'View', action: function () { listEl.querySelector('.view-service[data-id="' + id + '"]').click(); } },
+              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-service[data-id="' + id + '"]').click(); } },
+              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-service[data-id="' + id + '"]').click(); } }
+            ]);
+          });
+        });
+      }
+
+      document.getElementById('services-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
       });
 
-      listEl.querySelectorAll('.edit-service').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var svc = services.find(function (s) { return s.id === btn.dataset.id; });
-          if (svc) showServiceModal(svc);
-        });
-      });
-
-      listEl.querySelectorAll('.delete-service').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-          var confirmed = await customConfirm('Delete this service? This cannot be undone.', { title: 'Delete Service', type: 'danger' });
-          if (!confirmed) return;
-          try {
-            await api('/services/' + btn.dataset.id, { method: 'DELETE' });
-            showToast('Service deleted');
-            renderServices(container);
-          } catch (err) { /* */ }
-        });
-      });
+      renderList();
     } catch (err) { /* */ }
   }
 
@@ -1281,6 +1548,8 @@
 
       if (!body.title) { showToast('Title is required', 'error'); return; }
 
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
       try {
         if (isEdit) {
           await api('/services/' + service.id, { method: 'PUT', body: JSON.stringify(body) });
@@ -1289,10 +1558,11 @@
           await api('/services', { method: 'POST', body: JSON.stringify(body) });
           showToast('Service created');
         }
+        invalidateCache('services');
         backdrop.remove();
         document.removeEventListener('keydown', onEsc);
         renderServices(document.getElementById('page-content'));
-      } catch (err) { /* */ }
+      } catch (err) { setButtonLoading(saveBtn, false); }
     });
   }
 
@@ -1300,77 +1570,139 @@
      MESSAGES PAGE
      ═══════════════════════════════════════════ */
   async function renderMessages(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
     container.innerHTML =
       '<div class="page-header">' +
         '<div><h1 class="page-title">Messages</h1><p class="page-subtitle">Contact form submissions</p></div>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="messages-search" placeholder="Search messages..." type="text" aria-label="Search messages"></div>' +
+        '</div>' +
       '</div>' +
-      '<div id="messages-list">' + skeleton('cards', 4) + '</div>';
+      '<div id="messages-list">' + skeleton('cards', 4) + '</div>' +
+      '<div id="messages-pagination"></div>';
 
     try {
-      var messages = await api('/messages');
-      var listEl = document.getElementById('messages-list');
-      if (!listEl) return;
+      var messages = _cache.messages || await api('/messages');
+      _cache.messages = messages;
 
-      if (messages.length === 0) {
-        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('inbox', 36) + '</div><p>No messages yet. They\'ll appear here when visitors contact you.</p></div>';
-        return;
+      function getFiltered() {
+        if (!_searchTerm) return messages;
+        var term = _searchTerm.toLowerCase();
+        return messages.filter(function(m) {
+          return (m.name || '').toLowerCase().indexOf(term) !== -1 ||
+                 (m.email || '').toLowerCase().indexOf(term) !== -1 ||
+                 (m.message || '').toLowerCase().indexOf(term) !== -1;
+        });
       }
 
-      listEl.innerHTML = '<div class="item-cards">' + messages.map(function (m) {
-        return '<div class="item-card' + (m.status === 'unread' ? ' item-card--unread' : '') + '">' +
-          '<div class="item-card-header">' +
-            '<span class="item-card-icon">' + (m.status === 'unread' ? icon('bell', 20) : icon('mail', 20)) + '</span>' +
-            '<div class="item-card-meta">' +
-              '<h3 class="item-card-title">' + escapeHtml(m.name) + '</h3>' +
-              '<p class="item-card-desc">' + escapeHtml((m.message || '').substring(0, 120)) + '</p>' +
+      function renderList() {
+        var listEl = document.getElementById('messages-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('inbox', 36) + '</div><p>' + (_searchTerm ? 'No messages match your search.' : 'No messages yet. They\'ll appear here when visitors contact you.') + '</p></div>';
+          var pe = document.getElementById('messages-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (m) {
+          return '<div class="item-card' + (m.status === 'unread' ? ' item-card--unread' : '') + '">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + (m.status === 'unread' ? icon('bell', 20) : icon('mail', 20)) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(m.name) + '</h3>' +
+                '<p class="item-card-desc">' + escapeHtml((m.message || '').substring(0, 120)) + '</p>' +
+              '</div>' +
+              '<span class="badge ' + (m.status === 'unread' ? 'badge-orange' : 'badge-green') + '">' + m.status + '</span>' +
             '</div>' +
-            '<span class="badge ' + (m.status === 'unread' ? 'badge-orange' : 'badge-green') + '">' + m.status + '</span>' +
-          '</div>' +
-          '<div class="item-card-footer">' +
-            '<span class="item-card-sub"><a href="mailto:' + escapeHtml(m.email) + '">' + escapeHtml(m.email) + '</a> &middot; ' + new Date(m.createdAt).toLocaleDateString() + '</span>' +
-            '<div class="item-card-actions-inline">' +
-              '<button class="btn btn-sm btn-ghost view-msg" data-id="' + m.id + '">' + icon('eye', 14) + ' View</button>' +
-              (m.status === 'unread' ? '<button class="btn btn-sm btn-ghost mark-read" data-id="' + m.id + '">' + icon('check', 14) + ' Read</button>' : '') +
-              '<button class="btn btn-sm btn-danger delete-msg" data-id="' + m.id + '">' + icon('trash', 14) + '</button>' +
+            '<div class="item-card-footer">' +
+              '<span class="item-card-sub"><a href="mailto:' + escapeHtml(m.email) + '">' + escapeHtml(m.email) + '</a> &middot; ' + new Date(m.createdAt).toLocaleDateString() + '</span>' +
+              '<div class="item-card-actions-inline">' +
+                '<button class="btn btn-sm btn-ghost view-msg" data-id="' + m.id + '">' + icon('eye', 14) + ' View</button>' +
+                (m.status === 'unread' ? '<button class="btn btn-sm btn-ghost mark-read" data-id="' + m.id + '">' + icon('check', 14) + ' Read</button>' : '') +
+                '<button class="btn btn-sm btn-danger delete-msg" data-id="' + m.id + '">' + icon('trash', 14) + '</button>' +
+              '</div>' +
+              '<button class="overflow-menu-trigger" data-id="' + m.id + '" data-unread="' + (m.status === 'unread' ? '1' : '0') + '" aria-label="Actions">&#8942;</button>' +
             '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('') + '</div>';
+          '</div>';
+        }).join('') + '</div>';
 
-      listEl.querySelectorAll('.view-msg').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var m = messages.find(function (x) { return x.id === btn.dataset.id; });
-          if (m) showDetailModal('Message Details', [
-            { label: 'From', value: m.name },
-            { label: 'Email', value: m.email, isLink: true, linkPrefix: 'mailto:' },
-            { label: 'Message', value: m.message || '\u2014' },
-            { label: 'Status', value: m.status },
-            { label: 'Received', value: m.createdAt ? new Date(m.createdAt).toLocaleString() : '\u2014' }
-          ]);
+        renderPagination('messages-pagination', _page, totalPages, filtered.length, 'message', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.view-msg').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var m = messages.find(function (x) { return x.id === btn.dataset.id; });
+            if (m) showDetailModal('Message Details', [
+              { label: 'From', value: m.name },
+              { label: 'Email', value: m.email, isLink: true, linkPrefix: 'mailto:' },
+              { label: 'Message', value: m.message || '\u2014' },
+              { label: 'Status', value: m.status },
+              { label: 'Received', value: m.createdAt ? new Date(m.createdAt).toLocaleString() : '\u2014' }
+            ]);
+          });
         });
+
+        listEl.querySelectorAll('.mark-read').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            setButtonLoading(btn, true, 'Updating...');
+            try {
+              await api('/messages/' + btn.dataset.id + '/read', { method: 'PATCH' });
+              invalidateCache('messages');
+              showToast('Marked as read');
+              renderMessages(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.delete-msg').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var m = messages.find(function (x) { return x.id === btn.dataset.id; });
+            var name = m ? m.name : 'this message';
+            var confirmed = await customConfirm('Are you sure you want to delete the message from "' + name + '"? This cannot be undone.', { title: 'Delete Message', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/messages/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('messages');
+              showToast('Message deleted');
+              renderMessages(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            var isUnread = btn.dataset.unread === '1';
+            var actions = [
+              { icon: 'eye', label: 'View', action: function () { listEl.querySelector('.view-msg[data-id="' + id + '"]').click(); } }
+            ];
+            if (isUnread) {
+              actions.push({ icon: 'check', label: 'Mark Read', action: function () { listEl.querySelector('.mark-read[data-id="' + id + '"]').click(); } });
+            }
+            actions.push({ icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-msg[data-id="' + id + '"]').click(); } });
+            showOverflowMenu(btn, actions);
+          });
+        });
+      }
+
+      document.getElementById('messages-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
       });
 
-      listEl.querySelectorAll('.mark-read').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-          try {
-            await api('/messages/' + btn.dataset.id + '/read', { method: 'PATCH' });
-            showToast('Marked as read');
-            renderMessages(container);
-          } catch (err) { /* */ }
-        });
-      });
-
-      listEl.querySelectorAll('.delete-msg').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-          var confirmed = await customConfirm('Delete this message? This cannot be undone.', { title: 'Delete Message', type: 'danger' });
-          if (!confirmed) return;
-          try {
-            await api('/messages/' + btn.dataset.id, { method: 'DELETE' });
-            showToast('Message deleted');
-            renderMessages(container);
-          } catch (err) { /* */ }
-        });
-      });
+      renderList();
     } catch (err) { /* */ }
   }
 
@@ -1490,6 +1822,8 @@
 
       /* Settings save handlers */
       document.getElementById('save-brand').addEventListener('click', async function () {
+        var btn = this;
+        setButtonLoading(btn, true, 'Saving...');
         try {
           await api('/settings', {
             method: 'PUT',
@@ -1505,9 +1839,12 @@
           });
           showToast('Brand settings saved');
         } catch (err) { /* */ }
+        finally { setButtonLoading(btn, false); }
       });
 
       document.getElementById('save-seo').addEventListener('click', async function () {
+        var btn = this;
+        setButtonLoading(btn, true, 'Saving...');
         try {
           await api('/settings', {
             method: 'PUT',
@@ -1518,6 +1855,7 @@
           });
           showToast('SEO settings saved');
         } catch (err) { /* */ }
+        finally { setButtonLoading(btn, false); }
       });
 
       document.getElementById('change-pass').addEventListener('click', async function () {
@@ -1526,6 +1864,8 @@
         if (!cur || !nw) { showToast('Both password fields required', 'error'); return; }
         if (nw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
 
+        var btn = this;
+        setButtonLoading(btn, true, 'Changing...');
         try {
           await api('/auth/change-password', {
             method: 'POST',
@@ -1535,6 +1875,7 @@
           document.getElementById('set-curPass').value = '';
           document.getElementById('set-newPass').value = '';
         } catch (err) { /* */ }
+        finally { setButtonLoading(btn, false); }
       });
     } catch (err) { /* */ }
   }
@@ -1615,7 +1956,10 @@
     return '<div class="cuz-tabs">' + tabs.map(function (t) {
       return '<button class="cuz-tab' + (activeCustomizeTab === t.id ? ' active' : '') + '" data-tab="' + t.id + '">' +
         icon(t.icon, 14) + ' <span>' + t.label + '</span></button>';
-    }).join('') + '</div>';
+    }).join('') + '</div>' +
+    '<div class="cuz-mobile-select"><label for="cuz-tab-select" class="sr-only">Select tab</label><select id="cuz-tab-select" class="form-input form-select">' + tabs.map(function (t) {
+      return '<option value="' + t.id + '"' + (activeCustomizeTab === t.id ? ' selected' : '') + '>' + t.label + '</option>';
+    }).join('') + '</select></div>';
   }
 
   function buildThemePanel(cfg) {
@@ -1688,6 +2032,10 @@
         '<span class="cuz-section-key">' + escapeHtml(key) + '</span>' +
         '<label class="cuz-switch"><input type="checkbox" class="section-visible" data-key="' + key + '"' + (sec.visible !== false ? ' checked' : '') + '><span class="cuz-slider"></span></label>' +
         '<input type="number" class="form-input cuz-order-input section-order" data-key="' + key + '" value="' + (sec.order || 1) + '" min="1" max="20">' +
+        '<div class="cuz-move-btns">' +
+          '<button class="cuz-move-btn" data-dir="up" data-key="' + key + '" aria-label="Move ' + escapeHtml(sec.label || key) + ' up">&uarr;</button>' +
+          '<button class="cuz-move-btn" data-dir="down" data-key="' + key + '" aria-label="Move ' + escapeHtml(sec.label || key) + ' down">&darr;</button>' +
+        '</div>' +
       '</div>';
     }).join('');
     return '<div class="cuz-panel" data-panel="sections">' +
@@ -1912,6 +2260,10 @@
       '<div class="cuz-preview-frame-wrap">' +
         '<iframe id="cuz-preview-iframe" src="/" class="cuz-preview-iframe" title="Website Preview"></iframe>' +
       '</div>' +
+      '<div class="cuz-preview-mobile-msg">' +
+        '<p>' + icon('monitor', 18) + ' Preview is optimized for desktop viewports.</p>' +
+        '<a class="btn btn-primary" href="/" target="_blank" rel="noopener">' + icon('external-link', 14) + ' Open in New Tab</a>' +
+      '</div>' +
     '</div>';
   }
 
@@ -2077,15 +2429,22 @@
 
   function bindCustomizeEvents(container) {
     // Tab switching
-    container.querySelectorAll('.cuz-tab').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        activeCustomizeTab = btn.dataset.tab;
-        container.querySelectorAll('.cuz-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === activeCustomizeTab); });
-        container.querySelectorAll('.cuz-panel').forEach(function(p) {
-          p.style.display = p.dataset.panel === activeCustomizeTab ? '' : 'none';
-        });
+    function switchTab(tabId) {
+      activeCustomizeTab = tabId;
+      container.querySelectorAll('.cuz-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === tabId); });
+      container.querySelectorAll('.cuz-panel').forEach(function(p) {
+        p.style.display = p.dataset.panel === tabId ? '' : 'none';
       });
+      var sel = document.getElementById('cuz-tab-select');
+      if (sel) sel.value = tabId;
+    }
+    container.querySelectorAll('.cuz-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
     });
+    var tabSelect = document.getElementById('cuz-tab-select');
+    if (tabSelect) {
+      tabSelect.addEventListener('change', function() { switchTab(tabSelect.value); });
+    }
 
     // Show only active panel
     container.querySelectorAll('.cuz-panel').forEach(function(p) {
@@ -2111,24 +2470,28 @@
       numInput.addEventListener('input', function() { range.value = numInput.value; });
     });
 
+    // Track dirty state for unsaved changes detection
+    container.querySelectorAll('input, textarea, select').forEach(function(el) {
+      el.addEventListener('change', function() { _customizeDirty = true; });
+      el.addEventListener('input', function() { _customizeDirty = true; });
+    });
+
     // Save button
     var saveBtn = document.getElementById('cuz-save');
     if (saveBtn) {
       saveBtn.addEventListener('click', async function() {
         var data = collectCustomizeData();
+        setButtonLoading(saveBtn, true, 'Saving...');
         try {
-          saveBtn.disabled = true;
-          saveBtn.innerHTML = icon('refresh', 14) + ' Saving...';
           var result = await api('/customize', { method: 'PUT', body: JSON.stringify(data) });
           customizeCache = result;
+          _customizeDirty = false;
           showToast('Customization saved successfully');
-          // Refresh preview if visible
           var iframe = document.getElementById('cuz-preview-iframe');
           if (iframe) iframe.src = iframe.src;
         } catch(err) { /* toast shown by api() */ }
         finally {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = icon('check', 14) + ' Save All Changes';
+          setButtonLoading(saveBtn, false);
         }
       });
     }
@@ -2142,6 +2505,7 @@
         try {
           var result = await api('/customize/reset', { method: 'POST' });
           customizeCache = result;
+          _customizeDirty = false;
           showToast('Customization reset to defaults');
           renderCustomize(document.getElementById('page-content'));
         } catch(err) { /* */ }
@@ -2156,6 +2520,27 @@
         if (iframe) iframe.src = iframe.src;
       });
     }
+
+    // Section move buttons (mobile)
+    container.querySelectorAll('.cuz-move-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var row = btn.closest('.cuz-section-row');
+        var list = row.parentElement;
+        var rows = Array.from(list.querySelectorAll('.cuz-section-row'));
+        var idx = rows.indexOf(row);
+        if (btn.dataset.dir === 'up' && idx > 0) {
+          list.insertBefore(row, rows[idx - 1]);
+        } else if (btn.dataset.dir === 'down' && idx < rows.length - 1) {
+          list.insertBefore(rows[idx + 1], row);
+        }
+        // Sync order inputs to new visual order
+        Array.from(list.querySelectorAll('.cuz-section-row')).forEach(function(r, i) {
+          var orderInput = r.querySelector('.section-order');
+          if (orderInput) orderInput.value = i + 1;
+        });
+        _customizeDirty = true;
+      });
+    });
   }
 
   async function renderCustomize(container) {
