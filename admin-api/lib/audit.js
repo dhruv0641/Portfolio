@@ -44,6 +44,24 @@ const AuditAction = {
 
   // Settings
   SETTINGS_UPDATE: 'settings.update',
+
+  // Methodology
+  METHODOLOGY_CREATE: 'methodology.create',
+  METHODOLOGY_UPDATE: 'methodology.update',
+  METHODOLOGY_DELETE: 'methodology.delete',
+  METHODOLOGY_REORDER: 'methodology.reorder',
+
+  // Tools
+  TOOL_CREATE: 'tool.create',
+  TOOL_UPDATE: 'tool.update',
+  TOOL_DELETE: 'tool.delete',
+  TOOL_REORDER: 'tool.reorder',
+
+  // Certificates
+  CERTIFICATE_CREATE: 'certificate.create',
+  CERTIFICATE_UPDATE: 'certificate.update',
+  CERTIFICATE_DELETE: 'certificate.delete',
+  CERTIFICATE_REORDER: 'certificate.reorder',
 };
 
 /**

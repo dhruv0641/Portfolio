@@ -146,6 +146,9 @@ module.exports = {
   projects: new Repository('projects.json'),
   services: new Repository('services.json'),
   messages: new Repository('messages.json'),
+  methodology: new Repository('methodology.json'),
+  tools: new Repository('tools.json'),
+  certificates: new Repository('certificates.json'),
 
   // Singleton stores
   admin: new SingletonStore('admin.json'),

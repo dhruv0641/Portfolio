@@ -31,6 +31,9 @@ const messageRoutes = require('./routes/messages');
 const settingsRoutes = require('./routes/settings');
 const dashboardRoutes = require('./routes/dashboard');
 const customizeRoutes = require('./routes/customize');
+const methodologyRoutes = require('./routes/methodology');
+const toolRoutes = require('./routes/tools');
+const certificateRoutes = require('./routes/certificates');
 
 const app = express();
 
@@ -207,6 +210,46 @@ function initData() {
     fs.writeFileSync(auditPath, '[]', 'utf-8');
   }
 
+  // Seed methodology steps
+  if (!db.methodology.getAll().length) {
+    const defaultMethodology = [
+      { title: 'Detect', description: 'Monitor systems, analyze SIEM alerts, and identify potential security events requiring investigation.', icon: 'search', order: 1, enabled: true },
+      { title: 'Analyze', description: 'Investigate alerts, correlate data across sources, and determine threat severity and scope of impact.', icon: 'activity', order: 2, enabled: true },
+      { title: 'Contain', description: 'Isolate affected systems, block malicious activity, and prevent lateral movement within the network.', icon: 'shield', order: 3, enabled: true },
+      { title: 'Eradicate', description: 'Remove threat artifacts, patch vulnerabilities, and eliminate root cause to prevent reinfection.', icon: 'trash', order: 4, enabled: true },
+      { title: 'Recover', description: 'Restore operations, validate system integrity, document lessons learned, and update security controls.', icon: 'refresh', order: 5, enabled: true },
+    ];
+    defaultMethodology.forEach(m => db.methodology.create(m));
+  }
+
+  // Seed tools
+  if (!db.tools.getAll().length) {
+    const defaultTools = [
+      { name: 'Splunk', category: 'SIEM', icon: 'search', order: 1, enabled: true },
+      { name: 'Chronicle', category: 'Google SIEM', icon: 'eye', order: 2, enabled: true },
+      { name: 'Wireshark', category: 'Packet Analysis', icon: 'globe', order: 3, enabled: true },
+      { name: 'Python', category: 'Automation', icon: 'code', order: 4, enabled: true },
+      { name: '.NET Core', category: 'Secure Dev', icon: 'terminal', order: 5, enabled: true },
+      { name: 'Nmap', category: 'Network Scan', icon: 'alert-triangle', order: 6, enabled: true },
+      { name: 'Burp Suite', category: 'Web Security', icon: 'shield', order: 7, enabled: true },
+      { name: 'Kali Linux', category: 'Pen Testing', icon: 'terminal', order: 8, enabled: true },
+      { name: 'Snort', category: 'IDS/IPS', icon: 'activity', order: 9, enabled: true },
+      { name: 'AWS / Azure', category: 'Cloud Security', icon: 'cloud', order: 10, enabled: true },
+      { name: 'TryHackMe', category: 'Training', icon: 'target', order: 11, enabled: true },
+      { name: 'Git', category: 'Version Control', icon: 'code', order: 12, enabled: true },
+    ];
+    defaultTools.forEach(t => db.tools.create(t));
+  }
+
+  // Seed certificates
+  if (!db.certificates.getAll().length) {
+    const defaultCerts = [
+      { title: 'Google Cybersecurity Professional Certificate', issuer: 'Google · Coursera', date: '2025', credentialLink: '#', badgeIcon: 'shield-check', order: 1, enabled: true },
+      { title: 'Hands-On Labs & Simulations', issuer: 'Self-Directed Learning', date: '2025', credentialLink: '', badgeIcon: 'terminal', order: 2, enabled: true },
+    ];
+    defaultCerts.forEach(c => db.certificates.create(c));
+  }
+
   // Initialize customize defaults
   const customize = db.customize.get();
   if (!customize || !customize.theme) {
@@ -232,6 +275,9 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/customize', customizeRoutes);
+app.use('/api/methodology', methodologyRoutes);
+app.use('/api/tools', toolRoutes);
+app.use('/api/certificates', certificateRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // Health check (supports monitoring tools)

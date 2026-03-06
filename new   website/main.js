@@ -760,6 +760,126 @@
       .catch(function () { /* keep container empty on error */ });
   }
 
+  /* ─── Frontend Icon Map (subset matching admin ICONS) ─── */
+  var FE_ICONS = {
+    'shield':        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    'shield-check':  '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    'search':        '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    'activity':      '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+    'trash':         '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+    'refresh':       '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>',
+    'terminal':      '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+    'code':          '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+    'globe':         '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>',
+    'alert-triangle':'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'cloud':         '<path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/>',
+    'eye':           '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    'star':          '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    'server':        '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+    'lock':          '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>',
+    'zap':           '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    'target':        '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    'monitor':       '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    'database':      '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+    'key':           '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+    'external-link': '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'
+  };
+
+  function feIcon(name, size) {
+    var s = size || 20;
+    var p = FE_ICONS[name];
+    if (!p) return '';
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  }
+
+  function loadMethodology() {
+    var container = qs('#methodology-container');
+    if (!container) return;
+    fetch('/api/methodology', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (steps) {
+        steps = (steps || []).filter(function (s) { return s.enabled !== false; });
+        if (!steps.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center">Methodology steps coming soon.</p>';
+          return;
+        }
+        steps.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+        var lineHTML = '<div class="timeline-line" aria-hidden="true"><div class="timeline-line-fill"></div></div>';
+        var stepsHTML = steps.map(function (s, i) {
+          return '<div class="timeline-step" data-step="' + (i + 1) + '">'
+            + '<div class="tl-node" aria-hidden="true">' + feIcon(s.icon || 'shield', 20) + '</div>'
+            + '<div class="tl-card tilt-card">'
+            + '<h3>' + escapeHTML(s.title) + '</h3>'
+            + '<p>' + escapeHTML(s.description || '') + '</p>'
+            + '</div></div>';
+        }).join('');
+        container.innerHTML = lineHTML + stepsHTML;
+        initTiltCards();
+        initTimeline();
+      })
+      .catch(function () { /* keep container as-is on error */ });
+  }
+
+  function loadTools() {
+    var container = qs('#tools-container');
+    if (!container) return;
+    fetch('/api/tools', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (tools) {
+        tools = (tools || []).filter(function (t) { return t.enabled !== false; });
+        if (!tools.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Tools coming soon.</p>';
+          return;
+        }
+        tools.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+        container.innerHTML = tools.map(function (t) {
+          return '<div class="tool-item tilt-card">'
+            + '<div class="tool-icon" aria-hidden="true">' + feIcon(t.icon || 'terminal', 22) + '</div>'
+            + '<span class="tool-name">' + escapeHTML(t.name) + '</span>'
+            + (t.category ? '<span class="tool-cat">' + escapeHTML(t.category) + '</span>' : '')
+            + '</div>';
+        }).join('');
+        initTiltCards();
+      })
+      .catch(function () { /* keep container as-is on error */ });
+  }
+
+  function loadCertificates() {
+    var container = qs('#certificates-container');
+    if (!container) return;
+    fetch('/api/certificates', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (certs) {
+        certs = (certs || []).filter(function (c) { return c.enabled !== false; });
+        if (!certs.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Certifications coming soon.</p>';
+          return;
+        }
+        certs.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+        container.innerHTML = certs.map(function (c, i) {
+          var delayClass = 'reveal-delay-' + ((i % 3) + 2);
+          var linkHTML = c.credentialLink && c.credentialLink !== '#'
+            ? '<a href="' + escapeHTML(c.credentialLink) + '" class="cert-link" target="_blank" rel="noopener noreferrer">'
+              + feIcon('external-link', 14) + ' View Credential</a>'
+            : '';
+          return '<div class="cert-card tilt-card reveal ' + delayClass + '">'
+            + '<div class="cert-badge-wrap" aria-hidden="true">'
+            + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cert-award-icon"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>'
+            + '</div>'
+            + '<div class="cert-info">'
+            + '<h3 class="cert-name">' + escapeHTML(c.title) + '</h3>'
+            + (c.issuer ? '<p class="cert-issuer">' + escapeHTML(c.issuer) + (c.date ? ' &middot; ' + escapeHTML(c.date) : '') + '</p>' : '')
+            + linkHTML
+            + '</div>'
+            + '<div class="cert-verified">' + feIcon(c.badgeIcon || 'shield-check', 16) + ' Verified</div>'
+            + '</div>';
+        }).join('');
+        initReveals();
+        initTiltCards();
+      })
+      .catch(function () { /* keep container as-is on error */ });
+  }
+
   /* ======== INIT AFTER LOADER ======== */
   function initAfterLoad() {
     initCharReveal();
@@ -772,6 +892,9 @@
     initMagneticButtons();
     loadProjects();
     loadServices();
+    loadMethodology();
+    loadTools();
+    loadCertificates();
   }
 
   /* ======== INIT IMMEDIATELY ======== */

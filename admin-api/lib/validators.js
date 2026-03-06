@@ -76,6 +76,50 @@ const serviceCreateSchema = z.object({
 const serviceUpdateSchema = serviceCreateSchema.partial();
 
 // ═══════════════════════════════════════════
+// METHODOLOGY SCHEMAS
+// ═══════════════════════════════════════════
+const methodologyCreateSchema = z.object({
+  title: safeString.pipe(z.string().min(1, 'Title is required').max(200)),
+  description: safeString.pipe(z.string().max(2000)).optional().default(''),
+  icon: z.string().max(50).optional().default('shield'),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
+  tenantId: z.string().optional(),
+});
+
+const methodologyUpdateSchema = methodologyCreateSchema.partial();
+
+// ═══════════════════════════════════════════
+// TOOLS SCHEMAS
+// ═══════════════════════════════════════════
+const toolCreateSchema = z.object({
+  name: safeString.pipe(z.string().min(1, 'Name is required').max(200)),
+  category: safeString.pipe(z.string().max(100)).optional().default(''),
+  icon: z.string().max(50).optional().default('terminal'),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
+  tenantId: z.string().optional(),
+});
+
+const toolUpdateSchema = toolCreateSchema.partial();
+
+// ═══════════════════════════════════════════
+// CERTIFICATE SCHEMAS
+// ═══════════════════════════════════════════
+const certificateCreateSchema = z.object({
+  title: safeString.pipe(z.string().min(1, 'Title is required').max(200)),
+  issuer: safeString.pipe(z.string().max(200)).optional().default(''),
+  date: safeString.pipe(z.string().max(50)).optional().default(''),
+  credentialLink: z.string().url().or(z.literal('#')).or(z.literal('')).optional().default(''),
+  badgeIcon: z.string().max(50).optional().default('shield-check'),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
+  tenantId: z.string().optional(),
+});
+
+const certificateUpdateSchema = certificateCreateSchema.partial();
+
+// ═══════════════════════════════════════════
 // MESSAGE SCHEMAS
 // ═══════════════════════════════════════════
 const messageCreateSchema = z.object({
@@ -354,6 +398,12 @@ module.exports = {
   projectUpdateSchema,
   serviceCreateSchema,
   serviceUpdateSchema,
+  methodologyCreateSchema,
+  methodologyUpdateSchema,
+  toolCreateSchema,
+  toolUpdateSchema,
+  certificateCreateSchema,
+  certificateUpdateSchema,
   messageCreateSchema,
   settingsUpdateSchema,
   customizeUpdateSchema,

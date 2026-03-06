@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, messages: null };
+  var _cache = { projects: null, services: null, methodology: null, tools: null, certificates: null, messages: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.messages = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -525,6 +525,9 @@
       case 'dashboard': renderOverview(pageContent); break;
       case 'projects':  renderProjects(pageContent); break;
       case 'services':  renderServices(pageContent); break;
+      case 'methodology': renderMethodology(pageContent); break;
+      case 'tools':     renderTools(pageContent); break;
+      case 'certificates': renderCertificates(pageContent); break;
       case 'messages':  renderMessages(pageContent); break;
       case 'audit':     renderAuditLog(pageContent); break;
       case 'settings':  renderSettings(pageContent); break;
@@ -544,7 +547,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
+    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', methodology: 'Methodology', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -1026,6 +1029,9 @@
       { page: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
+      { page: 'methodology', icon: 'activity', label: 'Methodology' },
+      { page: 'tools',     icon: 'terminal', label: 'Tools' },
+      { page: 'certificates', icon: 'star', label: 'Certificates' },
       { page: 'messages',  icon: 'mail', label: 'Messages' },
       { page: 'customize', icon: 'palette', label: 'Customize' },
       { page: 'audit',     icon: 'clipboard', label: 'Audit Log' },
@@ -1652,6 +1658,684 @@
         backdrop.remove();
         document.removeEventListener('keydown', onEsc);
         renderServices(document.getElementById('page-content'));
+      } catch (err) { setButtonLoading(saveBtn, false); }
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     ICON PICKER UTILITY
+     ═══════════════════════════════════════════ */
+  var ICON_PICKER_LIST = Object.keys(ICONS);
+
+  function buildIconPickerHTML(currentIcon) {
+    return '<div class="icon-picker-grid">' +
+      ICON_PICKER_LIST.map(function(name) {
+        return '<button type="button" class="icon-picker-item' + (name === currentIcon ? ' active' : '') + '" data-icon="' + name + '" title="' + name + '">' + icon(name, 20) + '</button>';
+      }).join('') +
+    '</div>';
+  }
+
+  function bindIconPicker(container, hiddenInputId) {
+    var previewEl = container.querySelector('.icon-picker-preview');
+    container.querySelectorAll('.icon-picker-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        container.querySelectorAll('.icon-picker-item.active').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById(hiddenInputId).value = btn.dataset.icon;
+        if (previewEl) previewEl.innerHTML = icon(btn.dataset.icon, 20) + ' <span>' + btn.dataset.icon + '</span>';
+      });
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     METHODOLOGY PAGE
+     ═══════════════════════════════════════════ */
+  async function renderMethodology(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">Methodology</h1><p class="page-subtitle">Manage your incident response methodology steps</p></div>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="methodology-search" placeholder="Search steps..." type="text" aria-label="Search methodology"></div>' +
+          '<button class="btn btn-primary" id="add-methodology-btn">' + icon('plus', 16) + ' Add Step</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="methodology-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="methodology-pagination"></div>';
+
+    document.getElementById('add-methodology-btn').addEventListener('click', function () { showMethodologyModal(); });
+
+    try {
+      var items = _cache.methodology || await api('/methodology');
+      _cache.methodology = items;
+      items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      function getFiltered() {
+        if (!_searchTerm) return items;
+        var term = _searchTerm.toLowerCase();
+        return items.filter(function(m) {
+          return (m.title || '').toLowerCase().indexOf(term) !== -1 ||
+                 (m.description || '').toLowerCase().indexOf(term) !== -1;
+        });
+      }
+
+      function renderList() {
+        var listEl = document.getElementById('methodology-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('activity', 36) + '</div><p>' + (_searchTerm ? 'No steps match your search.' : 'No methodology steps yet.') + '</p></div>';
+          var pe = document.getElementById('methodology-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (m) {
+          return '<div class="item-card">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + icon(m.icon || 'activity', 20) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(m.title) + '</h3>' +
+                '<p class="item-card-desc">' + escapeHtml((m.description || '').substring(0, 120)) + '</p>' +
+              '</div>' +
+              '<span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
+            '</div>' +
+            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
+              '<span class="badge badge-cyan">Order: ' + (m.order || 0) + '</span>' +
+              '<span class="badge badge-cyan">' + icon(m.icon || 'activity', 12) + ' ' + escapeHtml(m.icon || 'activity') + '</span>' +
+            '</div>' +
+            '<div class="item-card-actions">' +
+              '<button class="btn btn-sm btn-ghost toggle-methodology" data-id="' + m.id + '">' + icon(m.enabled !== false ? 'eye-off' : 'eye', 14) + (m.enabled !== false ? ' Hide' : ' Show') + '</button>' +
+              '<button class="btn btn-sm btn-ghost edit-methodology" data-id="' + m.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-methodology" data-id="' + m.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+            '<button class="overflow-menu-trigger" data-id="' + m.id + '" aria-label="Actions">⋮</button>' +
+          '</div>';
+        }).join('') + '</div>';
+
+        renderPagination('methodology-pagination', _page, totalPages, filtered.length, 'step', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.toggle-methodology').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var m = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!m) return;
+            setButtonLoading(btn, true, 'Updating...');
+            try {
+              await api('/methodology/' + m.id, { method: 'PUT', body: JSON.stringify({ enabled: !m.enabled }) });
+              invalidateCache('methodology');
+              showToast(m.enabled ? 'Step hidden' : 'Step visible');
+              renderMethodology(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.edit-methodology').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var m = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (m) showMethodologyModal(m);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-methodology').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var m = items.find(function (x) { return x.id === btn.dataset.id; });
+            var name = m ? m.title : 'this step';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Step', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/methodology/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('methodology');
+              showToast('Step deleted');
+              renderMethodology(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            showOverflowMenu(btn, [
+              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-methodology[data-id="' + id + '"]').click(); } },
+              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-methodology[data-id="' + id + '"]').click(); } }
+            ]);
+          });
+        });
+
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var editBtn = card.querySelector('.edit-methodology');
+            if (editBtn) editBtn.click();
+          });
+        });
+      }
+
+      document.getElementById('methodology-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
+      });
+
+      renderList();
+    } catch (err) { /* */ }
+  }
+
+  /* ─── Methodology Modal ─── */
+  function showMethodologyModal(item) {
+    var isEdit = !!item;
+    item = item || {};
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' Methodology Step</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="m-title" value="' + escapeHtml(item.title || '') + '" placeholder="Detect"></div>' +
+          '<div class="form-group"><label class="form-label">Description</label><textarea class="form-input form-textarea" id="m-desc">' + escapeHtml(item.description || '') + '</textarea></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="m-order" value="' + (item.order || 0) + '" min="0"></div>' +
+            '<div class="form-group"><label class="form-check"><input type="checkbox" id="m-enabled" ' + (item.enabled !== false ? 'checked' : '') + '> Visible on website</label></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Icon</label>' +
+            '<div class="icon-picker-preview" style="margin-bottom:8px">' + icon(item.icon || 'shield', 20) + ' <span>' + escapeHtml(item.icon || 'shield') + '</span></div>' +
+            '<input type="hidden" id="m-icon" value="' + escapeHtml(item.icon || 'shield') + '">' +
+            '<div id="m-icon-picker">' + buildIconPickerHTML(item.icon || 'shield') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="m-save">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    bindIconPicker(document.getElementById('m-icon-picker').parentNode, 'm-icon');
+
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+
+    function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
+    document.addEventListener('keydown', onEsc);
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+
+    document.getElementById('m-save').addEventListener('click', async function () {
+      var body = {
+        title: document.getElementById('m-title').value.trim(),
+        description: document.getElementById('m-desc').value.trim(),
+        icon: document.getElementById('m-icon').value.trim() || 'shield',
+        order: parseInt(document.getElementById('m-order').value, 10) || 0,
+        enabled: document.getElementById('m-enabled').checked
+      };
+
+      if (!body.title) { showToast('Title is required', 'error'); return; }
+
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
+      try {
+        if (isEdit) {
+          await api('/methodology/' + item.id, { method: 'PUT', body: JSON.stringify(body) });
+          showToast('Step updated');
+        } else {
+          await api('/methodology', { method: 'POST', body: JSON.stringify(body) });
+          showToast('Step created');
+        }
+        invalidateCache('methodology');
+        backdrop.remove();
+        document.removeEventListener('keydown', onEsc);
+        renderMethodology(document.getElementById('page-content'));
+      } catch (err) { setButtonLoading(saveBtn, false); }
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     TOOLS PAGE
+     ═══════════════════════════════════════════ */
+  async function renderTools(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 12;
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">Tools</h1><p class="page-subtitle">Manage your cybersecurity tools and technologies</p></div>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="tools-search" placeholder="Search tools..." type="text" aria-label="Search tools"></div>' +
+          '<button class="btn btn-primary" id="add-tool-btn">' + icon('plus', 16) + ' Add Tool</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="tools-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="tools-pagination"></div>';
+
+    document.getElementById('add-tool-btn').addEventListener('click', function () { showToolModal(); });
+
+    try {
+      var items = _cache.tools || await api('/tools');
+      _cache.tools = items;
+      items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      function getFiltered() {
+        if (!_searchTerm) return items;
+        var term = _searchTerm.toLowerCase();
+        return items.filter(function(t) {
+          return (t.name || '').toLowerCase().indexOf(term) !== -1 ||
+                 (t.category || '').toLowerCase().indexOf(term) !== -1;
+        });
+      }
+
+      function renderList() {
+        var listEl = document.getElementById('tools-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('terminal', 36) + '</div><p>' + (_searchTerm ? 'No tools match your search.' : 'No tools yet.') + '</p></div>';
+          var pe = document.getElementById('tools-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (t) {
+          return '<div class="item-card">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + icon(t.icon || 'terminal', 20) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(t.name) + '</h3>' +
+                (t.category ? '<p class="item-card-desc">' + escapeHtml(t.category) + '</p>' : '') +
+              '</div>' +
+              '<span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
+            '</div>' +
+            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
+              '<span class="badge badge-cyan">Order: ' + (t.order || 0) + '</span>' +
+              '<span class="badge badge-cyan">' + icon(t.icon || 'terminal', 12) + ' ' + escapeHtml(t.icon || 'terminal') + '</span>' +
+            '</div>' +
+            '<div class="item-card-actions">' +
+              '<button class="btn btn-sm btn-ghost toggle-tool" data-id="' + t.id + '">' + icon(t.enabled !== false ? 'eye-off' : 'eye', 14) + (t.enabled !== false ? ' Hide' : ' Show') + '</button>' +
+              '<button class="btn btn-sm btn-ghost edit-tool" data-id="' + t.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-tool" data-id="' + t.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+            '<button class="overflow-menu-trigger" data-id="' + t.id + '" aria-label="Actions">⋮</button>' +
+          '</div>';
+        }).join('') + '</div>';
+
+        renderPagination('tools-pagination', _page, totalPages, filtered.length, 'tool', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.toggle-tool').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var t = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!t) return;
+            setButtonLoading(btn, true, 'Updating...');
+            try {
+              await api('/tools/' + t.id, { method: 'PUT', body: JSON.stringify({ enabled: !t.enabled }) });
+              invalidateCache('tools');
+              showToast(t.enabled ? 'Tool hidden' : 'Tool visible');
+              renderTools(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.edit-tool').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var t = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (t) showToolModal(t);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-tool').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var t = items.find(function (x) { return x.id === btn.dataset.id; });
+            var name = t ? t.name : 'this tool';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Tool', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/tools/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('tools');
+              showToast('Tool deleted');
+              renderTools(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            showOverflowMenu(btn, [
+              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-tool[data-id="' + id + '"]').click(); } },
+              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-tool[data-id="' + id + '"]').click(); } }
+            ]);
+          });
+        });
+
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var editBtn = card.querySelector('.edit-tool');
+            if (editBtn) editBtn.click();
+          });
+        });
+      }
+
+      document.getElementById('tools-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
+      });
+
+      renderList();
+    } catch (err) { /* */ }
+  }
+
+  /* ─── Tool Modal ─── */
+  function showToolModal(tool) {
+    var isEdit = !!tool;
+    tool = tool || {};
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' Tool</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Name</label><input class="form-input" id="t-name" value="' + escapeHtml(tool.name || '') + '" placeholder="Splunk"></div><div class="form-group"><label class="form-label">Category</label><input class="form-input" id="t-category" value="' + escapeHtml(tool.category || '') + '" placeholder="SIEM & Monitoring"></div></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="t-order" value="' + (tool.order || 0) + '" min="0"></div>' +
+            '<div class="form-group"><label class="form-check"><input type="checkbox" id="t-enabled" ' + (tool.enabled !== false ? 'checked' : '') + '> Visible on website</label></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Icon</label>' +
+            '<div class="icon-picker-preview" style="margin-bottom:8px">' + icon(tool.icon || 'terminal', 20) + ' <span>' + escapeHtml(tool.icon || 'terminal') + '</span></div>' +
+            '<input type="hidden" id="t-icon" value="' + escapeHtml(tool.icon || 'terminal') + '">' +
+            '<div id="t-icon-picker">' + buildIconPickerHTML(tool.icon || 'terminal') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="t-save">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    bindIconPicker(document.getElementById('t-icon-picker').parentNode, 't-icon');
+
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+
+    function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
+    document.addEventListener('keydown', onEsc);
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+
+    document.getElementById('t-save').addEventListener('click', async function () {
+      var body = {
+        name: document.getElementById('t-name').value.trim(),
+        category: document.getElementById('t-category').value.trim(),
+        icon: document.getElementById('t-icon').value.trim() || 'terminal',
+        order: parseInt(document.getElementById('t-order').value, 10) || 0,
+        enabled: document.getElementById('t-enabled').checked
+      };
+
+      if (!body.name) { showToast('Name is required', 'error'); return; }
+
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
+      try {
+        if (isEdit) {
+          await api('/tools/' + tool.id, { method: 'PUT', body: JSON.stringify(body) });
+          showToast('Tool updated');
+        } else {
+          await api('/tools', { method: 'POST', body: JSON.stringify(body) });
+          showToast('Tool created');
+        }
+        invalidateCache('tools');
+        backdrop.remove();
+        document.removeEventListener('keydown', onEsc);
+        renderTools(document.getElementById('page-content'));
+      } catch (err) { setButtonLoading(saveBtn, false); }
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     CERTIFICATES PAGE
+     ═══════════════════════════════════════════ */
+  async function renderCertificates(container) {
+    var _searchTerm = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">Certificates</h1><p class="page-subtitle">Manage your certifications and credentials</p></div>' +
+        '<div class="page-header-actions">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="certificates-search" placeholder="Search certificates..." type="text" aria-label="Search certificates"></div>' +
+          '<button class="btn btn-primary" id="add-certificate-btn">' + icon('plus', 16) + ' Add Certificate</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="certificates-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="certificates-pagination"></div>';
+
+    document.getElementById('add-certificate-btn').addEventListener('click', function () { showCertificateModal(); });
+
+    try {
+      var items = _cache.certificates || await api('/certificates');
+      _cache.certificates = items;
+      items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      function getFiltered() {
+        if (!_searchTerm) return items;
+        var term = _searchTerm.toLowerCase();
+        return items.filter(function(c) {
+          return (c.title || '').toLowerCase().indexOf(term) !== -1 ||
+                 (c.issuer || '').toLowerCase().indexOf(term) !== -1;
+        });
+      }
+
+      function renderList() {
+        var listEl = document.getElementById('certificates-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('star', 36) + '</div><p>' + (_searchTerm ? 'No certificates match your search.' : 'No certificates yet.') + '</p></div>';
+          var pe = document.getElementById('certificates-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (c) {
+          return '<div class="item-card">' +
+            '<div class="item-card-header">' +
+              '<span class="item-card-icon">' + icon(c.badgeIcon || 'shield-check', 20) + '</span>' +
+              '<div class="item-card-meta">' +
+                '<h3 class="item-card-title">' + escapeHtml(c.title) + '</h3>' +
+                '<p class="item-card-desc">' + escapeHtml(c.issuer || '') + (c.date ? ' &middot; ' + escapeHtml(c.date) : '') + '</p>' +
+              '</div>' +
+              '<span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
+            '</div>' +
+            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
+              '<span class="badge badge-cyan">Order: ' + (c.order || 0) + '</span>' +
+              (c.credentialLink && c.credentialLink !== '#' ? '<a href="' + escapeHtml(c.credentialLink) + '" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">' + icon('external-link', 12) + ' View Credential</a>' : '') +
+            '</div>' +
+            '<div class="item-card-actions">' +
+              '<button class="btn btn-sm btn-ghost toggle-certificate" data-id="' + c.id + '">' + icon(c.enabled !== false ? 'eye-off' : 'eye', 14) + (c.enabled !== false ? ' Hide' : ' Show') + '</button>' +
+              '<button class="btn btn-sm btn-ghost edit-certificate" data-id="' + c.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-certificate" data-id="' + c.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+            '<button class="overflow-menu-trigger" data-id="' + c.id + '" aria-label="Actions">⋮</button>' +
+          '</div>';
+        }).join('') + '</div>';
+
+        renderPagination('certificates-pagination', _page, totalPages, filtered.length, 'certificate', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.toggle-certificate').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var c = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!c) return;
+            setButtonLoading(btn, true, 'Updating...');
+            try {
+              await api('/certificates/' + c.id, { method: 'PUT', body: JSON.stringify({ enabled: !c.enabled }) });
+              invalidateCache('certificates');
+              showToast(c.enabled ? 'Certificate hidden' : 'Certificate visible');
+              renderCertificates(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.edit-certificate').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var c = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (c) showCertificateModal(c);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-certificate').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var c = items.find(function (x) { return x.id === btn.dataset.id; });
+            var name = c ? c.title : 'this certificate';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Certificate', type: 'danger' });
+            if (!confirmed) return;
+            setButtonLoading(btn, true, 'Deleting...');
+            try {
+              await api('/certificates/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('certificates');
+              showToast('Certificate deleted');
+              renderCertificates(container);
+            } catch (err) { setButtonLoading(btn, false); }
+          });
+        });
+
+        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            showOverflowMenu(btn, [
+              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-certificate[data-id="' + id + '"]').click(); } },
+              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-certificate[data-id="' + id + '"]').click(); } }
+            ]);
+          });
+        });
+
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var editBtn = card.querySelector('.edit-certificate');
+            if (editBtn) editBtn.click();
+          });
+        });
+      }
+
+      document.getElementById('certificates-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
+      });
+
+      renderList();
+    } catch (err) { /* */ }
+  }
+
+  /* ─── Certificate Modal ─── */
+  function showCertificateModal(cert) {
+    var isEdit = !!cert;
+    cert = cert || {};
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' Certificate</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="c-title" value="' + escapeHtml(cert.title || '') + '" placeholder="Google Cybersecurity Certificate"></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Issuer</label><input class="form-input" id="c-issuer" value="' + escapeHtml(cert.issuer || '') + '" placeholder="Google / Coursera"></div><div class="form-group"><label class="form-label">Date</label><input class="form-input" id="c-date" value="' + escapeHtml(cert.date || '') + '" placeholder="2024"></div></div>' +
+          '<div class="form-group"><label class="form-label">Credential Link</label><input class="form-input" id="c-link" value="' + escapeHtml(cert.credentialLink || '') + '" placeholder="https://..."></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="c-order" value="' + (cert.order || 0) + '" min="0"></div>' +
+            '<div class="form-group"><label class="form-check"><input type="checkbox" id="c-enabled" ' + (cert.enabled !== false ? 'checked' : '') + '> Visible on website</label></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Badge Icon</label>' +
+            '<div class="icon-picker-preview" style="margin-bottom:8px">' + icon(cert.badgeIcon || 'shield-check', 20) + ' <span>' + escapeHtml(cert.badgeIcon || 'shield-check') + '</span></div>' +
+            '<input type="hidden" id="c-badge" value="' + escapeHtml(cert.badgeIcon || 'shield-check') + '">' +
+            '<div id="c-icon-picker">' + buildIconPickerHTML(cert.badgeIcon || 'shield-check') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="c-save">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    bindIconPicker(document.getElementById('c-icon-picker').parentNode, 'c-badge');
+
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+
+    function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
+    document.addEventListener('keydown', onEsc);
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+
+    document.getElementById('c-save').addEventListener('click', async function () {
+      var body = {
+        title: document.getElementById('c-title').value.trim(),
+        issuer: document.getElementById('c-issuer').value.trim(),
+        date: document.getElementById('c-date').value.trim(),
+        credentialLink: document.getElementById('c-link').value.trim() || '#',
+        badgeIcon: document.getElementById('c-badge').value.trim() || 'shield-check',
+        order: parseInt(document.getElementById('c-order').value, 10) || 0,
+        enabled: document.getElementById('c-enabled').checked
+      };
+
+      if (!body.title) { showToast('Title is required', 'error'); return; }
+
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
+      try {
+        if (isEdit) {
+          await api('/certificates/' + cert.id, { method: 'PUT', body: JSON.stringify(body) });
+          showToast('Certificate updated');
+        } else {
+          await api('/certificates', { method: 'POST', body: JSON.stringify(body) });
+          showToast('Certificate created');
+        }
+        invalidateCache('certificates');
+        backdrop.remove();
+        document.removeEventListener('keydown', onEsc);
+        renderCertificates(document.getElementById('page-content'));
       } catch (err) { setButtonLoading(saveBtn, false); }
     });
   }
