@@ -281,7 +281,8 @@
      ═══════════════════════════════════════════ */
   function showOverflowMenu(triggerBtn, actions) {
     closeOverflowMenu();
-    var rect = triggerBtn.getBoundingClientRect();
+    var card = triggerBtn.closest('.item-card');
+    if (!card) return;
     var backdrop = document.createElement('div');
     backdrop.className = 'overflow-menu-backdrop';
     var menu = document.createElement('div');
@@ -295,31 +296,35 @@
       btn.addEventListener('click', function() { closeOverflowMenu(); a.action(); });
       menu.appendChild(btn);
     });
+    // Backdrop on body for click-outside detection
     document.body.appendChild(backdrop);
-    document.body.appendChild(menu);
-    // Position after appending so we can measure
+    // Menu inside the card so it scrolls with it
+    card.style.zIndex = '10';
+    card.appendChild(menu);
+    // Boundary: if menu goes below viewport, open upward
     var menuRect = menu.getBoundingClientRect();
-    var top = rect.bottom + 4;
-    var left = rect.right - menuRect.width;
-    // Boundary: don't go off left
-    if (left < 8) left = 8;
-    // Boundary: don't go off right
-    if (left + menuRect.width > window.innerWidth - 8) left = window.innerWidth - 8 - menuRect.width;
-    // Boundary: if menu would go below viewport, open upward
-    if (top + menuRect.height > window.innerHeight - 8) {
-      top = rect.top - menuRect.height - 4;
-      if (top < 8) top = 8;
+    if (menuRect.bottom > window.innerHeight - 8) {
+      menu.style.top = 'auto';
+      menu.style.bottom = '100%';
+      menu.style.marginTop = '0';
+      menu.style.marginBottom = '4px';
     }
-    menu.style.top = top + 'px';
-    menu.style.left = left + 'px';
+    // Boundary: if menu goes off right side
+    if (menuRect.right > window.innerWidth - 8) {
+      menu.style.right = '0';
+    }
     backdrop.addEventListener('click', closeOverflowMenu);
     // Close on scroll
+    var scrollContainer = document.querySelector('.main-content') || window;
     var scrollHandler = function() { closeOverflowMenu(); };
+    scrollContainer.addEventListener('scroll', scrollHandler, { once: true, passive: true });
     window.addEventListener('scroll', scrollHandler, { once: true, capture: true });
     // Close on ESC
     var escHandler = function(e) { if (e.key === 'Escape') closeOverflowMenu(); };
     document.addEventListener('keydown', escHandler);
     menu._cleanup = function() {
+      card.style.zIndex = '';
+      scrollContainer.removeEventListener('scroll', scrollHandler);
       window.removeEventListener('scroll', scrollHandler, { capture: true });
       document.removeEventListener('keydown', escHandler);
     };

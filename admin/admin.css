@@ -1966,7 +1966,7 @@ body.menu-open {
 
   .stat-card {
     padding: var(--sp-4);
-    contain: layout paint;
+    contain: layout style;
   }
   .stat-value { font-size: 1.5rem; }
 
@@ -2029,7 +2029,7 @@ body.menu-open {
 
   .item-card {
     padding: var(--sp-4);
-    contain: layout paint;
+    contain: layout style;
     overflow: visible;
   }
 
@@ -2688,7 +2688,7 @@ body.menu-open {
 }
 
 .overflow-menu {
-  position: fixed;
+  position: absolute;
   z-index: 1200;
   min-width: 180px;
   background: rgba(18, 28, 52, 0.98);
@@ -2698,6 +2698,9 @@ body.menu-open {
   padding: var(--sp-1) 0;
   animation: fadeIn 0.15s ease;
   transform: translateZ(0);
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
 }
 
 .overflow-menu-item {
