@@ -1692,19 +1692,29 @@
      ═══════════════════════════════════════════ */
   async function renderMethodology(container) {
     var _searchTerm = '';
+    var _statusFilter = 'all';
     var _page = 1;
-    var PER_PAGE = 10;
+    var PER_PAGE = 15;
+    var _orderDirty = false;
 
     container.innerHTML =
       '<div class="page-header">' +
-        '<div><h1 class="page-title">Methodology</h1><p class="page-subtitle">Manage your incident response methodology steps</p></div>' +
+        '<div><h1 class="page-title">' + icon('activity', 22) + ' Methodology</h1><p class="page-subtitle">Manage your incident response methodology steps</p></div>' +
         '<div class="page-header-actions">' +
-          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="methodology-search" placeholder="Search steps..." type="text" aria-label="Search methodology"></div>' +
           '<button class="btn btn-primary" id="add-methodology-btn">' + icon('plus', 16) + ' Add Step</button>' +
         '</div>' +
       '</div>' +
-      '<div id="methodology-order-panel" class="order-panel" style="display:none"></div>' +
-      '<div id="methodology-list">' + skeleton('cards', 3) + '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="methodology-search" placeholder="Search steps..." type="text" aria-label="Search methodology"></div>' +
+          '<select class="form-input cms-filter" id="methodology-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right">' +
+          '<button class="btn btn-sm btn-primary" id="save-methodology-order" style="display:none">' + icon('check', 14) + ' Save Order</button>' +
+          '<span class="cms-count" id="methodology-count"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="methodology-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="methodology-pagination"></div>';
 
     document.getElementById('add-methodology-btn').addEventListener('click', function () { showMethodologyModal(); });
@@ -1714,61 +1724,32 @@
       _cache.methodology = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
 
-      // Build order management panel
-      var orderPanel = document.getElementById('methodology-order-panel');
-      function buildOrderPanel() {
-        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
-        orderPanel.style.display = 'block';
-        orderPanel.innerHTML =
-          '<div class="order-panel-inner">' +
-            '<div class="order-panel-header">' +
-              '<h3>' + icon('sliders', 16) + ' Reorder Steps</h3>' +
-              '<button class="btn btn-sm btn-primary" id="apply-methodology-order">' + icon('check', 14) + ' Apply Order</button>' +
-            '</div>' +
-            '<table class="order-table"><thead><tr><th>Title</th><th>Icon</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
-            sorted.map(function(m) {
-              return '<tr>' +
-                '<td>' + escapeHtml(m.title) + '</td>' +
-                '<td>' + icon(m.icon || 'activity', 16) + ' ' + escapeHtml(m.icon || 'activity') + '</td>' +
-                '<td><span class="badge badge-cyan">' + (m.order || 0) + '</span></td>' +
-                '<td><input type="number" class="form-input order-input" data-id="' + m.id + '" value="' + (m.order || 0) + '" min="0" style="width:70px"></td>' +
-                '<td><span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
-              '</tr>';
-            }).join('') +
-            '</tbody></table>' +
-          '</div>';
-
-        document.getElementById('apply-methodology-order').addEventListener('click', async function () {
-          var btn = this;
-          var inputs = orderPanel.querySelectorAll('.order-input');
-          var orderData = [];
-          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
-          orderData.sort(function(a, b) { return a.order - b.order; });
-          orderData.forEach(function(item, idx) { item.order = idx + 1; });
-          setButtonLoading(btn, true, 'Applying...');
-          try {
-            await api('/methodology', { method: 'PUT', body: JSON.stringify(orderData) });
-            invalidateCache('methodology');
-            showToast('Order updated');
-            renderMethodology(container);
-          } catch (err) { setButtonLoading(btn, false); }
+      function getFiltered() {
+        return items.filter(function(m) {
+          if (_statusFilter === 'visible' && m.enabled === false) return false;
+          if (_statusFilter === 'hidden' && m.enabled !== false) return false;
+          if (_searchTerm) {
+            var term = _searchTerm.toLowerCase();
+            return (m.title || '').toLowerCase().indexOf(term) !== -1 ||
+                   (m.description || '').toLowerCase().indexOf(term) !== -1;
+          }
+          return true;
         });
       }
-      buildOrderPanel();
 
-      function getFiltered() {
-        if (!_searchTerm) return items;
-        var term = _searchTerm.toLowerCase();
-        return items.filter(function(m) {
-          return (m.title || '').toLowerCase().indexOf(term) !== -1 ||
-                 (m.description || '').toLowerCase().indexOf(term) !== -1;
-        });
+      function markOrderDirty() {
+        _orderDirty = true;
+        var btn = document.getElementById('save-methodology-order');
+        if (btn) btn.style.display = '';
       }
 
       function renderList() {
         var listEl = document.getElementById('methodology-list');
         if (!listEl) return;
         var filtered = getFiltered();
+
+        var countEl = document.getElementById('methodology-count');
+        if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' steps';
 
         if (filtered.length === 0) {
           listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('activity', 36) + '</div><p>' + (_searchTerm ? 'No steps match your search.' : 'No methodology steps yet.') + '</p></div>';
@@ -1782,81 +1763,107 @@
         var start = (_page - 1) * PER_PAGE;
         var pageItems = filtered.slice(start, start + PER_PAGE);
 
-        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (m) {
-          return '<div class="item-card">' +
-            '<div class="item-card-header">' +
-              '<span class="item-card-icon">' + icon(m.icon || 'activity', 20) + '</span>' +
-              '<div class="item-card-meta">' +
-                '<h3 class="item-card-title">' + escapeHtml(m.title) + '</h3>' +
-                '<p class="item-card-desc">' + escapeHtml((m.description || '').substring(0, 120)) + '</p>' +
+        listEl.innerHTML =
+          '<table class="cms-table">' +
+            '<thead><tr>' +
+              '<th class="cms-col-order">#</th>' +
+              '<th class="cms-col-icon">Icon</th>' +
+              '<th class="cms-col-main">Title</th>' +
+              '<th class="cms-col-desc">Description</th>' +
+              '<th class="cms-col-status">Status</th>' +
+              '<th class="cms-col-actions">Actions</th>' +
+            '</tr></thead>' +
+            '<tbody>' + pageItems.map(function(m) {
+              return '<tr class="cms-row" data-id="' + m.id + '">' +
+                '<td class="cms-col-order"><input type="number" class="cms-order-input" data-id="' + m.id + '" value="' + (m.order || 0) + '" min="0" title="Order"></td>' +
+                '<td class="cms-col-icon"><span class="cms-icon-cell">' + icon(m.icon || 'activity', 18) + '</span></td>' +
+                '<td class="cms-col-main"><span class="cms-title">' + escapeHtml(m.title) + '</span></td>' +
+                '<td class="cms-col-desc"><span class="cms-desc">' + escapeHtml((m.description || '').substring(0, 80)) + (m.description && m.description.length > 80 ? '...' : '') + '</span></td>' +
+                '<td class="cms-col-status"><span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+                '<td class="cms-col-actions"><div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-methodology" data-id="' + m.id + '" title="' + (m.enabled !== false ? 'Hide' : 'Show') + '">' + icon(m.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-methodology" data-id="' + m.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-methodology" data-id="' + m.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody>' +
+          '</table>' +
+          '<div class="cms-mobile-cards">' + pageItems.map(function(m) {
+            return '<div class="cms-mobile-card" data-id="' + m.id + '">' +
+              '<div class="cms-mobile-card-header">' +
+                '<span class="cms-icon-cell">' + icon(m.icon || 'activity', 18) + '</span>' +
+                '<div class="cms-mobile-card-info"><span class="cms-title">' + escapeHtml(m.title) + '</span><span class="cms-desc">' + escapeHtml((m.description || '').substring(0, 60)) + '</span></div>' +
+                '<span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
               '</div>' +
-              '<span class="badge ' + (m.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (m.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
-            '</div>' +
-            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
-              '<span class="badge badge-cyan">Order: ' + (m.order || 0) + '</span>' +
-              '<span class="badge badge-cyan">' + icon(m.icon || 'activity', 12) + ' ' + escapeHtml(m.icon || 'activity') + '</span>' +
-            '</div>' +
-            '<div class="item-card-actions">' +
-              '<button class="btn btn-sm btn-ghost toggle-methodology" data-id="' + m.id + '">' + icon(m.enabled !== false ? 'eye-off' : 'eye', 14) + (m.enabled !== false ? ' Hide' : ' Show') + '</button>' +
-              '<button class="btn btn-sm btn-ghost edit-methodology" data-id="' + m.id + '">' + icon('edit', 14) + ' Edit</button>' +
-              '<button class="btn btn-sm btn-danger delete-methodology" data-id="' + m.id + '">' + icon('trash', 14) + ' Delete</button>' +
-            '</div>' +
-            '<button class="overflow-menu-trigger" data-id="' + m.id + '" aria-label="Actions">⋮</button>' +
-          '</div>';
-        }).join('') + '</div>';
+              '<div class="cms-mobile-card-footer">' +
+                '<span class="cms-mobile-order">Order: <input type="number" class="cms-order-input" data-id="' + m.id + '" value="' + (m.order || 0) + '" min="0"></span>' +
+                '<div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-methodology" data-id="' + m.id + '" title="' + (m.enabled !== false ? 'Hide' : 'Show') + '">' + icon(m.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-methodology" data-id="' + m.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-methodology" data-id="' + m.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') + '</div>';
 
         renderPagination('methodology-pagination', _page, totalPages, filtered.length, 'step', function(pg) { _page = pg; renderList(); });
 
+        listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
+          inp.addEventListener('change', markOrderDirty);
+        });
+
         listEl.querySelectorAll('.toggle-methodology').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var m = items.find(function (x) { return x.id === btn.dataset.id; });
             if (!m) return;
-            setButtonLoading(btn, true, 'Updating...');
+            btn.disabled = true;
             try {
               await api('/methodology/' + m.id, { method: 'PUT', body: JSON.stringify({ enabled: !m.enabled }) });
               invalidateCache('methodology');
               showToast(m.enabled ? 'Step hidden' : 'Step visible');
               renderMethodology(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
         listEl.querySelectorAll('.edit-methodology').forEach(function (btn) {
-          btn.addEventListener('click', function () {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
             var m = items.find(function (x) { return x.id === btn.dataset.id; });
             if (m) showMethodologyModal(m);
           });
         });
 
         listEl.querySelectorAll('.delete-methodology').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var m = items.find(function (x) { return x.id === btn.dataset.id; });
             var name = m ? m.title : 'this step';
             var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Step', type: 'danger' });
             if (!confirmed) return;
-            setButtonLoading(btn, true, 'Deleting...');
+            btn.disabled = true;
             try {
               await api('/methodology/' + btn.dataset.id, { method: 'DELETE' });
               invalidateCache('methodology');
               showToast('Step deleted');
               renderMethodology(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
-        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.dataset.id;
-            showOverflowMenu(btn, [
-              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-methodology[data-id="' + id + '"]').click(); } },
-              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-methodology[data-id="' + id + '"]').click(); } }
-            ]);
+        listEl.querySelectorAll('.cms-row').forEach(function(row) {
+          row.addEventListener('click', function(e) {
+            if (e.target.closest('button, input, a')) return;
+            var editBtn = row.querySelector('.edit-methodology');
+            if (editBtn) editBtn.click();
           });
         });
 
-        listEl.querySelectorAll('.item-card').forEach(function(card) {
+        listEl.querySelectorAll('.cms-mobile-card').forEach(function(card) {
           card.addEventListener('click', function(e) {
-            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            if (e.target.closest('button, input, a')) return;
             var editBtn = card.querySelector('.edit-methodology');
             if (editBtn) editBtn.click();
           });
@@ -1867,6 +1874,34 @@
         _searchTerm = e.target.value.trim();
         _page = 1;
         renderList();
+      });
+
+      document.getElementById('methodology-status-filter').addEventListener('change', function(e) {
+        _statusFilter = e.target.value;
+        _page = 1;
+        renderList();
+      });
+
+      document.getElementById('save-methodology-order').addEventListener('click', async function () {
+        var btn = this;
+        var inputs = document.querySelectorAll('#methodology-list .cms-order-input');
+        var orderData = [];
+        var seen = {};
+        inputs.forEach(function(inp) {
+          if (!seen[inp.dataset.id]) {
+            seen[inp.dataset.id] = true;
+            orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 });
+          }
+        });
+        orderData.sort(function(a, b) { return a.order - b.order; });
+        orderData.forEach(function(item, idx) { item.order = idx + 1; });
+        setButtonLoading(btn, true, 'Saving...');
+        try {
+          await api('/methodology', { method: 'PUT', body: JSON.stringify(orderData) });
+          invalidateCache('methodology');
+          showToast('Order updated');
+          renderMethodology(container);
+        } catch (err) { setButtonLoading(btn, false); }
       });
 
       renderList();
@@ -1952,19 +1987,29 @@
      ═══════════════════════════════════════════ */
   async function renderTools(container) {
     var _searchTerm = '';
+    var _statusFilter = 'all';
     var _page = 1;
-    var PER_PAGE = 12;
+    var PER_PAGE = 15;
+    var _orderDirty = false;
 
     container.innerHTML =
       '<div class="page-header">' +
-        '<div><h1 class="page-title">Tools</h1><p class="page-subtitle">Manage your cybersecurity tools and technologies</p></div>' +
+        '<div><h1 class="page-title">' + icon('terminal', 22) + ' Tools</h1><p class="page-subtitle">Manage your cybersecurity tools and technologies</p></div>' +
         '<div class="page-header-actions">' +
-          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="tools-search" placeholder="Search tools..." type="text" aria-label="Search tools"></div>' +
           '<button class="btn btn-primary" id="add-tool-btn">' + icon('plus', 16) + ' Add Tool</button>' +
         '</div>' +
       '</div>' +
-      '<div id="tools-order-panel" class="order-panel" style="display:none"></div>' +
-      '<div id="tools-list">' + skeleton('cards', 3) + '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="tools-search" placeholder="Search tools..." type="text" aria-label="Search tools"></div>' +
+          '<select class="form-input cms-filter" id="tools-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right">' +
+          '<button class="btn btn-sm btn-primary" id="save-tools-order" style="display:none">' + icon('check', 14) + ' Save Order</button>' +
+          '<span class="cms-count" id="tools-count"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="tools-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="tools-pagination"></div>';
 
     document.getElementById('add-tool-btn').addEventListener('click', function () { showToolModal(); });
@@ -1974,61 +2019,32 @@
       _cache.tools = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
 
-      // Build order management panel
-      var toolsOrderPanel = document.getElementById('tools-order-panel');
-      function buildToolsOrderPanel() {
-        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
-        toolsOrderPanel.style.display = 'block';
-        toolsOrderPanel.innerHTML =
-          '<div class="order-panel-inner">' +
-            '<div class="order-panel-header">' +
-              '<h3>' + icon('sliders', 16) + ' Reorder Tools</h3>' +
-              '<button class="btn btn-sm btn-primary" id="apply-tools-order">' + icon('check', 14) + ' Apply Order</button>' +
-            '</div>' +
-            '<table class="order-table"><thead><tr><th>Name</th><th>Category</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
-            sorted.map(function(t) {
-              return '<tr>' +
-                '<td>' + icon(t.icon || 'terminal', 16) + ' ' + escapeHtml(t.name) + '</td>' +
-                '<td>' + escapeHtml(t.category || '') + '</td>' +
-                '<td><span class="badge badge-cyan">' + (t.order || 0) + '</span></td>' +
-                '<td><input type="number" class="form-input order-input" data-id="' + t.id + '" value="' + (t.order || 0) + '" min="0" style="width:70px"></td>' +
-                '<td><span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
-              '</tr>';
-            }).join('') +
-            '</tbody></table>' +
-          '</div>';
-
-        document.getElementById('apply-tools-order').addEventListener('click', async function () {
-          var btn = this;
-          var inputs = toolsOrderPanel.querySelectorAll('.order-input');
-          var orderData = [];
-          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
-          orderData.sort(function(a, b) { return a.order - b.order; });
-          orderData.forEach(function(item, idx) { item.order = idx + 1; });
-          setButtonLoading(btn, true, 'Applying...');
-          try {
-            await api('/tools', { method: 'PUT', body: JSON.stringify(orderData) });
-            invalidateCache('tools');
-            showToast('Order updated');
-            renderTools(container);
-          } catch (err) { setButtonLoading(btn, false); }
+      function getFiltered() {
+        return items.filter(function(t) {
+          if (_statusFilter === 'visible' && t.enabled === false) return false;
+          if (_statusFilter === 'hidden' && t.enabled !== false) return false;
+          if (_searchTerm) {
+            var term = _searchTerm.toLowerCase();
+            return (t.name || '').toLowerCase().indexOf(term) !== -1 ||
+                   (t.category || '').toLowerCase().indexOf(term) !== -1;
+          }
+          return true;
         });
       }
-      buildToolsOrderPanel();
 
-      function getFiltered() {
-        if (!_searchTerm) return items;
-        var term = _searchTerm.toLowerCase();
-        return items.filter(function(t) {
-          return (t.name || '').toLowerCase().indexOf(term) !== -1 ||
-                 (t.category || '').toLowerCase().indexOf(term) !== -1;
-        });
+      function markOrderDirty() {
+        _orderDirty = true;
+        var btn = document.getElementById('save-tools-order');
+        if (btn) btn.style.display = '';
       }
 
       function renderList() {
         var listEl = document.getElementById('tools-list');
         if (!listEl) return;
         var filtered = getFiltered();
+
+        var countEl = document.getElementById('tools-count');
+        if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' tools';
 
         if (filtered.length === 0) {
           listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('terminal', 36) + '</div><p>' + (_searchTerm ? 'No tools match your search.' : 'No tools yet.') + '</p></div>';
@@ -2042,81 +2058,107 @@
         var start = (_page - 1) * PER_PAGE;
         var pageItems = filtered.slice(start, start + PER_PAGE);
 
-        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (t) {
-          return '<div class="item-card">' +
-            '<div class="item-card-header">' +
-              '<span class="item-card-icon">' + icon(t.icon || 'terminal', 20) + '</span>' +
-              '<div class="item-card-meta">' +
-                '<h3 class="item-card-title">' + escapeHtml(t.name) + '</h3>' +
-                (t.category ? '<p class="item-card-desc">' + escapeHtml(t.category) + '</p>' : '') +
+        listEl.innerHTML =
+          '<table class="cms-table">' +
+            '<thead><tr>' +
+              '<th class="cms-col-order">#</th>' +
+              '<th class="cms-col-icon">Icon</th>' +
+              '<th class="cms-col-main">Name</th>' +
+              '<th class="cms-col-desc">Category</th>' +
+              '<th class="cms-col-status">Status</th>' +
+              '<th class="cms-col-actions">Actions</th>' +
+            '</tr></thead>' +
+            '<tbody>' + pageItems.map(function(t) {
+              return '<tr class="cms-row" data-id="' + t.id + '">' +
+                '<td class="cms-col-order"><input type="number" class="cms-order-input" data-id="' + t.id + '" value="' + (t.order || 0) + '" min="0" title="Order"></td>' +
+                '<td class="cms-col-icon"><span class="cms-icon-cell">' + icon(t.icon || 'terminal', 18) + '</span></td>' +
+                '<td class="cms-col-main"><span class="cms-title">' + escapeHtml(t.name) + '</span></td>' +
+                '<td class="cms-col-desc"><span class="cms-desc">' + escapeHtml(t.category || '—') + '</span></td>' +
+                '<td class="cms-col-status"><span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+                '<td class="cms-col-actions"><div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-tool" data-id="' + t.id + '" title="' + (t.enabled !== false ? 'Hide' : 'Show') + '">' + icon(t.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-tool" data-id="' + t.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-tool" data-id="' + t.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody>' +
+          '</table>' +
+          '<div class="cms-mobile-cards">' + pageItems.map(function(t) {
+            return '<div class="cms-mobile-card" data-id="' + t.id + '">' +
+              '<div class="cms-mobile-card-header">' +
+                '<span class="cms-icon-cell">' + icon(t.icon || 'terminal', 18) + '</span>' +
+                '<div class="cms-mobile-card-info"><span class="cms-title">' + escapeHtml(t.name) + '</span><span class="cms-desc">' + escapeHtml(t.category || '—') + '</span></div>' +
+                '<span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
               '</div>' +
-              '<span class="badge ' + (t.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
-            '</div>' +
-            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
-              '<span class="badge badge-cyan">Order: ' + (t.order || 0) + '</span>' +
-              '<span class="badge badge-cyan">' + icon(t.icon || 'terminal', 12) + ' ' + escapeHtml(t.icon || 'terminal') + '</span>' +
-            '</div>' +
-            '<div class="item-card-actions">' +
-              '<button class="btn btn-sm btn-ghost toggle-tool" data-id="' + t.id + '">' + icon(t.enabled !== false ? 'eye-off' : 'eye', 14) + (t.enabled !== false ? ' Hide' : ' Show') + '</button>' +
-              '<button class="btn btn-sm btn-ghost edit-tool" data-id="' + t.id + '">' + icon('edit', 14) + ' Edit</button>' +
-              '<button class="btn btn-sm btn-danger delete-tool" data-id="' + t.id + '">' + icon('trash', 14) + ' Delete</button>' +
-            '</div>' +
-            '<button class="overflow-menu-trigger" data-id="' + t.id + '" aria-label="Actions">⋮</button>' +
-          '</div>';
-        }).join('') + '</div>';
+              '<div class="cms-mobile-card-footer">' +
+                '<span class="cms-mobile-order">Order: <input type="number" class="cms-order-input" data-id="' + t.id + '" value="' + (t.order || 0) + '" min="0"></span>' +
+                '<div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-tool" data-id="' + t.id + '" title="' + (t.enabled !== false ? 'Hide' : 'Show') + '">' + icon(t.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-tool" data-id="' + t.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-tool" data-id="' + t.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') + '</div>';
 
         renderPagination('tools-pagination', _page, totalPages, filtered.length, 'tool', function(pg) { _page = pg; renderList(); });
 
+        listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
+          inp.addEventListener('change', markOrderDirty);
+        });
+
         listEl.querySelectorAll('.toggle-tool').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var t = items.find(function (x) { return x.id === btn.dataset.id; });
             if (!t) return;
-            setButtonLoading(btn, true, 'Updating...');
+            btn.disabled = true;
             try {
               await api('/tools/' + t.id, { method: 'PUT', body: JSON.stringify({ enabled: !t.enabled }) });
               invalidateCache('tools');
               showToast(t.enabled ? 'Tool hidden' : 'Tool visible');
               renderTools(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
         listEl.querySelectorAll('.edit-tool').forEach(function (btn) {
-          btn.addEventListener('click', function () {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
             var t = items.find(function (x) { return x.id === btn.dataset.id; });
             if (t) showToolModal(t);
           });
         });
 
         listEl.querySelectorAll('.delete-tool').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var t = items.find(function (x) { return x.id === btn.dataset.id; });
             var name = t ? t.name : 'this tool';
             var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Tool', type: 'danger' });
             if (!confirmed) return;
-            setButtonLoading(btn, true, 'Deleting...');
+            btn.disabled = true;
             try {
               await api('/tools/' + btn.dataset.id, { method: 'DELETE' });
               invalidateCache('tools');
               showToast('Tool deleted');
               renderTools(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
-        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.dataset.id;
-            showOverflowMenu(btn, [
-              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-tool[data-id="' + id + '"]').click(); } },
-              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-tool[data-id="' + id + '"]').click(); } }
-            ]);
+        listEl.querySelectorAll('.cms-row').forEach(function(row) {
+          row.addEventListener('click', function(e) {
+            if (e.target.closest('button, input, a')) return;
+            var editBtn = row.querySelector('.edit-tool');
+            if (editBtn) editBtn.click();
           });
         });
 
-        listEl.querySelectorAll('.item-card').forEach(function(card) {
+        listEl.querySelectorAll('.cms-mobile-card').forEach(function(card) {
           card.addEventListener('click', function(e) {
-            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            if (e.target.closest('button, input, a')) return;
             var editBtn = card.querySelector('.edit-tool');
             if (editBtn) editBtn.click();
           });
@@ -2127,6 +2169,34 @@
         _searchTerm = e.target.value.trim();
         _page = 1;
         renderList();
+      });
+
+      document.getElementById('tools-status-filter').addEventListener('change', function(e) {
+        _statusFilter = e.target.value;
+        _page = 1;
+        renderList();
+      });
+
+      document.getElementById('save-tools-order').addEventListener('click', async function () {
+        var btn = this;
+        var inputs = document.querySelectorAll('#tools-list .cms-order-input');
+        var orderData = [];
+        var seen = {};
+        inputs.forEach(function(inp) {
+          if (!seen[inp.dataset.id]) {
+            seen[inp.dataset.id] = true;
+            orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 });
+          }
+        });
+        orderData.sort(function(a, b) { return a.order - b.order; });
+        orderData.forEach(function(item, idx) { item.order = idx + 1; });
+        setButtonLoading(btn, true, 'Saving...');
+        try {
+          await api('/tools', { method: 'PUT', body: JSON.stringify(orderData) });
+          invalidateCache('tools');
+          showToast('Order updated');
+          renderTools(container);
+        } catch (err) { setButtonLoading(btn, false); }
       });
 
       renderList();
@@ -2211,19 +2281,29 @@
      ═══════════════════════════════════════════ */
   async function renderCertificates(container) {
     var _searchTerm = '';
+    var _statusFilter = 'all';
     var _page = 1;
-    var PER_PAGE = 10;
+    var PER_PAGE = 15;
+    var _orderDirty = false;
 
     container.innerHTML =
       '<div class="page-header">' +
-        '<div><h1 class="page-title">Certificates</h1><p class="page-subtitle">Manage your certifications and credentials</p></div>' +
+        '<div><h1 class="page-title">' + icon('star', 22) + ' Certificates</h1><p class="page-subtitle">Manage your certifications and credentials</p></div>' +
         '<div class="page-header-actions">' +
-          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="certificates-search" placeholder="Search certificates..." type="text" aria-label="Search certificates"></div>' +
           '<button class="btn btn-primary" id="add-certificate-btn">' + icon('plus', 16) + ' Add Certificate</button>' +
         '</div>' +
       '</div>' +
-      '<div id="certificates-order-panel" class="order-panel" style="display:none"></div>' +
-      '<div id="certificates-list">' + skeleton('cards', 3) + '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="certificates-search" placeholder="Search certificates..." type="text" aria-label="Search certificates"></div>' +
+          '<select class="form-input cms-filter" id="certificates-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right">' +
+          '<button class="btn btn-sm btn-primary" id="save-certificates-order" style="display:none">' + icon('check', 14) + ' Save Order</button>' +
+          '<span class="cms-count" id="certificates-count"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="certificates-list">' + skeleton('cards', 3) + '</div>' +
       '<div id="certificates-pagination"></div>';
 
     document.getElementById('add-certificate-btn').addEventListener('click', function () { showCertificateModal(); });
@@ -2233,61 +2313,32 @@
       _cache.certificates = items;
       items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
 
-      // Build order management panel
-      var certsOrderPanel = document.getElementById('certificates-order-panel');
-      function buildCertsOrderPanel() {
-        var sorted = items.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
-        certsOrderPanel.style.display = 'block';
-        certsOrderPanel.innerHTML =
-          '<div class="order-panel-inner">' +
-            '<div class="order-panel-header">' +
-              '<h3>' + icon('sliders', 16) + ' Reorder Certificates</h3>' +
-              '<button class="btn btn-sm btn-primary" id="apply-certificates-order">' + icon('check', 14) + ' Apply Order</button>' +
-            '</div>' +
-            '<table class="order-table"><thead><tr><th>Title</th><th>Issuer</th><th>Current Order</th><th>New Order</th><th>Status</th></tr></thead><tbody>' +
-            sorted.map(function(c) {
-              return '<tr>' +
-                '<td>' + icon(c.badgeIcon || 'shield-check', 16) + ' ' + escapeHtml(c.title) + '</td>' +
-                '<td>' + escapeHtml(c.issuer || '') + '</td>' +
-                '<td><span class="badge badge-cyan">' + (c.order || 0) + '</span></td>' +
-                '<td><input type="number" class="form-input order-input" data-id="' + c.id + '" value="' + (c.order || 0) + '" min="0" style="width:70px"></td>' +
-                '<td><span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
-              '</tr>';
-            }).join('') +
-            '</tbody></table>' +
-          '</div>';
-
-        document.getElementById('apply-certificates-order').addEventListener('click', async function () {
-          var btn = this;
-          var inputs = certsOrderPanel.querySelectorAll('.order-input');
-          var orderData = [];
-          inputs.forEach(function(inp) { orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 }); });
-          orderData.sort(function(a, b) { return a.order - b.order; });
-          orderData.forEach(function(item, idx) { item.order = idx + 1; });
-          setButtonLoading(btn, true, 'Applying...');
-          try {
-            await api('/certificates', { method: 'PUT', body: JSON.stringify(orderData) });
-            invalidateCache('certificates');
-            showToast('Order updated');
-            renderCertificates(container);
-          } catch (err) { setButtonLoading(btn, false); }
+      function getFiltered() {
+        return items.filter(function(c) {
+          if (_statusFilter === 'visible' && c.enabled === false) return false;
+          if (_statusFilter === 'hidden' && c.enabled !== false) return false;
+          if (_searchTerm) {
+            var term = _searchTerm.toLowerCase();
+            return (c.title || '').toLowerCase().indexOf(term) !== -1 ||
+                   (c.issuer || '').toLowerCase().indexOf(term) !== -1;
+          }
+          return true;
         });
       }
-      buildCertsOrderPanel();
 
-      function getFiltered() {
-        if (!_searchTerm) return items;
-        var term = _searchTerm.toLowerCase();
-        return items.filter(function(c) {
-          return (c.title || '').toLowerCase().indexOf(term) !== -1 ||
-                 (c.issuer || '').toLowerCase().indexOf(term) !== -1;
-        });
+      function markOrderDirty() {
+        _orderDirty = true;
+        var btn = document.getElementById('save-certificates-order');
+        if (btn) btn.style.display = '';
       }
 
       function renderList() {
         var listEl = document.getElementById('certificates-list');
         if (!listEl) return;
         var filtered = getFiltered();
+
+        var countEl = document.getElementById('certificates-count');
+        if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' certificates';
 
         if (filtered.length === 0) {
           listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('star', 36) + '</div><p>' + (_searchTerm ? 'No certificates match your search.' : 'No certificates yet.') + '</p></div>';
@@ -2301,81 +2352,111 @@
         var start = (_page - 1) * PER_PAGE;
         var pageItems = filtered.slice(start, start + PER_PAGE);
 
-        listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function (c) {
-          return '<div class="item-card">' +
-            '<div class="item-card-header">' +
-              '<span class="item-card-icon">' + icon(c.badgeIcon || 'shield-check', 20) + '</span>' +
-              '<div class="item-card-meta">' +
-                '<h3 class="item-card-title">' + escapeHtml(c.title) + '</h3>' +
-                '<p class="item-card-desc">' + escapeHtml(c.issuer || '') + (c.date ? ' &middot; ' + escapeHtml(c.date) : '') + '</p>' +
+        listEl.innerHTML =
+          '<table class="cms-table">' +
+            '<thead><tr>' +
+              '<th class="cms-col-order">#</th>' +
+              '<th class="cms-col-icon">Icon</th>' +
+              '<th class="cms-col-main">Title</th>' +
+              '<th class="cms-col-desc">Issuer</th>' +
+              '<th class="cms-col-extra">Date</th>' +
+              '<th class="cms-col-status">Status</th>' +
+              '<th class="cms-col-actions">Actions</th>' +
+            '</tr></thead>' +
+            '<tbody>' + pageItems.map(function(c) {
+              return '<tr class="cms-row" data-id="' + c.id + '">' +
+                '<td class="cms-col-order"><input type="number" class="cms-order-input" data-id="' + c.id + '" value="' + (c.order || 0) + '" min="0" title="Order"></td>' +
+                '<td class="cms-col-icon"><span class="cms-icon-cell">' + icon(c.badgeIcon || 'shield-check', 18) + '</span></td>' +
+                '<td class="cms-col-main"><span class="cms-title">' + escapeHtml(c.title) + '</span>' +
+                  (c.credentialLink && c.credentialLink !== '#' ? '<a href="' + escapeHtml(c.credentialLink) + '" target="_blank" rel="noopener" class="cms-link" title="View credential">' + icon('external-link', 12) + '</a>' : '') +
+                '</td>' +
+                '<td class="cms-col-desc"><span class="cms-desc">' + escapeHtml(c.issuer || '—') + '</span></td>' +
+                '<td class="cms-col-extra"><span class="cms-desc">' + escapeHtml(c.date || '—') + '</span></td>' +
+                '<td class="cms-col-status"><span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+                '<td class="cms-col-actions"><div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-certificate" data-id="' + c.id + '" title="' + (c.enabled !== false ? 'Hide' : 'Show') + '">' + icon(c.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-certificate" data-id="' + c.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-certificate" data-id="' + c.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody>' +
+          '</table>' +
+          '<div class="cms-mobile-cards">' + pageItems.map(function(c) {
+            return '<div class="cms-mobile-card" data-id="' + c.id + '">' +
+              '<div class="cms-mobile-card-header">' +
+                '<span class="cms-icon-cell">' + icon(c.badgeIcon || 'shield-check', 18) + '</span>' +
+                '<div class="cms-mobile-card-info"><span class="cms-title">' + escapeHtml(c.title) + '</span><span class="cms-desc">' + escapeHtml(c.issuer || '') + (c.date ? ' · ' + escapeHtml(c.date) : '') + '</span></div>' +
+                '<span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
               '</div>' +
-              '<span class="badge ' + (c.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (c.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
-            '</div>' +
-            '<div class="item-card-footer" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 12px">' +
-              '<span class="badge badge-cyan">Order: ' + (c.order || 0) + '</span>' +
-              (c.credentialLink && c.credentialLink !== '#' ? '<a href="' + escapeHtml(c.credentialLink) + '" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">' + icon('external-link', 12) + ' View Credential</a>' : '') +
-            '</div>' +
-            '<div class="item-card-actions">' +
-              '<button class="btn btn-sm btn-ghost toggle-certificate" data-id="' + c.id + '">' + icon(c.enabled !== false ? 'eye-off' : 'eye', 14) + (c.enabled !== false ? ' Hide' : ' Show') + '</button>' +
-              '<button class="btn btn-sm btn-ghost edit-certificate" data-id="' + c.id + '">' + icon('edit', 14) + ' Edit</button>' +
-              '<button class="btn btn-sm btn-danger delete-certificate" data-id="' + c.id + '">' + icon('trash', 14) + ' Delete</button>' +
-            '</div>' +
-            '<button class="overflow-menu-trigger" data-id="' + c.id + '" aria-label="Actions">⋮</button>' +
-          '</div>';
-        }).join('') + '</div>';
+              '<div class="cms-mobile-card-footer">' +
+                '<span class="cms-mobile-order">Order: <input type="number" class="cms-order-input" data-id="' + c.id + '" value="' + (c.order || 0) + '" min="0"></span>' +
+                '<div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn toggle-certificate" data-id="' + c.id + '" title="' + (c.enabled !== false ? 'Hide' : 'Show') + '">' + icon(c.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-certificate" data-id="' + c.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-certificate" data-id="' + c.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') + '</div>';
 
         renderPagination('certificates-pagination', _page, totalPages, filtered.length, 'certificate', function(pg) { _page = pg; renderList(); });
 
+        listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
+          inp.addEventListener('change', markOrderDirty);
+        });
+
         listEl.querySelectorAll('.toggle-certificate').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var c = items.find(function (x) { return x.id === btn.dataset.id; });
             if (!c) return;
-            setButtonLoading(btn, true, 'Updating...');
+            btn.disabled = true;
             try {
               await api('/certificates/' + c.id, { method: 'PUT', body: JSON.stringify({ enabled: !c.enabled }) });
               invalidateCache('certificates');
               showToast(c.enabled ? 'Certificate hidden' : 'Certificate visible');
               renderCertificates(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
         listEl.querySelectorAll('.edit-certificate').forEach(function (btn) {
-          btn.addEventListener('click', function () {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
             var c = items.find(function (x) { return x.id === btn.dataset.id; });
             if (c) showCertificateModal(c);
           });
         });
 
         listEl.querySelectorAll('.delete-certificate').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
             var c = items.find(function (x) { return x.id === btn.dataset.id; });
             var name = c ? c.title : 'this certificate';
             var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Certificate', type: 'danger' });
             if (!confirmed) return;
-            setButtonLoading(btn, true, 'Deleting...');
+            btn.disabled = true;
             try {
               await api('/certificates/' + btn.dataset.id, { method: 'DELETE' });
               invalidateCache('certificates');
               showToast('Certificate deleted');
               renderCertificates(container);
-            } catch (err) { setButtonLoading(btn, false); }
+            } catch (err) { btn.disabled = false; }
           });
         });
 
-        listEl.querySelectorAll('.overflow-menu-trigger').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.dataset.id;
-            showOverflowMenu(btn, [
-              { icon: 'edit', label: 'Edit', action: function () { listEl.querySelector('.edit-certificate[data-id="' + id + '"]').click(); } },
-              { icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-certificate[data-id="' + id + '"]').click(); } }
-            ]);
+        listEl.querySelectorAll('.cms-row').forEach(function(row) {
+          row.addEventListener('click', function(e) {
+            if (e.target.closest('button, input, a')) return;
+            var editBtn = row.querySelector('.edit-certificate');
+            if (editBtn) editBtn.click();
           });
         });
 
-        listEl.querySelectorAll('.item-card').forEach(function(card) {
+        listEl.querySelectorAll('.cms-mobile-card').forEach(function(card) {
           card.addEventListener('click', function(e) {
-            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            if (e.target.closest('button, input, a')) return;
             var editBtn = card.querySelector('.edit-certificate');
             if (editBtn) editBtn.click();
           });
@@ -2386,6 +2467,34 @@
         _searchTerm = e.target.value.trim();
         _page = 1;
         renderList();
+      });
+
+      document.getElementById('certificates-status-filter').addEventListener('change', function(e) {
+        _statusFilter = e.target.value;
+        _page = 1;
+        renderList();
+      });
+
+      document.getElementById('save-certificates-order').addEventListener('click', async function () {
+        var btn = this;
+        var inputs = document.querySelectorAll('#certificates-list .cms-order-input');
+        var orderData = [];
+        var seen = {};
+        inputs.forEach(function(inp) {
+          if (!seen[inp.dataset.id]) {
+            seen[inp.dataset.id] = true;
+            orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 });
+          }
+        });
+        orderData.sort(function(a, b) { return a.order - b.order; });
+        orderData.forEach(function(item, idx) { item.order = idx + 1; });
+        setButtonLoading(btn, true, 'Saving...');
+        try {
+          await api('/certificates', { method: 'PUT', body: JSON.stringify(orderData) });
+          invalidateCache('certificates');
+          showToast('Order updated');
+          renderCertificates(container);
+        } catch (err) { setButtonLoading(btn, false); }
       });
 
       renderList();
