@@ -279,6 +279,7 @@ function validate(schema) {
           field: (e.path || []).join('.'),
           message: e.message,
         }));
+        console.warn(`[VALIDATION] ${req.method} ${req.originalUrl} — ${errors.length} error(s):`, errors);
         return res.status(400).json({
           error: 'Validation failed',
           details: errors,

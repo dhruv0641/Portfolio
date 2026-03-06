@@ -110,10 +110,21 @@
       }
 
       var data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API Error');
+      if (!res.ok) {
+        var err = new Error(data.error || 'API Error');
+        err.details = data.details || null;
+        throw err;
+      }
       return data;
     } catch (err) {
-      if (err.message !== 'Session expired') showToast(err.message, 'error');
+      if (err.message !== 'Session expired') {
+        if (err.details && err.details.length) {
+          var fieldErrors = err.details.map(function(d) { return (d.field || '?') + ': ' + d.message; }).join('\n');
+          showToast(err.message + '\n' + fieldErrors, 'error');
+        } else {
+          showToast(err.message, 'error');
+        }
+      }
       throw err;
     }
   }
@@ -2037,7 +2048,6 @@
       { id: 'seo', icon: 'search', label: 'SEO' },
       { id: 'security', icon: 'shield', label: 'Security' },
       { id: 'ux', icon: 'sliders', label: 'UX' },
-      { id: 'customCode', icon: 'code', label: 'Custom Code' },
       { id: 'dataControl', icon: 'database', label: 'Data Control' },
       { id: 'preview', icon: 'monitor', label: 'Preview' }
     ];
@@ -2307,15 +2317,10 @@
     '</div>';
   }
 
-  function buildCustomCodePanel(cfg) {
-    var c = cfg.customCode || {};
-    return '<div class="cuz-panel" data-panel="customCode">' +
-      '<h3 class="cuz-section-title">' + icon('code', 18) + ' Custom CSS & HTML</h3>' +
-      '<p class="cuz-section-desc">Inject custom CSS and HTML into the website. Validated and sanitized.</p>' +
-      cuzTextarea('cuz-customCSS', 'Custom CSS', c.customCSS, '/* Custom styles here */\n.my-class { color: red; }', 8) +
-      cuzTextarea('cuz-customHeadHTML', 'Custom Head HTML', c.customHeadHTML, '<!-- e.g. analytics scripts -->', 4) +
-      cuzTextarea('cuz-customFooterHTML', 'Custom Footer HTML', c.customFooterHTML, '<!-- e.g. chat widget -->', 4) +
-    '</div>';
+  // Custom Code panel removed — raw CSS/HTML injection is an XSS vector.
+  // Theme customization is applied exclusively through structured CSS variables.
+  function buildCustomCodePanel() {
+    return '';
   }
 
   function buildDataControlPanel(cfg) {
@@ -2488,13 +2493,7 @@
     });
     if (Object.keys(ux).length) data.ux = ux;
 
-    // Custom Code
-    var customCode = {};
-    ['customCSS','customHeadHTML','customFooterHTML'].forEach(function(k) {
-      var el = document.getElementById('cuz-' + k);
-      if (el) customCode[k] = el.value;
-    });
-    if (Object.keys(customCode).length) data.customCode = customCode;
+    // Custom Code — removed (XSS prevention). No fields collected.
 
     // Data Control
     var dataControl = {};
@@ -2577,7 +2576,24 @@
           showToast('Customization saved successfully');
           var iframe = document.getElementById('cuz-preview-iframe');
           if (iframe) iframe.src = iframe.src;
-        } catch(err) { /* toast shown by api() */ }
+        } catch(err) {
+          // Highlight invalid fields if validation details are available
+          if (err.details && err.details.length) {
+            err.details.forEach(function(d) {
+              if (!d.field) return;
+              var parts = d.field.split('.');
+              var fieldId = 'cuz-' + parts[parts.length - 1];
+              var input = document.getElementById(fieldId);
+              if (input) {
+                input.classList.add('input-error');
+                input.addEventListener('input', function handler() {
+                  input.classList.remove('input-error');
+                  input.removeEventListener('input', handler);
+                }, { once: true });
+              }
+            });
+          }
+        }
         finally {
           setButtonLoading(saveBtn, false);
         }
@@ -2659,7 +2675,6 @@
           buildSeoPanel(cfg) +
           buildSecurityPanel(cfg) +
           buildUxPanel(cfg) +
-          buildCustomCodePanel(cfg) +
           buildDataControlPanel(cfg) +
           buildPreviewPanel() +
         '</div>';
