@@ -3187,3 +3187,40 @@ body.menu-open {
   margin-right: 6px;
   opacity: 0.8;
 }
+
+/* Title row with inline icon */
+.cms-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Emoji icon cell */
+.cms-emoji-cell {
+  font-size: 1.2rem;
+  background: rgba(0, 255, 136, 0.06);
+}
+
+/* Tech tag badges inside table */
+.cms-tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.badge-sm {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+}
+
+/* Mobile action button grid */
+.cms-actions-mobile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+.cms-actions-mobile .btn {
+  min-height: 38px;
+  flex: 1 1 auto;
+  justify-content: center;
+}
