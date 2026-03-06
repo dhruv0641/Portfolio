@@ -13,12 +13,15 @@ try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } 
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Collect ALL missing vars before exiting — so one deploy attempt shows every problem
+const _missingEnvVars = [];
+
 function requireEnvInProd(key, fallback) {
   const val = process.env[key];
   if (!val && isProduction) {
     if (!fallback) {
-      console.error(`[FATAL] Missing required env var: ${key}`);
-      process.exit(1);
+      _missingEnvVars.push(key);
+      return undefined; // Collected — will exit after all checks
     }
     console.warn(`[WARN] ${key} not set in production — using fallback. Set this properly!`);
   }
@@ -84,6 +87,17 @@ const config = {
 // Warn if using auto-generated secrets in production
 if (isProduction && !process.env.JWT_SECRET) {
   console.warn('[WARN] JWT_SECRET not set — using random key (tokens will invalidate on restart)');
+}
+
+// Exit with ALL missing vars listed at once (saves repeated deploy attempts)
+if (_missingEnvVars.length > 0) {
+  console.error('\n══════════════════════════════════════════════════');
+  console.error('[FATAL] Missing required environment variables:');
+  _missingEnvVars.forEach(v => console.error(`  • ${v}`));
+  console.error('\nSet these in your hosting platform (Render → Environment tab).');
+  console.error('Generate secrets with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+  console.error('══════════════════════════════════════════════════\n');
+  process.exit(1);
 }
 
 module.exports = config;
