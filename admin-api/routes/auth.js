@@ -40,22 +40,14 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const meta = getAuditMeta(req);
 
-  // Check brute force lockout
-  if (isLockedOut(ip, username)) {
-    logAudit({ ...meta, action: AuditAction.LOGIN_LOCKED, details: { username } });
-    throw new ApiError(429, `Account temporarily locked. Try again in ${config.bruteForce.lockoutMinutes} minutes.`);
-  }
-
   const admin = db.admin.get();
   if (!admin || admin.username !== username) {
-    recordFailedLogin(ip, username);
     logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'invalid_username' } });
     throw new ApiError(401, 'Invalid credentials');
   }
 
   const validPassword = await bcrypt.compare(password, admin.passwordHash);
   if (!validPassword) {
-    recordFailedLogin(ip, username);
     logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'invalid_password' } });
     throw new ApiError(401, 'Invalid credentials');
   }
