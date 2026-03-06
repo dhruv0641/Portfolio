@@ -137,11 +137,10 @@
   /* ═══════════════════════════════════════════
      TOAST
      ═══════════════════════════════════════════ */
+  var _toastCounter = 0;
   function showToast(msg, type) {
     type = type || 'success';
-    var existing = document.querySelector('.toast');
-    if (existing) existing.remove();
-
+    _toastCounter++;
     var el = document.createElement('div');
     el.className = 'toast toast-' + type;
     el.setAttribute('role', 'alert');
@@ -149,10 +148,34 @@
     var ic = type === 'success' ? icon('check', 16) : icon('alert-triangle', 16);
     el.innerHTML = '<span class="toast-icon">' + ic + '</span><span class="toast-msg">' + escapeHtml(msg) + '</span><button class="toast-close" aria-label="Dismiss">' + icon('x', 14) + '</button>';
     document.body.appendChild(el);
-    el.querySelector('.toast-close').addEventListener('click', function () { if (el.parentNode) el.remove(); });
-    if (type !== 'error') {
-      setTimeout(function () { if (el.parentNode) el.remove(); }, 3500);
+    // Stack: position based on existing toasts
+    var existingToasts = document.querySelectorAll('.toast');
+    var bottomOffset = 24;
+    for (var i = 0; i < existingToasts.length; i++) {
+      if (existingToasts[i] !== el) bottomOffset += existingToasts[i].offsetHeight + 8;
     }
+    el.style.bottom = bottomOffset + 'px';
+    function removeToast() {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(20px) translateZ(0)';
+      setTimeout(function() {
+        if (el.parentNode) el.remove();
+        repositionToasts();
+      }, 200);
+    }
+    el.querySelector('.toast-close').addEventListener('click', removeToast);
+    if (type !== 'error') {
+      setTimeout(removeToast, 3500);
+    }
+  }
+
+  function repositionToasts() {
+    var toasts = document.querySelectorAll('.toast');
+    var bottomOffset = 24;
+    toasts.forEach(function(t) {
+      t.style.bottom = bottomOffset + 'px';
+      bottomOffset += t.offsetHeight + 8;
+    });
   }
 
   /* ═══════════════════════════════════════════
@@ -268,25 +291,44 @@
       var btn = document.createElement('button');
       btn.className = 'overflow-menu-item' + (a.danger ? ' overflow-menu-item--danger' : '');
       btn.setAttribute('role', 'menuitem');
-      btn.innerHTML = a.icon + ' ' + a.label;
+      btn.innerHTML = icon(a.icon, 14) + ' ' + a.label;
       btn.addEventListener('click', function() { closeOverflowMenu(); a.action(); });
       menu.appendChild(btn);
     });
+    document.body.appendChild(backdrop);
+    document.body.appendChild(menu);
+    // Position after appending so we can measure
+    var menuRect = menu.getBoundingClientRect();
     var top = rect.bottom + 4;
-    var left = rect.right - 160;
+    var left = rect.right - menuRect.width;
+    // Boundary: don't go off left
     if (left < 8) left = 8;
-    if (top + 200 > window.innerHeight) top = rect.top - 4 - (actions.length * 44);
+    // Boundary: don't go off right
+    if (left + menuRect.width > window.innerWidth - 8) left = window.innerWidth - 8 - menuRect.width;
+    // Boundary: if menu would go below viewport, open upward
+    if (top + menuRect.height > window.innerHeight - 8) {
+      top = rect.top - menuRect.height - 4;
+      if (top < 8) top = 8;
+    }
     menu.style.top = top + 'px';
     menu.style.left = left + 'px';
     backdrop.addEventListener('click', closeOverflowMenu);
-    document.body.appendChild(backdrop);
-    document.body.appendChild(menu);
+    // Close on scroll
+    var scrollHandler = function() { closeOverflowMenu(); };
+    window.addEventListener('scroll', scrollHandler, { once: true, capture: true });
+    // Close on ESC
+    var escHandler = function(e) { if (e.key === 'Escape') closeOverflowMenu(); };
+    document.addEventListener('keydown', escHandler);
+    menu._cleanup = function() {
+      window.removeEventListener('scroll', scrollHandler, { capture: true });
+      document.removeEventListener('keydown', escHandler);
+    };
   }
 
   function closeOverflowMenu() {
     var m = document.querySelector('.overflow-menu');
     var b = document.querySelector('.overflow-menu-backdrop');
-    if (m) m.remove();
+    if (m) { if (m._cleanup) m._cleanup(); m.remove(); }
     if (b) b.remove();
   }
 
@@ -361,6 +403,19 @@
     });
   }
 
+  // Scroll focused input into view when mobile keyboard opens
+  function enableModalInputScroll(modalEl) {
+    var body = modalEl.querySelector('.modal-body');
+    if (!body) return;
+    body.querySelectorAll('input, textarea, select').forEach(function(input) {
+      input.addEventListener('focus', function() {
+        setTimeout(function() {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      });
+    });
+  }
+
   /* ═══════════════════════════════════════════
      AUTH
      ═══════════════════════════════════════════ */
@@ -388,6 +443,7 @@
      HASH ROUTER
      ═══════════════════════════════════════════ */
   function navigate(page) {
+    closeOverflowMenu();
     currentPage = page;
     window.location.hash = page;
     renderContent();
@@ -400,6 +456,7 @@
   }
 
   window.addEventListener('hashchange', function () {
+    closeOverflowMenu();
     if (!isLoggedIn()) return;
     var page = getPageFromHash();
     if (page !== currentPage) {
@@ -1267,6 +1324,15 @@
             ]);
           });
         });
+
+        // Card tap-to-view (entire card clickable)
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var viewBtn = card.querySelector('.view-project');
+            if (viewBtn) viewBtn.click();
+          });
+        });
       }
 
       document.getElementById('projects-search').addEventListener('input', function(e) {
@@ -1347,6 +1413,7 @@
     function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
     document.addEventListener('keydown', onEsc);
     trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
 
     document.getElementById('p-save').addEventListener('click', async function () {
       var body = {
@@ -1494,6 +1561,15 @@
             ]);
           });
         });
+
+        // Card tap-to-view
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var viewBtn = card.querySelector('.view-service');
+            if (viewBtn) viewBtn.click();
+          });
+        });
       }
 
       document.getElementById('services-search').addEventListener('input', function(e) {
@@ -1538,6 +1614,7 @@
     function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
     document.addEventListener('keydown', onEsc);
     trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
 
     document.getElementById('s-save').addEventListener('click', async function () {
       var body = {
@@ -1692,6 +1769,15 @@
             }
             actions.push({ icon: 'trash', label: 'Delete', danger: true, action: function () { listEl.querySelector('.delete-msg[data-id="' + id + '"]').click(); } });
             showOverflowMenu(btn, actions);
+          });
+        });
+
+        // Card tap-to-view
+        listEl.querySelectorAll('.item-card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, .overflow-menu-trigger')) return;
+            var viewBtn = card.querySelector('.view-msg');
+            if (viewBtn) viewBtn.click();
           });
         });
       }

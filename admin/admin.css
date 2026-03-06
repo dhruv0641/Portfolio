@@ -1018,7 +1018,8 @@ body::before {
   padding: var(--sp-5);
   transition: all var(--transition);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  cursor: pointer;
 }
 
 .item-card:hover {
@@ -1106,7 +1107,7 @@ body::before {
 
 .item-card-actions {
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   flex-wrap: wrap;
 }
 
@@ -1132,7 +1133,7 @@ body::before {
 
 .item-card-actions-inline {
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
 }
 
 .item-card-audit-details {
@@ -1440,6 +1441,8 @@ body::before {
   animation: modalSlideUp 0.3s var(--ease-out);
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
 
 .modal::before {
@@ -1474,6 +1477,8 @@ body::before {
   padding: var(--sp-6);
   overflow-y: auto;
   flex: 1;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modal-footer {
@@ -1540,6 +1545,9 @@ body::before {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  transition: transform 0.3s var(--ease-out), opacity 0.3s ease;
 }
 
 .toast-success {
@@ -1778,13 +1786,13 @@ body.menu-open {
 }
 
 @keyframes toastIn {
-  from { transform: translateX(20px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: translateX(20px) translateZ(0); opacity: 0; }
+  to { transform: translateX(0) translateZ(0); opacity: 1; }
 }
 
 @keyframes modalSlideUpMobile {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(40px) translateZ(0); }
+  to { opacity: 1; transform: translateY(0) translateZ(0); }
 }
 
 @keyframes glowPulse {
@@ -2022,7 +2030,11 @@ body.menu-open {
   .item-card {
     padding: var(--sp-4);
     contain: layout paint;
-    overflow: hidden;
+    overflow: visible;
+  }
+
+  .item-card::before {
+    display: none;
   }
 
   .item-card-icon {
@@ -2073,11 +2085,10 @@ body.menu-open {
     z-index: 1;
   }
 
-  /* ── Toast ── */
+  /* ── Toast stacking ── */
   .toast {
     right: var(--sp-3);
     left: var(--sp-3);
-    bottom: var(--sp-3);
     max-width: none;
     justify-content: center;
     background: rgba(18, 28, 52, 0.98);
@@ -2217,7 +2228,7 @@ body.menu-open {
   /* ── Card actions → overflow menu ── */
   .item-card-actions { display: none; }
   .item-card-actions-inline { display: none; }
-  .overflow-menu-trigger { display: inline-flex; }
+  .overflow-menu-trigger { display: flex; }
 
   /* ── Detail rows stack on small screens ── */
   .detail-row {
@@ -2663,6 +2674,10 @@ body.menu-open {
   padding: 0;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  z-index: 2;
 }
 
 .overflow-menu-trigger:hover,
@@ -2675,13 +2690,14 @@ body.menu-open {
 .overflow-menu {
   position: fixed;
   z-index: 1200;
-  min-width: 160px;
+  min-width: 180px;
   background: rgba(18, 28, 52, 0.98);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--sp-1) 0;
   animation: fadeIn 0.15s ease;
+  transform: translateZ(0);
 }
 
 .overflow-menu-item {
@@ -2698,6 +2714,11 @@ body.menu-open {
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
   min-height: 44px;
+  white-space: nowrap;
+}
+
+.overflow-menu-item .icon {
+  flex-shrink: 0;
 }
 
 .overflow-menu-item:hover,
