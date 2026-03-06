@@ -673,6 +673,93 @@
     }
   }
 
+  /* ======== DYNAMIC DATA LOADING ======== */
+  function escapeHTML(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  function renderProjectCard(p, index) {
+    var delayClass = 'reveal-delay-' + ((index % 4) + 1);
+    var tags = (p.technologies || []).map(function (t) {
+      return '<span class="project-tag">' + escapeHTML(t) + '</span>';
+    }).join('');
+    var link = p.githubLink && p.githubLink !== '#'
+      ? '<a href="' + escapeHTML(p.githubLink) + '" class="project-link" target="_blank" rel="noopener noreferrer">'
+        + 'View on GitHub'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+        + '</a>'
+      : '';
+    var impactHTML = p.impact
+      ? '<div class="project-impact-bar">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
+        + '<span>' + escapeHTML(p.impact) + '</span></div>'
+      : '';
+    var featuredBadge = p.featured
+      ? '<span class="risk-badge risk-critical">FEATURED</span>'
+      : '';
+
+    return '<article class="project-card tilt-card reveal ' + delayClass + '" aria-label="' + escapeHTML(p.title) + '">'
+      + '<div class="scan-line" aria-hidden="true"></div>'
+      + '<div class="project-header">'
+      + '<div class="project-img-bg" aria-hidden="true"><span style="font-size:2.5rem">' + escapeHTML(p.emoji || '🔒') + '</span></div>'
+      + featuredBadge
+      + '</div>'
+      + '<div class="project-info">'
+      + '<p class="project-num">' + escapeHTML(String(index + 1).padStart(2, '0')) + '</p>'
+      + '<h3 class="project-name">' + escapeHTML(p.title) + '</h3>'
+      + '<p class="project-desc">' + escapeHTML(p.description) + '</p>'
+      + impactHTML
+      + '<div class="project-tags">' + tags + '</div>'
+      + link
+      + '</div></article>';
+  }
+
+  function renderServiceCard(s, index) {
+    var delayClass = 'reveal-delay-' + ((index % 3) + 1);
+    return '<div class="service-card tilt-card reveal ' + delayClass + '">'
+      + '<div class="service-icon" aria-hidden="true"><span style="font-size:1.5rem">' + escapeHTML(s.icon || '🔒') + '</span></div>'
+      + '<h3 class="service-name">' + escapeHTML(s.title) + '</h3>'
+      + '<p class="service-desc">' + escapeHTML(s.description) + '</p>'
+      + '</div>';
+  }
+
+  function loadProjects() {
+    var container = qs('#projects-container');
+    if (!container) return;
+    fetch('/api/projects', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (projects) {
+        if (!projects || !projects.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Projects coming soon.</p>';
+          return;
+        }
+        container.innerHTML = projects.map(renderProjectCard).join('');
+        initReveals();
+        initTiltCards();
+      })
+      .catch(function () { /* keep container empty on error */ });
+  }
+
+  function loadServices() {
+    var container = qs('#services-container');
+    if (!container) return;
+    fetch('/api/services', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (services) {
+        if (!services || !services.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Services coming soon.</p>';
+          return;
+        }
+        container.innerHTML = services.map(renderServiceCard).join('');
+        initReveals();
+        initTiltCards();
+      })
+      .catch(function () { /* keep container empty on error */ });
+  }
+
   /* ======== INIT AFTER LOADER ======== */
   function initAfterLoad() {
     initCharReveal();
@@ -683,6 +770,8 @@
     animateCounters();
     initTiltCards();
     initMagneticButtons();
+    loadProjects();
+    loadServices();
   }
 
   /* ======== INIT IMMEDIATELY ======== */
