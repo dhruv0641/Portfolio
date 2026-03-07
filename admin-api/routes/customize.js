@@ -160,14 +160,6 @@ router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) 
 // ──────────────────────────────────────────────────────────────
 router.post('/reset', authenticate, asyncHandler(async (req, res) => {
   // ──────────────────────────────────────────────────────────────
-  // PRODUCTION PROTECTION: Disable reset in production
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({
-      error: 'Reset Defaults is disabled in production.'
-    });
-  }
-
-  // ──────────────────────────────────────────────────────────────
   // Only reset allowed UI customization keys
   const defaultsPath = path.join(config.paths.data, 'customize_defaults.json');
   let defaults = {};
