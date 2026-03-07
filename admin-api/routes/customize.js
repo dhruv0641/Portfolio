@@ -11,6 +11,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const db = require('../lib/dataLayer');
+const { v4: uuidv4 } = require('uuid');
 const { authenticate } = require('../lib/auth');
 const { validate, customizeUpdateSchema, CUSTOMIZE_DEFAULTS } = require('../lib/validators');
 const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
@@ -61,9 +62,32 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(ensureDefaults(data));
 }));
 
-// ─── PUT /api/customize (authenticated, validated) ───
+
+// Helper to save customization history
+function saveCustomizationHistory(prevCustomization) {
+  const historyPath = path.join(config.paths.data, 'customize_history.json');
+  let history = [];
+  if (fs.existsSync(historyPath)) {
+    try {
+      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+    } catch { history = []; }
+  }
+  const entry = {
+    id: uuidv4(),
+    timestamp: new Date().toISOString(),
+    customization: prevCustomization
+  };
+  history.unshift(entry); // newest first
+  // Limit history to 50 entries
+  if (history.length > 50) history = history.slice(0, 50);
+  fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf-8');
+}
+
+// PUT /api/customize (authenticated, validated)
 router.put('/', authenticate, validate(customizeUpdateSchema), asyncHandler(async (req, res) => {
   const current = db.customize.get();
+  // Save current state to history before updating
+  saveCustomizationHistory(current);
   const updated = deepMerge(current, req.validatedBody);
   db.customize.set(updated);
 
@@ -72,6 +96,59 @@ router.put('/', authenticate, validate(customizeUpdateSchema), asyncHandler(asyn
   } catch (_) { /* audit log failure must not block save */ }
 
   res.json(updated);
+}));
+
+// GET /api/customize/history (authenticated) — List customization history
+router.get('/history', authenticate, asyncHandler(async (req, res) => {
+  const historyPath = path.join(config.paths.data, 'customize_history.json');
+  let history = [];
+  if (fs.existsSync(historyPath)) {
+    try {
+      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+    } catch { history = []; }
+  }
+  // Only return id, timestamp, and a summary (omit full customization for list)
+  const summarized = history.map(h => ({
+    id: h.id,
+    timestamp: h.timestamp,
+    // Optionally add a summary of changes or sections here
+  }));
+  res.json(summarized);
+}));
+
+// GET /api/customize/history/:id (authenticated) — Get a specific history entry
+router.get('/history/:id', authenticate, asyncHandler(async (req, res) => {
+  const historyPath = path.join(config.paths.data, 'customize_history.json');
+  let history = [];
+  if (fs.existsSync(historyPath)) {
+    try {
+      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+    } catch { history = []; }
+  }
+  const entry = history.find(h => h.id === req.params.id);
+  if (!entry) return res.status(404).json({ error: 'History entry not found' });
+  res.json(entry);
+}));
+
+// POST /api/customize/history/restore/:id (authenticated) — Restore a previous customization
+router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) => {
+  const historyPath = path.join(config.paths.data, 'customize_history.json');
+  let history = [];
+  if (fs.existsSync(historyPath)) {
+    try {
+      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+    } catch { history = []; }
+  }
+  const entry = history.find(h => h.id === req.params.id);
+  if (!entry) return res.status(404).json({ error: 'History entry not found' });
+  // Save current state to history before restoring
+  const current = db.customize.get();
+  saveCustomizationHistory(current);
+  db.customize.set(entry.customization);
+  try {
+    logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings restored from history' });
+  } catch (_) { /* audit log failure must not block restore */ }
+  res.json(entry.customization);
 }));
 
 // ─── POST /api/customize/reset (authenticated) ───
