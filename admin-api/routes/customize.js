@@ -11,7 +11,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const db = require('../lib/dataLayer');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { authenticate } = require('../lib/auth');
 const { validate, customizeUpdateSchema, CUSTOMIZE_DEFAULTS } = require('../lib/validators');
 const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
@@ -73,7 +73,7 @@ function saveCustomizationHistory(prevCustomization) {
     } catch { history = []; }
   }
   const entry = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     customization: prevCustomization
   };
