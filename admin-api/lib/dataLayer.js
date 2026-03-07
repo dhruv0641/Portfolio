@@ -618,6 +618,24 @@ const auditLogs = {
   },
 };
 
+const systemState = {
+  async get(key) {
+    const { rows } = await pool.query(
+      `SELECT value FROM system_state WHERE key = $1 LIMIT 1`,
+      [key]
+    );
+    return rows[0]?.value || null;
+  },
+
+  async set(key, value) {
+    await pool.query(
+      `INSERT INTO system_state (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [key, String(value)]
+    );
+  },
+};
+
 module.exports = {
   initDatabase,
   closeDatabase,
@@ -638,6 +656,7 @@ module.exports = {
 
   customizeHistory,
   auditLogs,
+  systemState,
 
   readJSON,
   writeJSON,

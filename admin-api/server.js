@@ -105,6 +105,7 @@ app.use('/api', globalLimiter);
 // DATA INITIALIZATION
 // ═══════════════════════════════════════════
 async function initData() {
+  const DEFAULT_SEED_KEY = 'defaults_seeded_v1';
   const existing = await db.admin.get();
   if (!existing || !existing.username) {
     // Admin credentials from environment variables — never hardcoded
@@ -129,6 +130,26 @@ async function initData() {
       tenantId: 'default',
     });
     logger.info('Admin account initialized', { username });
+  }
+
+  const seedMarker = await db.systemState.get(DEFAULT_SEED_KEY);
+  if (seedMarker === '1') {
+    return;
+  }
+
+  const existingContentTotal =
+    (await db.projects.count()) +
+    (await db.services.count()) +
+    (await db.methodology.count()) +
+    (await db.expertise.count()) +
+    (await db.tools.count()) +
+    (await db.certificates.count()) +
+    (await db.messages.count());
+
+  if (existingContentTotal > 0) {
+    await db.systemState.set(DEFAULT_SEED_KEY, '1');
+    logger.info('Default seed disabled: existing content detected', { existingContentTotal });
+    return;
   }
 
   if (!(await db.projects.getAll()).length) {
@@ -269,6 +290,9 @@ async function initData() {
       });
     }
   }
+
+  await db.systemState.set(DEFAULT_SEED_KEY, '1');
+  logger.info('Default seed completed');
 }
 
 // ═══════════════════════════════════════════
