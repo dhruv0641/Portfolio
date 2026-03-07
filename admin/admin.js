@@ -1855,6 +1855,11 @@
               '</div>' +
               '<div class="cms-mobile-card-footer">' +
                 '<span class="cms-mobile-order">Order: <input type="number" class="cms-order-input" data-id="' + e.id + '" value="' + (e.order || 0) + '" min="0"></span>' +
+                '<div class="cms-actions cms-actions-mobile">' +
+                  '<button class="btn btn-sm btn-ghost view-expertise" data-id="' + e.id + '">' + icon('eye', 14) + ' View</button>' +
+                  '<button class="btn btn-sm btn-ghost edit-expertise" data-id="' + e.id + '">' + icon('edit', 14) + ' Edit</button>' +
+                  '<button class="btn btn-sm btn-danger delete-expertise" data-id="' + e.id + '">' + icon('trash', 14) + ' Delete</button>' +
+                '</div>' +
               '</div>' +
             '</div>';
           }).join('') + '</div>';

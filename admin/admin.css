@@ -3184,6 +3184,27 @@ body.menu-open {
     justify-content: space-between;
   }
   .cms-filter { width: 100%; }
+
+  .cms-mobile-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .cms-mobile-order {
+    justify-content: flex-start;
+  }
+
+  .cms-actions-mobile .btn {
+    min-height: 44px;
+    flex: 1 1 calc(33.333% - 6px);
+  }
+}
+
+@media (max-width: 420px) {
+  .cms-actions-mobile .btn {
+    flex: 1 1 100%;
+  }
 }
 
 /* Page title icon alignment */
