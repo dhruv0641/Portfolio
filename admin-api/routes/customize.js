@@ -159,19 +159,27 @@ router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) 
 // Only the allowed UI customization keys are written. Any other keys are ignored.
 // ──────────────────────────────────────────────────────────────
 router.post('/reset', authenticate, asyncHandler(async (req, res) => {
+  // ──────────────────────────────────────────────────────────────
+  // PRODUCTION PROTECTION: Disable reset in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({
+      error: 'Reset Defaults is disabled in production.'
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Only reset allowed UI customization keys
   const defaultsPath = path.join(config.paths.data, 'customize_defaults.json');
   let defaults = {};
-
-  // Try loading saved defaults, otherwise use centralized CUSTOMIZE_DEFAULTS
   if (fs.existsSync(defaultsPath)) {
     defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf-8'));
   } else {
     defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
   }
 
-  // Only allow these keys to be reset (UI customization only)
+  // Strictly allowed keys for UI customization
   const ALLOWED_KEYS = [
-    'theme', 'layout', 'animations', 'typography', 'spacing', 'appearance', 'ux', 'dataControl', 'security', 'seo', 'customCode', 'hero', 'sections'
+    'theme', 'layout', 'animations', 'typography', 'spacing', 'appearance'
   ];
   const filtered = {};
   for (const key of ALLOWED_KEYS) {
