@@ -177,23 +177,30 @@ router.post('/reset', authenticate, asyncHandler(async (req, res) => {
     defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
   }
 
-  // Strictly allowed keys for UI customization
+  // Strictly allowed keys for UI customization.
+  // IMPORTANT: content/config branches (hero, sections, seo, etc.) must be preserved.
   const ALLOWED_KEYS = [
     'theme', 'layout', 'animations', 'typography', 'spacing', 'appearance'
   ];
-  const filtered = {};
+  const current = db.customize.get() || {};
+  saveCustomizationHistory(current);
+
+  // Start from current config so content/config keys are never dropped.
+  const next = { ...current };
   for (const key of ALLOWED_KEYS) {
-    if (defaults[key] !== undefined) filtered[key] = defaults[key];
+    if (defaults[key] !== undefined) {
+      next[key] = defaults[key];
+    }
   }
 
-  // Save only allowed UI customization keys
-  db.customize.set(filtered);
+  // Save merged config with content preserved and design reset.
+  db.customize.set(next);
 
   try {
     logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings reset to defaults (UI only)' });
   } catch (_) { /* audit log failure must not block reset */ }
 
-  res.json(filtered);
+  res.json(ensureDefaults(next));
 }));
 
 module.exports = router;

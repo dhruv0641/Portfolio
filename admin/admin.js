@@ -3632,7 +3632,7 @@
     var resetBtn = document.getElementById('cuz-reset');
     if (resetBtn) {
       resetBtn.addEventListener('click', async function() {
-        var confirmed = await customConfirm('Reset all customization to defaults? This cannot be undone.', { title: 'Reset Customization', type: 'danger', confirmText: 'Reset' });
+        var confirmed = await customConfirm('Reset design settings to defaults? Content data will be preserved.', { title: 'Reset Design', type: 'danger', confirmText: 'Reset Design' });
         if (!confirmed) return;
         try {
           var result = await api('/customize/reset', { method: 'POST' });
@@ -3680,7 +3680,7 @@
       '<div class="page-header">' +
         '<div><h1 class="page-title">' + icon('palette', 22) + ' Customize</h1><p class="page-subtitle">Enterprise Customization Engine — Control every visual element</p></div>' +
         '<div class="page-header-actions">' +
-          '<button class="btn btn-ghost" id="cuz-reset">' + icon('refresh', 14) + ' Reset Defaults</button>' +
+          '<button class="btn btn-ghost" id="cuz-reset">' + icon('refresh', 14) + ' Reset Design</button>' +
           '<button class="btn btn-primary" id="cuz-save">' + icon('check', 14) + ' Save All Changes</button>' +
         '</div>' +
       '</div>' +
