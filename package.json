@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "npm --prefix admin-api start",
+    "dev:api": "npm --prefix admin-api dev",
+    "postinstall": "npm --prefix admin-api install --omit=dev",
     "dev": "ng serve",
     "build": "ng build",
     "preview": "ng serve --configuration=production"
