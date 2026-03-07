@@ -2690,6 +2690,16 @@ body.menu-open {
   z-index: 2;
 }
 
+/* Expertise mobile overflow: top-left placement */
+.expertise-overflow-btn {
+  left: var(--sp-4);
+  right: auto;
+}
+
+.cms-mobile-card .expertise-overflow-btn + .cms-mobile-card-header {
+  padding-left: 48px;
+}
+
 .overflow-menu-trigger:hover,
 .overflow-menu-trigger:active {
   background: var(--bg-hover);
