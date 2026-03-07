@@ -40,7 +40,7 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const meta = getAuditMeta(req);
 
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   if (!admin || admin.username !== username) {
     logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'invalid_username' } });
     throw new ApiError(401, 'Invalid credentials');
@@ -53,7 +53,7 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   }
 
   // Check if 2FA is enabled
-  if (admin.totpSecret && isEnabled('two_factor_auth')) {
+  if (admin.totpSecret && await isEnabled('two_factor_auth')) {
     // Return partial auth — client must verify TOTP next
     const tempToken = generateAccessToken({ username: admin.username, role: admin.role || 'admin', pending2FA: true });
     return res.json({
@@ -101,7 +101,7 @@ router.post('/verify-2fa', validate(totpVerifySchema), asyncHandler(async (req, 
     throw new ApiError(401, 'Invalid or expired temporary token');
   }
 
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   if (!admin || !admin.totpSecret) {
     throw new ApiError(400, '2FA is not configured');
   }
@@ -159,7 +159,7 @@ router.post('/verify-2fa', validate(totpVerifySchema), asyncHandler(async (req, 
 // ═══════════════════════════════════════════
 router.post('/setup-2fa', authenticate, asyncHandler(async (req, res) => {
   const meta = getAuditMeta(req);
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
 
   // Generate new TOTP secret
   const secret = new OTPAuth.Secret({ size: 20 });
@@ -179,7 +179,7 @@ router.post('/setup-2fa', authenticate, asyncHandler(async (req, res) => {
 
   // Store encrypted secret (not yet activated — needs verification)
   admin._pendingTotpSecret = encrypt(secret.base32);
-  db.admin.set(admin);
+  await db.admin.set(admin);
 
   logAudit({ ...meta, action: AuditAction.TOTP_SETUP, details: { status: 'pending' } });
 
@@ -196,7 +196,7 @@ router.post('/setup-2fa', authenticate, asyncHandler(async (req, res) => {
 router.post('/confirm-2fa', authenticate, validate(totpVerifySchema), asyncHandler(async (req, res) => {
   const { token: totpCode } = req.validatedBody;
   const meta = getAuditMeta(req);
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
 
   if (!admin._pendingTotpSecret) {
     throw new ApiError(400, 'No pending 2FA setup. Call /setup-2fa first.');
@@ -220,7 +220,7 @@ router.post('/confirm-2fa', authenticate, validate(totpVerifySchema), asyncHandl
   // Activate 2FA
   admin.totpSecret = admin._pendingTotpSecret;
   delete admin._pendingTotpSecret;
-  db.admin.set(admin);
+  await db.admin.set(admin);
 
   logAudit({ ...meta, action: AuditAction.TOTP_SETUP, details: { status: 'activated' } });
 
@@ -233,7 +233,7 @@ router.post('/confirm-2fa', authenticate, validate(totpVerifySchema), asyncHandl
 router.post('/disable-2fa', authenticate, validate(totpVerifySchema), asyncHandler(async (req, res) => {
   const { token: totpCode } = req.validatedBody;
   const meta = getAuditMeta(req);
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
 
   if (!admin.totpSecret) {
     throw new ApiError(400, '2FA is not enabled');
@@ -257,7 +257,7 @@ router.post('/disable-2fa', authenticate, validate(totpVerifySchema), asyncHandl
 
   delete admin.totpSecret;
   delete admin._pendingTotpSecret;
-  db.admin.set(admin);
+  await db.admin.set(admin);
 
   logAudit({ ...meta, action: AuditAction.TOTP_SETUP, details: { status: 'disabled' } });
 
@@ -301,7 +301,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     throw new ApiError(401, 'Invalid refresh token — possible token reuse detected');
   }
 
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   const accessToken = generateAccessToken({ username, role: admin.role || 'admin' });
 
   setTokenCookies(res, accessToken, newRefreshToken);
@@ -331,14 +331,14 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), as
   const { currentPassword, newPassword } = req.validatedBody;
   const meta = getAuditMeta(req);
 
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   const validPassword = await bcrypt.compare(currentPassword, admin.passwordHash);
   if (!validPassword) {
     throw new ApiError(401, 'Current password is incorrect');
   }
 
   admin.passwordHash = await bcrypt.hash(newPassword, 12);
-  db.admin.set(admin);
+  await db.admin.set(admin);
 
   logAudit({ ...meta, action: AuditAction.PASSWORD_CHANGE });
 
@@ -348,8 +348,8 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), as
 // ═══════════════════════════════════════════
 // GET /api/auth/me
 // ═══════════════════════════════════════════
-router.get('/me', authenticate, (req, res) => {
-  const admin = db.admin.get();
+router.get('/me', authenticate, asyncHandler(async (req, res) => {
+  const admin = await db.admin.get();
   res.json({
     username: admin.username,
     email: decrypt(admin.email || admin.email),
@@ -357,7 +357,7 @@ router.get('/me', authenticate, (req, res) => {
     has2FA: !!admin.totpSecret,
     tenantId: admin.tenantId || 'default',
   });
-});
+}));
 
 // ═══════════════════════════════════════════
 // PASSWORD RESET — In-memory token store
@@ -381,7 +381,7 @@ router.post('/forgot-password', validate(forgotPasswordSchema), asyncHandler(asy
 
   cleanExpiredResetTokens();
 
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   const storedEmail = (decrypt(admin.email) || admin.email || '').toLowerCase().trim();
 
   // Always return success to prevent email enumeration
@@ -438,9 +438,9 @@ router.post('/reset-password', validate(resetPasswordSchema), asyncHandler(async
   }
 
   // Reset the password
-  const admin = db.admin.get();
+  const admin = await db.admin.get();
   admin.passwordHash = await bcrypt.hash(newPassword, 12);
-  db.admin.set(admin);
+  await db.admin.set(admin);
 
   // Invalidate the used token
   resetTokens.delete(tokenHash);

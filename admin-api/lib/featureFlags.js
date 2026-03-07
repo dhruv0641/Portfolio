@@ -25,10 +25,10 @@ const DEFAULT_FLAGS = {
  * @param {string} [tenantId] - Optional tenant ID for per-tenant flags
  * @returns {boolean}
  */
-function isEnabled(flag, tenantId = null) {
+async function isEnabled(flag, tenantId = null) {
   // Check tenant-specific override first
   if (tenantId) {
-    const settings = db.settings.get();
+    const settings = await db.settings.get();
     const tenantFlags = settings.featureFlags?.[tenantId];
     if (tenantFlags && flag in tenantFlags) {
       return !!tenantFlags[flag];
@@ -36,7 +36,7 @@ function isEnabled(flag, tenantId = null) {
   }
 
   // Check global flags
-  const settings = db.settings.get();
+  const settings = await db.settings.get();
   if (settings.featureFlags?.global && flag in settings.featureFlags.global) {
     return !!settings.featureFlags.global[flag];
   }
@@ -49,9 +49,9 @@ function isEnabled(flag, tenantId = null) {
  * Express middleware — check feature flag before route handler
  */
 function requireFeature(flag) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const tenantId = req.user?.tenantId;
-    if (!isEnabled(flag, tenantId)) {
+    if (!(await isEnabled(flag, tenantId))) {
       return res.status(403).json({ error: `Feature '${flag}' is not enabled` });
     }
     next();

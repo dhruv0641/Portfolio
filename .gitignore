@@ -27,6 +27,9 @@ dist-ssr
 .env
 admin-api/.env
 admin-api/data/
+admin-api/database/*.db
+admin-api/database/*.db-shm
+admin-api/database/*.db-wal
 
 # SSL certificates
 nginx/certs/

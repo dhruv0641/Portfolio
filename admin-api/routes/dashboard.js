@@ -9,12 +9,13 @@ const db = require('../lib/dataLayer');
 const { authenticate } = require('../lib/auth');
 const { decrypt } = require('../lib/encryption');
 const { readAuditLogs } = require('../lib/audit');
+const { asyncHandler } = require('../lib/errorHandler');
 
 // GET /api/dashboard/stats — Auth required
-router.get('/stats', authenticate, (req, res) => {
-  const projects = db.projects.getAll();
-  const services = db.services.getAll();
-  const messages = db.messages.getAll();
+router.get('/stats', authenticate, asyncHandler(async (req, res) => {
+  const projects = await db.projects.getAll();
+  const services = await db.services.getAll();
+  const messages = await db.messages.getAll();
   const unreadMessages = messages.filter(m => m.status === 'unread').length;
 
   // Decrypt messages for display
@@ -35,11 +36,11 @@ router.get('/stats', authenticate, (req, res) => {
     unreadMessages,
     recentMessages,
   });
-});
+}));
 
 // GET /api/dashboard/audit-logs — Auth required
-router.get('/audit-logs', authenticate, (req, res) => {
-  const logs = readAuditLogs();
+router.get('/audit-logs', authenticate, asyncHandler(async (req, res) => {
+  const logs = await readAuditLogs();
   const limit = parseInt(req.query.limit || '100', 10);
   const offset = parseInt(req.query.offset || '0', 10);
   const action = req.query.action; // Optional filter
@@ -58,6 +59,6 @@ router.get('/audit-logs', authenticate, (req, res) => {
     limit,
     logs: paginated,
   });
-});
+}));
 
 module.exports = router;

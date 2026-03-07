@@ -8,15 +8,11 @@
  */
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
 const db = require('../lib/dataLayer');
-const crypto = require('crypto');
 const { authenticate } = require('../lib/auth');
 const { validate, customizeUpdateSchema, CUSTOMIZE_DEFAULTS } = require('../lib/validators');
 const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
 const { asyncHandler } = require('../lib/errorHandler');
-const config = require('../lib/config');
 
 /**
  * Deep merge helper — merges nested objects without overwriting entire sub-objects
@@ -58,38 +54,23 @@ function ensureDefaults(data) {
 
 // ─── GET /api/customize (public) ───
 router.get('/', asyncHandler(async (req, res) => {
-  const data = db.customize.get();
+  const data = await db.customize.get();
   res.json(ensureDefaults(data));
 }));
 
 
 // Helper to save customization history
-function saveCustomizationHistory(prevCustomization) {
-  const historyPath = path.join(config.paths.data, 'customize_history.json');
-  let history = [];
-  if (fs.existsSync(historyPath)) {
-    try {
-      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-    } catch { history = []; }
-  }
-  const entry = {
-    id: crypto.randomUUID(),
-    timestamp: new Date().toISOString(),
-    customization: prevCustomization
-  };
-  history.unshift(entry); // newest first
-  // Limit history to 50 entries
-  if (history.length > 50) history = history.slice(0, 50);
-  fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf-8');
+async function saveCustomizationHistory(prevCustomization) {
+  await db.customizeHistory.create(prevCustomization || {});
 }
 
 // PUT /api/customize (authenticated, validated)
 router.put('/', authenticate, validate(customizeUpdateSchema), asyncHandler(async (req, res) => {
-  const current = db.customize.get();
+  const current = await db.customize.get();
   // Save current state to history before updating
-  saveCustomizationHistory(current);
+  await saveCustomizationHistory(current);
   const updated = deepMerge(current, req.validatedBody);
-  db.customize.set(updated);
+  await db.customize.set(updated);
 
   try {
     logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings updated — sections: ' + Object.keys(req.validatedBody).join(', ') });
@@ -100,13 +81,7 @@ router.put('/', authenticate, validate(customizeUpdateSchema), asyncHandler(asyn
 
 // GET /api/customize/history (authenticated) — List customization history
 router.get('/history', authenticate, asyncHandler(async (req, res) => {
-  const historyPath = path.join(config.paths.data, 'customize_history.json');
-  let history = [];
-  if (fs.existsSync(historyPath)) {
-    try {
-      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-    } catch { history = []; }
-  }
+  const history = await db.customizeHistory.list();
   // Only return id, timestamp, and a summary (omit full customization for list)
   const summarized = history.map(h => ({
     id: h.id,
@@ -118,33 +93,19 @@ router.get('/history', authenticate, asyncHandler(async (req, res) => {
 
 // GET /api/customize/history/:id (authenticated) — Get a specific history entry
 router.get('/history/:id', authenticate, asyncHandler(async (req, res) => {
-  const historyPath = path.join(config.paths.data, 'customize_history.json');
-  let history = [];
-  if (fs.existsSync(historyPath)) {
-    try {
-      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-    } catch { history = []; }
-  }
-  const entry = history.find(h => h.id === req.params.id);
+  const entry = await db.customizeHistory.getById(req.params.id);
   if (!entry) return res.status(404).json({ error: 'History entry not found' });
   res.json(entry);
 }));
 
 // POST /api/customize/history/restore/:id (authenticated) — Restore a previous customization
 router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) => {
-  const historyPath = path.join(config.paths.data, 'customize_history.json');
-  let history = [];
-  if (fs.existsSync(historyPath)) {
-    try {
-      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-    } catch { history = []; }
-  }
-  const entry = history.find(h => h.id === req.params.id);
+  const entry = await db.customizeHistory.getById(req.params.id);
   if (!entry) return res.status(404).json({ error: 'History entry not found' });
   // Save current state to history before restoring
-  const current = db.customize.get();
-  saveCustomizationHistory(current);
-  db.customize.set(entry.customization);
+  const current = await db.customize.get();
+  await saveCustomizationHistory(current);
+  await db.customize.set(entry.customization);
   try {
     logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings restored from history' });
   } catch (_) { /* audit log failure must not block restore */ }
@@ -161,21 +122,15 @@ router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) 
 router.post('/reset', authenticate, asyncHandler(async (req, res) => {
   // ──────────────────────────────────────────────────────────────
   // Only reset allowed UI customization keys
-  const defaultsPath = path.join(config.paths.data, 'customize_defaults.json');
-  let defaults = {};
-  if (fs.existsSync(defaultsPath)) {
-    defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf-8'));
-  } else {
-    defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
-  }
+  const defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
 
   // Strictly allowed keys for UI customization.
   // IMPORTANT: content/config branches (hero, sections, seo, etc.) must be preserved.
   const ALLOWED_KEYS = [
     'theme', 'layout', 'animations', 'typography', 'spacing', 'appearance'
   ];
-  const current = db.customize.get() || {};
-  saveCustomizationHistory(current);
+  const current = (await db.customize.get()) || {};
+  await saveCustomizationHistory(current);
 
   // Start from current config so content/config keys are never dropped.
   const next = { ...current };
@@ -186,7 +141,7 @@ router.post('/reset', authenticate, asyncHandler(async (req, res) => {
   }
 
   // Save merged config with content preserved and design reset.
-  db.customize.set(next);
+  await db.customize.set(next);
 
   try {
     logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings reset to defaults (UI only)' });

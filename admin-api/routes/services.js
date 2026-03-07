@@ -12,16 +12,16 @@ const { logAudit, AuditAction, getAuditMeta } = require('../lib/audit');
 const { asyncHandler, ApiError } = require('../lib/errorHandler');
 
 // GET /api/services — Public
-router.get('/', (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const tenantId = req.query.tenantId || null;
-  res.json(db.services.getAll(tenantId));
-});
+  res.json(await db.services.getAll(tenantId));
+}));
 
 // POST /api/services — Auth required
 router.post('/', authenticate, validate(serviceCreateSchema), asyncHandler(async (req, res) => {
   const meta = getAuditMeta(req);
   const tenantId = req.user.tenantId || 'default';
-  const newService = db.services.create(req.validatedBody, tenantId);
+  const newService = await db.services.create(req.validatedBody, tenantId);
 
   logAudit({ ...meta, action: AuditAction.SERVICE_CREATE, resourceId: newService.id, resourceType: 'service' });
   res.status(201).json(newService);
@@ -30,7 +30,7 @@ router.post('/', authenticate, validate(serviceCreateSchema), asyncHandler(async
 // PUT /api/services/:id — Auth required
 router.put('/:id', authenticate, validate(serviceUpdateSchema), asyncHandler(async (req, res) => {
   const meta = getAuditMeta(req);
-  const updated = db.services.update(req.params.id, req.validatedBody);
+  const updated = await db.services.update(req.params.id, req.validatedBody);
   if (!updated) throw new ApiError(404, 'Service not found');
 
   logAudit({ ...meta, action: AuditAction.SERVICE_UPDATE, resourceId: req.params.id, resourceType: 'service' });
@@ -40,7 +40,7 @@ router.put('/:id', authenticate, validate(serviceUpdateSchema), asyncHandler(asy
 // DELETE /api/services/:id — Auth required
 router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
   const meta = getAuditMeta(req);
-  const deleted = db.services.delete(req.params.id);
+  const deleted = await db.services.delete(req.params.id);
   if (!deleted) throw new ApiError(404, 'Service not found');
 
   logAudit({ ...meta, action: AuditAction.SERVICE_DELETE, resourceId: req.params.id, resourceType: 'service' });

@@ -103,8 +103,8 @@ app.use('/api', globalLimiter);
 // ═══════════════════════════════════════════
 // DATA INITIALIZATION
 // ═══════════════════════════════════════════
-function initData() {
-  const existing = db.admin.get();
+async function initData() {
+  const existing = await db.admin.get();
   if (!existing || !existing.username) {
     // Admin credentials from environment variables — never hardcoded
     const adminUser = process.env.ADMIN_USERNAME;
@@ -120,7 +120,7 @@ function initData() {
     const username = adminUser || 'admin';
     const password = adminPass || 'Dev_Temp_Pass_2026!';
     const hash = bcrypt.hashSync(password, 12);
-    db.admin.set({
+    await db.admin.set({
       username,
       passwordHash: hash,
       email: adminEmail,
@@ -130,7 +130,7 @@ function initData() {
     logger.info('Admin account initialized', { username });
   }
 
-  if (!db.projects.getAll().length) {
+  if (!(await db.projects.getAll()).length) {
     const defaultProjects = [
       {
         title: 'SOC Log Analysis Lab',
@@ -169,10 +169,10 @@ function initData() {
         featured: false,
       },
     ];
-    defaultProjects.forEach(p => db.projects.create(p));
+    for (const p of defaultProjects) await db.projects.create(p);
   }
 
-  if (!db.services.getAll().length) {
+  if (!(await db.services.getAll()).length) {
     const defaultServices = [
       { title: 'Security Log Investigation', icon: '🔍', description: 'Deep-dive SIEM log analysis to identify anomalies and potential security incidents.' },
       { title: 'SOC Alert Review & Triage', icon: '🚨', description: 'Systematic security alert review and prioritization following NIST frameworks.' },
@@ -181,17 +181,16 @@ function initData() {
       { title: 'Secure API Development', icon: '💻', description: 'Backend APIs with .NET Core implementing authentication and secure coding.' },
       { title: 'AI Security Automation', icon: '🤖', description: 'AI/ML for automated threat detection and log correlation.' },
     ];
-    defaultServices.forEach(s => db.services.create(s));
+    for (const s of defaultServices) await db.services.create(s);
   }
 
-  if (!db.messages.getAll().length) {
-    // Ensure messages.json exists
-    db.writeJSON('messages.json', []);
+  if (!(await db.messages.getAll()).length) {
+    // No-op: messages table already exists; empty state is valid
   }
 
-  const settings = db.settings.get();
+  const settings = await db.settings.get();
   if (!settings.siteName) {
-    db.settings.set({
+    await db.settings.set({
       siteName: 'Dhruvkumar Dobariya',
       fullName: 'Dhruvkumar Dobariya',
       tagline: 'Cybersecurity Analyst | SOC Engineer | AI Security Specialist',
@@ -204,14 +203,8 @@ function initData() {
     });
   }
 
-  // Initialize audit logs
-  const auditPath = path.join(config.paths.data, 'audit_logs.json');
-  if (!fs.existsSync(auditPath)) {
-    fs.writeFileSync(auditPath, '[]', 'utf-8');
-  }
-
   // Seed methodology steps
-  if (!db.methodology.getAll().length) {
+  if (!(await db.methodology.getAll()).length) {
     const defaultMethodology = [
       { title: 'Detect', description: 'Monitor systems, analyze SIEM alerts, and identify potential security events requiring investigation.', icon: 'search', order: 1, enabled: true },
       { title: 'Analyze', description: 'Investigate alerts, correlate data across sources, and determine threat severity and scope of impact.', icon: 'activity', order: 2, enabled: true },
@@ -219,11 +212,11 @@ function initData() {
       { title: 'Eradicate', description: 'Remove threat artifacts, patch vulnerabilities, and eliminate root cause to prevent reinfection.', icon: 'trash', order: 4, enabled: true },
       { title: 'Recover', description: 'Restore operations, validate system integrity, document lessons learned, and update security controls.', icon: 'refresh', order: 5, enabled: true },
     ];
-    defaultMethodology.forEach(m => db.methodology.create(m));
+    for (const m of defaultMethodology) await db.methodology.create(m);
   }
 
   // Seed tools
-  if (!db.tools.getAll().length) {
+  if (!(await db.tools.getAll()).length) {
     const defaultTools = [
       { name: 'Splunk', category: 'SIEM', icon: 'search', order: 1, enabled: true },
       { name: 'Chronicle', category: 'Google SIEM', icon: 'eye', order: 2, enabled: true },
@@ -238,24 +231,24 @@ function initData() {
       { name: 'TryHackMe', category: 'Training', icon: 'target', order: 11, enabled: true },
       { name: 'Git', category: 'Version Control', icon: 'code', order: 12, enabled: true },
     ];
-    defaultTools.forEach(t => db.tools.create(t));
+    for (const t of defaultTools) await db.tools.create(t);
   }
 
   // Seed certificates
-  if (!db.certificates.getAll().length) {
+  if (!(await db.certificates.getAll()).length) {
     const defaultCerts = [
       { title: 'Google Cybersecurity Professional Certificate', issuer: 'Google · Coursera', date: '2025', credentialLink: '#', badgeIcon: 'shield-check', order: 1, enabled: true },
       { title: 'Hands-On Labs & Simulations', issuer: 'Self-Directed Learning', date: '2025', credentialLink: '', badgeIcon: 'terminal', order: 2, enabled: true },
     ];
-    defaultCerts.forEach(c => db.certificates.create(c));
+    for (const c of defaultCerts) await db.certificates.create(c);
   }
 
   // Initialize customize defaults
-  const customize = db.customize.get();
+  const customize = await db.customize.get();
   if (!customize || !customize.theme) {
     const defaultsPath = path.join(config.paths.data, 'customize.json');
     if (!fs.existsSync(defaultsPath)) {
-      db.customize.set({
+      await db.customize.set({
         theme: { primaryColor: '#00F5FF', secondaryColor: '#0066FF', accentColor: '#10B981', bgColor: '#0B0F19' },
         hero: { title: 'CYBER COMMAND', subtitle: 'Dhruvkumar Dobariya' },
         animations: { globalSpeed: 1.0, particlesEnabled: true },
@@ -263,8 +256,6 @@ function initData() {
     }
   }
 }
-
-initData();
 
 // ═══════════════════════════════════════════
 // API ROUTES
@@ -391,7 +382,10 @@ let server;
 function gracefulShutdown(signal) {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
   if (server) {
-    server.close(() => {
+    server.close(async () => {
+      try {
+        await db.closeDatabase();
+      } catch (_) {}
       logger.info('Server closed. Goodbye.');
       process.exit(0);
     });
@@ -418,16 +412,28 @@ process.on('unhandledRejection', (reason) => {
 // ═══════════════════════════════════════════
 // START SERVER
 // ═══════════════════════════════════════════
-server = app.listen(config.port, () => {
-  logger.info('Server started', {
-    port: config.port,
-    environment: config.nodeEnv,
-    version: '2.0.0',
-  });
-  console.log(`\n🛡️  Dhruvkumar Dobariya API running at http://localhost:${config.port}`);
-  console.log(`🖥️  Admin Dashboard: http://localhost:${config.port}/admin`);
-  console.log(`🔐 Environment: ${config.nodeEnv}`);
-  if (!config.isProduction) {
-    console.log(`⚠️  Running in development mode — set ADMIN_USERNAME/ADMIN_PASSWORD env vars\n`);
+async function startServer() {
+  try {
+    await db.initDatabase();
+    await initData();
+
+    server = app.listen(config.port, () => {
+      logger.info('Server started', {
+        port: config.port,
+        environment: config.nodeEnv,
+        version: '2.0.0',
+      });
+      console.log(`\n🛡️  Dhruvkumar Dobariya API running at http://localhost:${config.port}`);
+      console.log(`🖥️  Admin Dashboard: http://localhost:${config.port}/admin`);
+      console.log(`🔐 Environment: ${config.nodeEnv}`);
+      if (!config.isProduction) {
+        console.log(`⚠️  Running in development mode — set ADMIN_USERNAME/ADMIN_PASSWORD env vars\n`);
+      }
+    });
+  } catch (err) {
+    logger.error('Failed to initialize server', { error: err.message, stack: err.stack });
+    process.exit(1);
   }
-});
+}
+
+startServer();
