@@ -1,24 +1,18 @@
 /**
- * SQLite-backed async data layer with one-time JSON migration.
- * Production (Render): /var/data/admin.db (persistent disk)
- * Local development: admin-api/database/admin.db
+ * PostgreSQL-backed async data layer with one-time JSON migration.
+ * Uses DATABASE_URL from environment.
  */
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const { open } = require('sqlite');
-const sqlite3 = require('sqlite3');
+const { Pool } = require('pg');
 const config = require('./config');
 const { logger } = require('./logger');
 
 const DATA_DIR = config.paths.data;
-const IS_RENDER = process.env.RENDER === 'true' || !!process.env.RENDER_SERVICE_ID;
-const DEFAULT_DB_DIR = IS_RENDER ? '/var/data' : path.join(__dirname, '..', 'database');
-const DB_PATH = process.env.SQLITE_DB_PATH || path.join(process.env.SQLITE_DB_DIR || DEFAULT_DB_DIR, 'admin.db');
-const DB_DIR = path.dirname(DB_PATH);
-const JSON_BACKUP_DIR = path.join(DB_DIR, 'json-backups');
+const DATABASE_URL = process.env.DATABASE_URL || '';
 
-let db = null;
+let pool = null;
 
 const COLLECTION_TABLES = {
   projects: 'projects',
@@ -29,6 +23,13 @@ const COLLECTION_TABLES = {
   tools: 'tools',
   certificates: 'certificates',
 };
+
+function getSslConfig() {
+  const raw = (process.env.PGSSL || process.env.PGSSLMODE || '').toLowerCase();
+  if (raw === 'disable' || raw === 'false' || raw === '0') return false;
+  if (raw === 'require' || raw === 'true' || raw === '1') return { rejectUnauthorized: false };
+  return false;
+}
 
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
@@ -66,28 +67,40 @@ async function writeJSON(file, data) {
   }
 }
 
+function toIso(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  return new Date(value).toISOString();
+}
+
+function parseJsonMaybe(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function toEntity(row) {
   if (!row) return null;
-  let data = {};
-  try {
-    data = row.data ? JSON.parse(row.data) : {};
-  } catch {
-    data = {};
-  }
+  const data = parseJsonMaybe(row.data, {});
   return {
     ...data,
     id: row.id,
     tenantId: row.tenantId,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
   };
 }
 
-async function createSchema() {
-  await db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
+function baseSelect(tableName) {
+  return `SELECT id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt" FROM ${tableName}`;
+}
 
+async function createSchema() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS system_state (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -95,125 +108,122 @@ async function createSchema() {
 
     CREATE TABLE IF NOT EXISTS admins (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_tenant_unique ON admins(tenant_id);
 
     CREATE TABLE IF NOT EXISTS settings (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_tenant_unique ON settings(tenant_id);
 
     CREATE TABLE IF NOT EXISTS customize (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_customize_tenant_unique ON customize(tenant_id);
 
     CREATE TABLE IF NOT EXISTS customize_history (
       id TEXT PRIMARY KEY,
-      timestamp TEXT NOT NULL,
-      customization TEXT NOT NULL
+      timestamp TIMESTAMPTZ NOT NULL,
+      customization JSONB NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS services (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS methodology (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS expertise (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS tools (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS certificates (
       id TEXT PRIMARY KEY,
-      tenantId TEXT NOT NULL,
-      data TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
-      timestamp TEXT NOT NULL,
+      timestamp TIMESTAMPTZ NOT NULL,
       action TEXT,
-      adminId TEXT,
+      admin_id TEXT,
       ip TEXT,
-      userAgent TEXT,
-      resourceId TEXT,
-      resourceType TEXT,
-      details TEXT,
-      requestId TEXT
+      user_agent TEXT,
+      resource_id TEXT,
+      resource_type TEXT,
+      details JSONB,
+      request_id TEXT
     );
 
-    CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_methodology_tenant ON methodology(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_expertise_tenant ON expertise(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_tools_tenant ON tools(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_certificates_tenant ON certificates(tenantId);
-    CREATE INDEX IF NOT EXISTS idx_audit_logs_ts ON audit_logs(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_methodology_tenant ON methodology(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_expertise_tenant ON expertise(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_tools_tenant ON tools(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_certificates_tenant ON certificates(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_customize_history_ts ON customize_history(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_ts ON audit_logs(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
   `);
 }
 
 async function backupJsonFiles() {
   const dataDirExists = await fileExists(DATA_DIR);
-  if (!dataDirExists) {
-    logger.info('JSON backup skipped: data directory not found', { dataDir: DATA_DIR });
-    return;
-  }
-
-  const backupDir = path.join(JSON_BACKUP_DIR, `backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
-  await ensureDir(backupDir);
+  if (!dataDirExists) return;
   const files = await fs.readdir(DATA_DIR);
   const jsonFiles = files.filter((f) => f.endsWith('.json'));
-  if (!jsonFiles.length) {
-    logger.info('JSON backup skipped: no JSON files found', { dataDir: DATA_DIR });
-    return;
-  }
+  if (!jsonFiles.length) return;
 
+  const backupDir = path.join(DATA_DIR, `backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  await ensureDir(backupDir);
   await Promise.all(
     jsonFiles.map(async (file) => {
       await fs.copyFile(path.join(DATA_DIR, file), path.join(backupDir, file));
@@ -222,41 +232,41 @@ async function backupJsonFiles() {
   logger.info('JSON data backup created', { backupDir });
 }
 
-async function migrateCollection(fileName, tableName) {
+async function tableCount(tableName, client = pool) {
+  const { rows } = await client.query(`SELECT COUNT(*)::int AS c FROM ${tableName}`);
+  return rows[0]?.c || 0;
+}
+
+async function migrateCollection(fileName, tableName, client) {
   const raw = (await readJSON(fileName)) || [];
   if (!Array.isArray(raw) || !raw.length) return;
-  const existing = await db.get(`SELECT COUNT(*) AS c FROM ${tableName}`);
-  if (existing.c > 0) return;
+  const count = await tableCount(tableName, client);
+  if (count > 0) return;
 
-  await db.exec('BEGIN');
-  try {
-    for (const item of raw) {
-      const id = item.id || crypto.randomUUID();
-      const tenantId = item.tenantId || 'default';
-      const createdAt = item.createdAt || new Date().toISOString();
-      const updatedAt = item.updatedAt || createdAt;
-      const data = { ...item };
-      delete data.id;
-      delete data.tenantId;
-      delete data.createdAt;
-      delete data.updatedAt;
-      await db.run(
-        `INSERT INTO ${tableName} (id, tenantId, data, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
-        [id, tenantId, JSON.stringify(data), createdAt, updatedAt]
-      );
-    }
-    await db.exec('COMMIT');
-  } catch (err) {
-    await db.exec('ROLLBACK');
-    throw err;
+  for (const item of raw) {
+    const id = item.id || crypto.randomUUID();
+    const tenantId = item.tenantId || 'default';
+    const createdAt = item.createdAt || new Date().toISOString();
+    const updatedAt = item.updatedAt || createdAt;
+    const data = { ...item };
+    delete data.id;
+    delete data.tenantId;
+    delete data.createdAt;
+    delete data.updatedAt;
+
+    await client.query(
+      `INSERT INTO ${tableName} (id, tenant_id, data, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4::timestamptz, $5::timestamptz)`,
+      [id, tenantId, JSON.stringify(data), createdAt, updatedAt]
+    );
   }
 }
 
-async function migrateSingleton(fileName, tableName) {
+async function migrateSingleton(fileName, tableName, client) {
   const raw = (await readJSON(fileName)) || {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !Object.keys(raw).length) return;
-  const existing = await db.get(`SELECT COUNT(*) AS c FROM ${tableName}`);
-  if (existing.c > 0) return;
+  const count = await tableCount(tableName, client);
+  if (count > 0) return;
 
   const id = raw.id || crypto.randomUUID();
   const tenantId = raw.tenantId || 'default';
@@ -267,105 +277,119 @@ async function migrateSingleton(fileName, tableName) {
   delete data.tenantId;
   delete data.createdAt;
   delete data.updatedAt;
-  await db.run(
-    `INSERT INTO ${tableName} (id, tenantId, data, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+
+  await client.query(
+    `INSERT INTO ${tableName} (id, tenant_id, data, created_at, updated_at)
+     VALUES ($1, $2, $3::jsonb, $4::timestamptz, $5::timestamptz)`,
     [id, tenantId, JSON.stringify(data), createdAt, updatedAt]
   );
 }
 
-async function migrateAuditLogs() {
+async function migrateAuditLogs(client) {
   const raw = (await readJSON('audit_logs.json')) || [];
   if (!Array.isArray(raw) || !raw.length) return;
-  const existing = await db.get('SELECT COUNT(*) AS c FROM audit_logs');
-  if (existing.c > 0) return;
+  const count = await tableCount('audit_logs', client);
+  if (count > 0) return;
 
-  await db.exec('BEGIN');
-  try {
-    for (const entry of raw) {
-      await db.run(
-        `INSERT INTO audit_logs (id, timestamp, action, adminId, ip, userAgent, resourceId, resourceType, details, requestId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          entry.id || crypto.randomUUID(),
-          entry.timestamp || new Date().toISOString(),
-          entry.action || null,
-          entry.adminId || 'anonymous',
-          entry.ip || 'unknown',
-          (entry.userAgent || 'unknown').substring(0, 200),
-          entry.resourceId || null,
-          entry.resourceType || null,
-          entry.details ? JSON.stringify(entry.details) : null,
-          entry.requestId || null,
-        ]
-      );
-    }
-    await db.exec('COMMIT');
-  } catch (err) {
-    await db.exec('ROLLBACK');
-    throw err;
+  for (const entry of raw) {
+    await client.query(
+      `INSERT INTO audit_logs (
+        id, timestamp, action, admin_id, ip, user_agent, resource_id, resource_type, details, request_id
+      ) VALUES ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)`,
+      [
+        entry.id || crypto.randomUUID(),
+        entry.timestamp || new Date().toISOString(),
+        entry.action || null,
+        entry.adminId || 'anonymous',
+        entry.ip || 'unknown',
+        (entry.userAgent || 'unknown').substring(0, 200),
+        entry.resourceId || null,
+        entry.resourceType || null,
+        JSON.stringify(entry.details || null),
+        entry.requestId || null,
+      ]
+    );
   }
 }
 
-async function migrateCustomizeHistory() {
+async function migrateCustomizeHistory(client) {
   const raw = (await readJSON('customize_history.json')) || [];
   if (!Array.isArray(raw) || !raw.length) return;
-  const existing = await db.get('SELECT COUNT(*) AS c FROM customize_history');
-  if (existing.c > 0) return;
-  await db.exec('BEGIN');
-  try {
-    for (const entry of raw) {
-      await db.run(
-        'INSERT INTO customize_history (id, timestamp, customization) VALUES (?, ?, ?)',
-        [
-          entry.id || crypto.randomUUID(),
-          entry.timestamp || new Date().toISOString(),
-          JSON.stringify(entry.customization || {}),
-        ]
-      );
-    }
-    await db.exec('COMMIT');
-  } catch (err) {
-    await db.exec('ROLLBACK');
-    throw err;
+  const count = await tableCount('customize_history', client);
+  if (count > 0) return;
+
+  for (const entry of raw) {
+    await client.query(
+      `INSERT INTO customize_history (id, timestamp, customization)
+       VALUES ($1, $2::timestamptz, $3::jsonb)`,
+      [
+        entry.id || crypto.randomUUID(),
+        entry.timestamp || new Date().toISOString(),
+        JSON.stringify(entry.customization || {}),
+      ]
+    );
   }
 }
 
 async function runInitialMigrationIfNeeded() {
-  const marker = await db.get("SELECT value FROM system_state WHERE key='json_migrated'");
-  if (marker && marker.value === '1') return;
+  const marker = await pool.query("SELECT value FROM system_state WHERE key = 'json_migrated' LIMIT 1");
+  if (marker.rows[0]?.value === '1') return;
 
   await backupJsonFiles();
-  await migrateCollection('projects.json', 'projects');
-  await migrateCollection('services.json', 'services');
-  await migrateCollection('messages.json', 'messages');
-  await migrateCollection('methodology.json', 'methodology');
-  await migrateCollection('expertise.json', 'expertise');
-  await migrateCollection('tools.json', 'tools');
-  await migrateCollection('certificates.json', 'certificates');
-  await migrateSingleton('admin.json', 'admins');
-  await migrateSingleton('settings.json', 'settings');
-  await migrateSingleton('customize.json', 'customize');
-  await migrateAuditLogs();
-  await migrateCustomizeHistory();
-
-  await db.run("INSERT OR REPLACE INTO system_state (key, value) VALUES ('json_migrated', '1')");
-  logger.info('JSON to SQLite migration completed', { dbPath: DB_PATH });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await migrateCollection('projects.json', 'projects', client);
+    await migrateCollection('services.json', 'services', client);
+    await migrateCollection('messages.json', 'messages', client);
+    await migrateCollection('methodology.json', 'methodology', client);
+    await migrateCollection('expertise.json', 'expertise', client);
+    await migrateCollection('tools.json', 'tools', client);
+    await migrateCollection('certificates.json', 'certificates', client);
+    await migrateSingleton('admin.json', 'admins', client);
+    await migrateSingleton('settings.json', 'settings', client);
+    await migrateSingleton('customize.json', 'customize', client);
+    await migrateAuditLogs(client);
+    await migrateCustomizeHistory(client);
+    await client.query(
+      `INSERT INTO system_state (key, value) VALUES ('json_migrated', '1')
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
+    );
+    await client.query('COMMIT');
+    logger.info('JSON to PostgreSQL migration completed');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function initDatabase() {
-  if (db) return db;
-  await ensureDir(DB_DIR);
-  db = await open({ filename: DB_PATH, driver: sqlite3.Database });
+  if (pool) return pool;
+  if (!DATABASE_URL) {
+    throw new Error('DATABASE_URL is required for PostgreSQL data layer');
+  }
+
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: getSslConfig(),
+    max: parseInt(process.env.PG_POOL_MAX || '10', 10),
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  });
+
+  await pool.query('SELECT 1');
   await createSchema();
   await runInitialMigrationIfNeeded();
-  logger.info('SQLite database initialized', { dbPath: DB_PATH, isRender: IS_RENDER });
-  return db;
+  logger.info('PostgreSQL database initialized');
+  return pool;
 }
 
 async function closeDatabase() {
-  if (!db) return;
-  await db.close();
-  db = null;
+  if (!pool) return;
+  await pool.end();
+  pool = null;
 }
 
 class Repository {
@@ -374,17 +398,21 @@ class Repository {
   }
 
   async getAll(tenantId = null) {
-    const rows = tenantId
-      ? await db.all(`SELECT * FROM ${this.tableName} WHERE tenantId = ?`, [tenantId])
-      : await db.all(`SELECT * FROM ${this.tableName}`);
+    const q = tenantId
+      ? `${baseSelect(this.tableName)} WHERE tenant_id = $1`
+      : `${baseSelect(this.tableName)}`;
+    const vals = tenantId ? [tenantId] : [];
+    const { rows } = await pool.query(q, vals);
     return rows.map(toEntity);
   }
 
   async getById(id, tenantId = null) {
-    const row = tenantId
-      ? await db.get(`SELECT * FROM ${this.tableName} WHERE id = ? AND tenantId = ?`, [id, tenantId])
-      : await db.get(`SELECT * FROM ${this.tableName} WHERE id = ?`, [id]);
-    return toEntity(row);
+    const q = tenantId
+      ? `${baseSelect(this.tableName)} WHERE id = $1 AND tenant_id = $2 LIMIT 1`
+      : `${baseSelect(this.tableName)} WHERE id = $1 LIMIT 1`;
+    const vals = tenantId ? [id, tenantId] : [id];
+    const { rows } = await pool.query(q, vals);
+    return toEntity(rows[0]);
   }
 
   async create(item, tenantId = null) {
@@ -398,17 +426,13 @@ class Repository {
     delete data.createdAt;
     delete data.updatedAt;
 
-    await db.run(
-      `INSERT INTO ${this.tableName} (id, tenantId, data, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+    const { rows } = await pool.query(
+      `INSERT INTO ${this.tableName} (id, tenant_id, data, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4::timestamptz, $5::timestamptz)
+       RETURNING id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [id, rowTenantId, JSON.stringify(data), createdAt, updatedAt]
     );
-    return {
-      ...data,
-      id,
-      tenantId: rowTenantId,
-      createdAt,
-      updatedAt,
-    };
+    return toEntity(rows[0]);
   }
 
   async update(id, updates, tenantId = null) {
@@ -428,25 +452,32 @@ class Repository {
     delete data.createdAt;
     delete data.updatedAt;
 
-    await db.run(
-      `UPDATE ${this.tableName} SET data = ?, updatedAt = ? WHERE id = ?`,
+    const { rows } = await pool.query(
+      `UPDATE ${this.tableName}
+       SET data = $1::jsonb, updated_at = $2::timestamptz
+       WHERE id = $3
+       RETURNING id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [JSON.stringify(data), merged.updatedAt, id]
     );
-    return merged;
+    return toEntity(rows[0]);
   }
 
   async delete(id, tenantId = null) {
-    const result = tenantId
-      ? await db.run(`DELETE FROM ${this.tableName} WHERE id = ? AND tenantId = ?`, [id, tenantId])
-      : await db.run(`DELETE FROM ${this.tableName} WHERE id = ?`, [id]);
-    return result.changes > 0;
+    const q = tenantId
+      ? `DELETE FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`
+      : `DELETE FROM ${this.tableName} WHERE id = $1`;
+    const vals = tenantId ? [id, tenantId] : [id];
+    const result = await pool.query(q, vals);
+    return result.rowCount > 0;
   }
 
   async count(tenantId = null) {
-    const row = tenantId
-      ? await db.get(`SELECT COUNT(*) AS c FROM ${this.tableName} WHERE tenantId = ?`, [tenantId])
-      : await db.get(`SELECT COUNT(*) AS c FROM ${this.tableName}`);
-    return row.c;
+    const q = tenantId
+      ? `SELECT COUNT(*)::int AS c FROM ${this.tableName} WHERE tenant_id = $1`
+      : `SELECT COUNT(*)::int AS c FROM ${this.tableName}`;
+    const vals = tenantId ? [tenantId] : [];
+    const { rows } = await pool.query(q, vals);
+    return rows[0]?.c || 0;
   }
 
   async countWhere(predicate, tenantId = null) {
@@ -461,16 +492,17 @@ class SingletonStore {
   }
 
   async get(tenantId = 'default') {
-    const row = await db.get(`SELECT * FROM ${this.tableName} WHERE tenantId = ? LIMIT 1`, [tenantId]);
-    const entity = toEntity(row);
-    return entity || {};
+    const { rows } = await pool.query(
+      `${baseSelect(this.tableName)} WHERE tenant_id = $1 LIMIT 1`,
+      [tenantId]
+    );
+    return toEntity(rows[0]) || {};
   }
 
   async set(data, tenantId = null) {
     const id = data.id || crypto.randomUUID();
     const rowTenantId = tenantId || data.tenantId || 'default';
-    const existing = await db.get(`SELECT id, createdAt FROM ${this.tableName} WHERE tenantId = ? LIMIT 1`, [rowTenantId]);
-    const createdAt = existing?.createdAt || data.createdAt || new Date().toISOString();
+    const createdAt = data.createdAt || new Date().toISOString();
     const updatedAt = new Date().toISOString();
     const stored = { ...data };
     delete stored.id;
@@ -478,19 +510,15 @@ class SingletonStore {
     delete stored.createdAt;
     delete stored.updatedAt;
 
-    if (existing) {
-      await db.run(
-        `UPDATE ${this.tableName} SET data = ?, updatedAt = ? WHERE tenantId = ?`,
-        [JSON.stringify(stored), updatedAt, rowTenantId]
-      );
-      return { ...stored, id: existing.id, tenantId: rowTenantId, createdAt, updatedAt };
-    }
-
-    await db.run(
-      `INSERT INTO ${this.tableName} (id, tenantId, data, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+    const { rows } = await pool.query(
+      `INSERT INTO ${this.tableName} (id, tenant_id, data, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4::timestamptz, $5::timestamptz)
+       ON CONFLICT (tenant_id) DO UPDATE
+       SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
+       RETURNING id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [id, rowTenantId, JSON.stringify(stored), createdAt, updatedAt]
     );
-    return { ...stored, id, tenantId: rowTenantId, createdAt, updatedAt };
+    return toEntity(rows[0]);
   }
 
   async merge(updates, tenantId = 'default') {
@@ -502,17 +530,23 @@ class SingletonStore {
 
 const customizeHistory = {
   async list() {
-    const rows = await db.all('SELECT id, timestamp FROM customize_history ORDER BY timestamp DESC LIMIT 50');
-    return rows;
+    const { rows } = await pool.query(
+      `SELECT id, timestamp FROM customize_history ORDER BY timestamp DESC LIMIT 50`
+    );
+    return rows.map((r) => ({ id: r.id, timestamp: toIso(r.timestamp) }));
   },
 
   async getById(id) {
-    const row = await db.get('SELECT * FROM customize_history WHERE id = ? LIMIT 1', [id]);
+    const { rows } = await pool.query(
+      `SELECT id, timestamp, customization FROM customize_history WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    const row = rows[0];
     if (!row) return null;
     return {
       id: row.id,
-      timestamp: row.timestamp,
-      customization: JSON.parse(row.customization || '{}'),
+      timestamp: toIso(row.timestamp),
+      customization: parseJsonMaybe(row.customization, {}),
     };
   },
 
@@ -522,11 +556,12 @@ const customizeHistory = {
       timestamp: new Date().toISOString(),
       customization: customization || {},
     };
-    await db.run(
-      'INSERT INTO customize_history (id, timestamp, customization) VALUES (?, ?, ?)',
+    await pool.query(
+      `INSERT INTO customize_history (id, timestamp, customization)
+       VALUES ($1, $2::timestamptz, $3::jsonb)`,
       [entry.id, entry.timestamp, JSON.stringify(entry.customization)]
     );
-    await db.run(
+    await pool.query(
       `DELETE FROM customize_history
        WHERE id NOT IN (SELECT id FROM customize_history ORDER BY timestamp DESC LIMIT 50)`
     );
@@ -536,17 +571,33 @@ const customizeHistory = {
 
 const auditLogs = {
   async getAll() {
-    const rows = await db.all('SELECT * FROM audit_logs ORDER BY timestamp ASC');
+    const { rows } = await pool.query(
+      `SELECT
+         id,
+         timestamp,
+         action,
+         admin_id AS "adminId",
+         ip,
+         user_agent AS "userAgent",
+         resource_id AS "resourceId",
+         resource_type AS "resourceType",
+         details,
+         request_id AS "requestId"
+       FROM audit_logs
+       ORDER BY timestamp ASC`
+    );
     return rows.map((r) => ({
       ...r,
-      details: r.details ? JSON.parse(r.details) : null,
+      timestamp: toIso(r.timestamp),
+      details: parseJsonMaybe(r.details, null),
     }));
   },
 
   async create(entry) {
-    await db.run(
-      `INSERT INTO audit_logs (id, timestamp, action, adminId, ip, userAgent, resourceId, resourceType, details, requestId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    await pool.query(
+      `INSERT INTO audit_logs (
+        id, timestamp, action, admin_id, ip, user_agent, resource_id, resource_type, details, request_id
+      ) VALUES ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)`,
       [
         entry.id || crypto.randomUUID(),
         entry.timestamp || new Date().toISOString(),
@@ -556,11 +607,11 @@ const auditLogs = {
         (entry.userAgent || 'unknown').substring(0, 200),
         entry.resourceId || null,
         entry.resourceType || null,
-        entry.details ? JSON.stringify(entry.details) : null,
+        JSON.stringify(entry.details || null),
         entry.requestId || null,
       ]
     );
-    await db.run(
+    await pool.query(
       `DELETE FROM audit_logs
        WHERE id NOT IN (SELECT id FROM audit_logs ORDER BY timestamp DESC LIMIT 10000)`
     );
@@ -570,7 +621,7 @@ const auditLogs = {
 module.exports = {
   initDatabase,
   closeDatabase,
-  dbPath: DB_PATH,
+  dbPath: null,
   dataPath: DATA_DIR,
 
   projects: new Repository(COLLECTION_TABLES.projects),
