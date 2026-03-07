@@ -760,6 +760,32 @@
       .catch(function () { /* keep container empty on error */ });
   }
 
+  function loadExpertise() {
+    var container = qs('#expertise-container');
+    if (!container) return;
+    fetch('/api/expertise', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        items = (items || []).filter(function (e) { return e.enabled !== false; });
+        if (!items.length) {
+          container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Expertise cards coming soon.</p>';
+          return;
+        }
+        items.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+        container.innerHTML = items.map(function (e, i) {
+          var delayClass = 'reveal-delay-' + ((i % 4) + 2);
+          return '<div class="expertise-card tilt-card reveal ' + delayClass + '">'
+            + '<div class="expertise-icon" aria-hidden="true">' + feIcon(e.icon || 'target', 24) + '</div>'
+            + '<div class="expertise-title">' + escapeHTML(e.title) + '</div>'
+            + '<div class="expertise-desc">' + escapeHTML(e.description || '') + '</div>'
+            + '</div>';
+        }).join('');
+        initReveals();
+        initTiltCards();
+      })
+      .catch(function () { /* keep container empty on error */ });
+  }
+
   /* ─── Frontend Icon Map (subset matching admin ICONS) ─── */
   var FE_ICONS = {
     'shield':        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
@@ -880,6 +906,37 @@
       .catch(function () { /* keep container as-is on error */ });
   }
 
+  function blockInspectorShortcuts() {
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      var key = (e.key || '').toLowerCase();
+      var ctrlOrMeta = !!(e.ctrlKey || e.metaKey);
+      var shift = !!e.shiftKey;
+
+      var inEditable = false;
+      var target = e.target;
+      if (target) {
+        var tag = (target.tagName || '').toLowerCase();
+        inEditable = target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+      }
+
+      if (key === 'f12') {
+        e.preventDefault();
+        return;
+      }
+      if (ctrlOrMeta && shift && (key === 'i' || key === 'j' || key === 'c')) {
+        e.preventDefault();
+        return;
+      }
+      if (!inEditable && ctrlOrMeta && key === 'u') {
+        e.preventDefault();
+      }
+    });
+  }
+
   /* ======== INIT AFTER LOADER ======== */
   function initAfterLoad() {
     initCharReveal();
@@ -892,6 +949,7 @@
     initMagneticButtons();
     loadProjects();
     loadServices();
+    loadExpertise();
     loadMethodology();
     loadTools();
     loadCertificates();
@@ -899,6 +957,7 @@
 
   /* ======== INIT IMMEDIATELY ======== */
   initMouseSpotlight();
+  blockInspectorShortcuts();
   initHamburger();
   initSmoothScroll();
   initContactForm();

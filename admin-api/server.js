@@ -32,6 +32,7 @@ const settingsRoutes = require('./routes/settings');
 const dashboardRoutes = require('./routes/dashboard');
 const customizeRoutes = require('./routes/customize');
 const methodologyRoutes = require('./routes/methodology');
+const expertiseRoutes = require('./routes/expertise');
 const toolRoutes = require('./routes/tools');
 const certificateRoutes = require('./routes/certificates');
 
@@ -216,6 +217,19 @@ async function initData() {
   }
 
   // Seed tools
+  if (!(await db.expertise.getAll()).length) {
+    const defaultExpertise = [
+      { title: 'SIEM Investigation', description: 'Deep-dive log analysis using Splunk and Chronicle to identify suspicious patterns and security incidents.', icon: 'search', order: 1, enabled: true },
+      { title: 'Incident Response', description: 'Alert triage, escalation procedures, and containment strategies following NIST frameworks.', icon: 'alert-triangle', order: 2, enabled: true },
+      { title: 'Cloud Security', description: 'Security fundamentals for AWS/Azure/GCP including IAM, network policies, and compliance monitoring.', icon: 'cloud', order: 3, enabled: true },
+      { title: 'AI-Driven Security', description: 'Leveraging machine learning for automated threat detection, log correlation, and anomaly identification.', icon: 'monitor', order: 4, enabled: true },
+      { title: 'Network Security', description: 'Packet analysis, firewall rules, DNS security, and network traffic monitoring with Wireshark.', icon: 'globe', order: 5, enabled: true },
+      { title: 'Secure Development', description: 'Backend development with secure coding practices, strict input validation, and API security hardening.', icon: 'code', order: 6, enabled: true },
+    ];
+    for (const e of defaultExpertise) await db.expertise.create(e);
+  }
+
+  // Seed tools
   if (!(await db.tools.getAll()).length) {
     const defaultTools = [
       { name: 'Splunk', category: 'SIEM', icon: 'search', order: 1, enabled: true },
@@ -267,6 +281,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/customize', customizeRoutes);
 app.use('/api/methodology', methodologyRoutes);
+app.use('/api/expertise', expertiseRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/dashboard', dashboardRoutes);

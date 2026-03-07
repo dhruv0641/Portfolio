@@ -34,6 +34,11 @@ const AuditAction = {
   METHODOLOGY_DELETE: 'methodology.delete',
   METHODOLOGY_REORDER: 'methodology.reorder',
 
+  EXPERTISE_CREATE: 'expertise.create',
+  EXPERTISE_UPDATE: 'expertise.update',
+  EXPERTISE_DELETE: 'expertise.delete',
+  EXPERTISE_REORDER: 'expertise.reorder',
+
   TOOL_CREATE: 'tool.create',
   TOOL_UPDATE: 'tool.update',
   TOOL_DELETE: 'tool.delete',

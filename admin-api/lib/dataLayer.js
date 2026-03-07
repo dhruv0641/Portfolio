@@ -21,6 +21,7 @@ const COLLECTION_TABLES = {
   services: 'services',
   messages: 'messages',
   methodology: 'methodology',
+  expertise: 'expertise',
   tools: 'tools',
   certificates: 'certificates',
 };
@@ -146,6 +147,13 @@ async function createSchema() {
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS expertise (
+      id TEXT PRIMARY KEY,
+      tenantId TEXT NOT NULL,
+      data TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS tools (
       id TEXT PRIMARY KEY,
       tenantId TEXT NOT NULL,
@@ -178,6 +186,7 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenantId);
     CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenantId);
     CREATE INDEX IF NOT EXISTS idx_methodology_tenant ON methodology(tenantId);
+    CREATE INDEX IF NOT EXISTS idx_expertise_tenant ON expertise(tenantId);
     CREATE INDEX IF NOT EXISTS idx_tools_tenant ON tools(tenantId);
     CREATE INDEX IF NOT EXISTS idx_certificates_tenant ON certificates(tenantId);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_ts ON audit_logs(timestamp);
@@ -316,6 +325,7 @@ async function runInitialMigrationIfNeeded() {
   await migrateCollection('services.json', 'services');
   await migrateCollection('messages.json', 'messages');
   await migrateCollection('methodology.json', 'methodology');
+  await migrateCollection('expertise.json', 'expertise');
   await migrateCollection('tools.json', 'tools');
   await migrateCollection('certificates.json', 'certificates');
   await migrateSingleton('admin.json', 'admins');
@@ -553,6 +563,7 @@ module.exports = {
   services: new Repository(COLLECTION_TABLES.services),
   messages: new Repository(COLLECTION_TABLES.messages),
   methodology: new Repository(COLLECTION_TABLES.methodology),
+  expertise: new Repository(COLLECTION_TABLES.expertise),
   tools: new Repository(COLLECTION_TABLES.tools),
   certificates: new Repository(COLLECTION_TABLES.certificates),
 

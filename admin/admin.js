@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, methodology: null, tools: null, certificates: null, messages: null };
+  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -466,7 +466,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'projects', 'services', 'methodology', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
+    var valid = ['dashboard', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -526,6 +526,7 @@
       case 'projects':  renderProjects(pageContent); break;
       case 'services':  renderServices(pageContent); break;
       case 'methodology': renderMethodology(pageContent); break;
+      case 'expertise': renderExpertise(pageContent); break;
       case 'tools':     renderTools(pageContent); break;
       case 'certificates': renderCertificates(pageContent); break;
       case 'messages':  renderMessages(pageContent); break;
@@ -547,7 +548,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', methodology: 'Methodology', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
+    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -1030,6 +1031,7 @@
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
       { page: 'methodology', icon: 'activity', label: 'Methodology' },
+      { page: 'expertise', icon: 'target', label: 'Expertise' },
       { page: 'tools',     icon: 'terminal', label: 'Tools' },
       { page: 'certificates', icon: 'star', label: 'Certificates' },
       { page: 'messages',  icon: 'mail', label: 'Messages' },
@@ -1189,6 +1191,7 @@
         '<div class="stat-card"><div class="stat-icon">' + icon('shield-check', 20) + '</div><div class="stat-value" data-count="' + stats.totalProjects + '">0</div><div class="stat-label">Total Projects</div></div>' +
         '<div class="stat-card"><div class="stat-icon">' + icon('star', 20) + '</div><div class="stat-value" data-count="' + stats.featuredProjects + '">0</div><div class="stat-label">Featured</div></div>' +
         '<div class="stat-card"><div class="stat-icon">' + icon('server', 20) + '</div><div class="stat-value" data-count="' + stats.totalServices + '">0</div><div class="stat-label">Services</div></div>' +
+        '<div class="stat-card"><div class="stat-icon">' + icon('target', 20) + '</div><div class="stat-value" data-count="' + (stats.totalExpertise || 0) + '">0</div><div class="stat-label">Expertise</div></div>' +
         '<div class="stat-card"><div class="stat-icon">' + icon('mail', 20) + '</div><div class="stat-value" data-count="' + stats.totalMessages + '">0</div><div class="stat-label">Messages</div></div>' +
         '<div class="stat-card' + (stats.unreadMessages > 0 ? ' stat-card--alert' : '') + '"><div class="stat-icon">' + icon('bell', 20) + '</div><div class="stat-value" data-count="' + stats.unreadMessages + '">0</div><div class="stat-label">Unread</div>' + (stats.unreadMessages > 0 ? '<div class="scan-line"></div>' : '') + '</div>';
 
@@ -1744,6 +1747,317 @@
         backdrop.remove();
         document.removeEventListener('keydown', onEsc);
         renderServices(document.getElementById('page-content'));
+      } catch (err) { setButtonLoading(saveBtn, false); }
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     EXPERTISE PAGE
+     ═══════════════════════════════════════════ */
+  async function renderExpertise(container) {
+    var _searchTerm = '';
+    var _statusFilter = 'all';
+    var _page = 1;
+    var PER_PAGE = 15;
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon('target', 22) + ' Expertise</h1><p class="page-subtitle">Manage expertise cards shown on your portfolio</p></div>' +
+        '<div class="page-header-actions">' +
+          '<button class="btn btn-primary" id="add-expertise-btn">' + icon('plus', 16) + ' Add Expertise</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="expertise-search" placeholder="Search expertise..." type="text" aria-label="Search expertise"></div>' +
+          '<select class="form-input cms-filter" id="expertise-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right">' +
+          '<button class="btn btn-sm btn-primary" id="save-expertise-order" style="display:none">' + icon('check', 14) + ' Save Order</button>' +
+          '<span class="cms-count" id="expertise-count"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="expertise-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="expertise-pagination"></div>';
+
+    document.getElementById('add-expertise-btn').addEventListener('click', function () { showExpertiseModal(); });
+
+    try {
+      var items = _cache.expertise || await api('/expertise');
+      _cache.expertise = items;
+      items.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+      function getFiltered() {
+        return items.filter(function(e) {
+          if (_statusFilter === 'visible' && e.enabled === false) return false;
+          if (_statusFilter === 'hidden' && e.enabled !== false) return false;
+          if (_searchTerm) {
+            var term = _searchTerm.toLowerCase();
+            return (e.title || '').toLowerCase().indexOf(term) !== -1 ||
+                   (e.description || '').toLowerCase().indexOf(term) !== -1;
+          }
+          return true;
+        });
+      }
+
+      function renderList() {
+        var listEl = document.getElementById('expertise-list');
+        if (!listEl) return;
+        var filtered = getFiltered();
+
+        var countEl = document.getElementById('expertise-count');
+        if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' expertise cards';
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('target', 36) + '</div><p>' + (_searchTerm ? 'No expertise cards match your search.' : 'No expertise cards yet.') + '</p></div>';
+          var pe = document.getElementById('expertise-pagination');
+          if (pe) pe.innerHTML = '';
+          return;
+        }
+
+        var totalPages = Math.ceil(filtered.length / PER_PAGE);
+        if (_page > totalPages) _page = totalPages;
+        var start = (_page - 1) * PER_PAGE;
+        var pageItems = filtered.slice(start, start + PER_PAGE);
+
+        listEl.innerHTML =
+          '<table class="cms-table">' +
+            '<thead><tr>' +
+              '<th class="cms-col-order">#</th>' +
+              '<th class="cms-col-icon">Icon</th>' +
+              '<th class="cms-col-main">Title</th>' +
+              '<th class="cms-col-desc">Description</th>' +
+              '<th class="cms-col-status">Status</th>' +
+              '<th class="cms-col-actions">Actions</th>' +
+            '</tr></thead>' +
+            '<tbody>' + pageItems.map(function(e) {
+              return '<tr class="cms-row" data-id="' + e.id + '">' +
+                '<td class="cms-col-order"><input type="number" class="cms-order-input" data-id="' + e.id + '" value="' + (e.order || 0) + '" min="0" title="Order"></td>' +
+                '<td class="cms-col-icon"><span class="cms-icon-cell">' + icon(e.icon || 'target', 18) + '</span></td>' +
+                '<td class="cms-col-main"><span class="cms-title">' + escapeHtml(e.title) + '</span></td>' +
+                '<td class="cms-col-desc"><span class="cms-desc">' + escapeHtml((e.description || '').substring(0, 90)) + (e.description && e.description.length > 90 ? '...' : '') + '</span></td>' +
+                '<td class="cms-col-status"><span class="badge ' + (e.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (e.enabled !== false ? 'Visible' : 'Hidden') + '</span></td>' +
+                '<td class="cms-col-actions"><div class="cms-actions">' +
+                  '<button class="btn-icon cms-action-btn view-expertise" data-id="' + e.id + '" title="View">' + icon('eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn toggle-expertise" data-id="' + e.id + '" title="' + (e.enabled !== false ? 'Hide' : 'Show') + '">' + icon(e.enabled !== false ? 'eye-off' : 'eye', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn edit-expertise" data-id="' + e.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+                  '<button class="btn-icon cms-action-btn cms-action-danger delete-expertise" data-id="' + e.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+                '</div></td>' +
+              '</tr>';
+            }).join('') + '</tbody></table>' +
+          '<div class="cms-mobile-cards">' + pageItems.map(function(e) {
+            return '<div class="cms-mobile-card item-card" data-id="' + e.id + '">' +
+              '<button class="overflow-menu-trigger expertise-overflow-btn" data-id="' + e.id + '" aria-label="Open actions">' + icon('menu', 16) + '</button>' +
+              '<div class="cms-mobile-card-header">' +
+                '<span class="cms-icon-cell">' + icon(e.icon || 'target', 18) + '</span>' +
+                '<div class="cms-mobile-card-info"><span class="cms-title">' + escapeHtml(e.title) + '</span><span class="cms-desc">' + escapeHtml((e.description || '').substring(0, 80)) + '</span></div>' +
+                '<span class="badge ' + (e.enabled !== false ? 'badge-green' : 'badge-cyan') + '">' + (e.enabled !== false ? 'Visible' : 'Hidden') + '</span>' +
+              '</div>' +
+              '<div class="cms-mobile-card-footer">' +
+                '<span class="cms-mobile-order">Order: <input type="number" class="cms-order-input" data-id="' + e.id + '" value="' + (e.order || 0) + '" min="0"></span>' +
+              '</div>' +
+            '</div>';
+          }).join('') + '</div>';
+
+        renderPagination('expertise-pagination', _page, totalPages, filtered.length, 'expertise card', function(pg) { _page = pg; renderList(); });
+
+        listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
+          inp.addEventListener('change', function() {
+            var btn = document.getElementById('save-expertise-order');
+            if (btn) btn.style.display = '';
+          });
+        });
+
+        listEl.querySelectorAll('.view-expertise').forEach(function (btn) {
+          btn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            var item = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!item) return;
+            showDetailModal('Expertise Details', [
+              { label: 'Title', value: item.title || '\u2014' },
+              { label: 'Description', value: item.description || '\u2014' },
+              { label: 'Icon', value: item.icon || '\u2014' },
+              { label: 'Order', value: String(item.order || 0) },
+              { label: 'Visible', value: item.enabled !== false ? 'Yes' : 'No' }
+            ]);
+          });
+        });
+
+        listEl.querySelectorAll('.toggle-expertise').forEach(function (btn) {
+          btn.addEventListener('click', async function (ev) {
+            ev.stopPropagation();
+            var item = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!item) return;
+            btn.disabled = true;
+            try {
+              await api('/expertise/' + item.id, { method: 'PUT', body: JSON.stringify({ enabled: !item.enabled }) });
+              invalidateCache('expertise');
+              showToast(item.enabled ? 'Expertise hidden' : 'Expertise visible');
+              renderExpertise(container);
+            } catch (err) { btn.disabled = false; }
+          });
+        });
+
+        listEl.querySelectorAll('.edit-expertise').forEach(function (btn) {
+          btn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            var item = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (item) showExpertiseModal(item);
+          });
+        });
+
+        listEl.querySelectorAll('.delete-expertise').forEach(function (btn) {
+          btn.addEventListener('click', async function (ev) {
+            ev.stopPropagation();
+            var item = items.find(function (x) { return x.id === btn.dataset.id; });
+            var name = item ? item.title : 'this expertise card';
+            var confirmed = await customConfirm('Are you sure you want to delete "' + name + '"? This cannot be undone.', { title: 'Delete Expertise', type: 'danger' });
+            if (!confirmed) return;
+            btn.disabled = true;
+            try {
+              await api('/expertise/' + btn.dataset.id, { method: 'DELETE' });
+              invalidateCache('expertise');
+              showToast('Expertise deleted');
+              renderExpertise(container);
+            } catch (err) { btn.disabled = false; }
+          });
+        });
+
+        listEl.querySelectorAll('.expertise-overflow-btn').forEach(function (btn) {
+          btn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            var item = items.find(function (x) { return x.id === btn.dataset.id; });
+            if (!item) return;
+            showOverflowMenu(btn, [
+              { label: 'View', icon: 'eye', action: function() { showDetailModal('Expertise Details', [
+                { label: 'Title', value: item.title || '\u2014' },
+                { label: 'Description', value: item.description || '\u2014' },
+                { label: 'Icon', value: item.icon || '\u2014' },
+                { label: 'Order', value: String(item.order || 0) },
+                { label: 'Visible', value: item.enabled !== false ? 'Yes' : 'No' }
+              ]); } },
+              { label: item.enabled !== false ? 'Hide' : 'Show', icon: item.enabled !== false ? 'eye-off' : 'eye', action: async function() {
+                await api('/expertise/' + item.id, { method: 'PUT', body: JSON.stringify({ enabled: !item.enabled }) });
+                invalidateCache('expertise');
+                renderExpertise(container);
+              } },
+              { label: 'Edit', icon: 'edit', action: function() { showExpertiseModal(item); } },
+              { label: 'Delete', icon: 'trash', danger: true, action: async function() {
+                await api('/expertise/' + item.id, { method: 'DELETE' });
+                invalidateCache('expertise');
+                renderExpertise(container);
+              } }
+            ]);
+          });
+        });
+      }
+
+      document.getElementById('expertise-search').addEventListener('input', function(e) {
+        _searchTerm = e.target.value.trim();
+        _page = 1;
+        renderList();
+      });
+
+      document.getElementById('expertise-status-filter').addEventListener('change', function(e) {
+        _statusFilter = e.target.value;
+        _page = 1;
+        renderList();
+      });
+
+      document.getElementById('save-expertise-order').addEventListener('click', async function () {
+        var btn = this;
+        var inputs = document.querySelectorAll('#expertise-list .cms-order-input');
+        var orderData = [];
+        var seen = {};
+        inputs.forEach(function(inp) {
+          if (!seen[inp.dataset.id]) {
+            seen[inp.dataset.id] = true;
+            orderData.push({ id: inp.dataset.id, order: parseInt(inp.value, 10) || 0 });
+          }
+        });
+        orderData.sort(function(a, b) { return a.order - b.order; });
+        orderData.forEach(function(item, idx) { item.order = idx + 1; });
+        setButtonLoading(btn, true, 'Saving...');
+        try {
+          await api('/expertise', { method: 'PUT', body: JSON.stringify(orderData) });
+          invalidateCache('expertise');
+          showToast('Order updated');
+          renderExpertise(container);
+        } catch (err) { setButtonLoading(btn, false); }
+      });
+
+      renderList();
+    } catch (err) { /* */ }
+  }
+
+  function showExpertiseModal(item) {
+    var isEdit = !!item;
+    item = item || {};
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' Expertise</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="e-title" value="' + escapeHtml(item.title || '') + '" placeholder="SIEM Investigation"></div>' +
+          '<div class="form-group"><label class="form-label">Description</label><textarea class="form-input form-textarea" id="e-desc" placeholder="Describe this expertise...">' + escapeHtml(item.description || '') + '</textarea></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="e-order" value="' + (item.order || 0) + '" min="0"></div>' +
+            '<div class="form-group"><label class="form-check"><input type="checkbox" id="e-enabled" ' + (item.enabled !== false ? 'checked' : '') + '> Visible on website</label></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Icon</label>' +
+            '<div class="icon-picker-preview" style="margin-bottom:8px">' + icon(item.icon || 'target', 20) + ' <span>' + escapeHtml(item.icon || 'target') + '</span></div>' +
+            '<input type="hidden" id="e-icon" value="' + escapeHtml(item.icon || 'target') + '">' +
+            '<div id="e-icon-picker">' + buildIconPickerHTML(item.icon || 'target') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="e-save">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    bindIconPicker(document.getElementById('e-icon-picker').parentNode, 'e-icon');
+
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+
+    function onEsc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', onEsc); backdrop.remove(); } }
+    document.addEventListener('keydown', onEsc);
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+
+    document.getElementById('e-save').addEventListener('click', async function () {
+      var body = {
+        title: document.getElementById('e-title').value.trim(),
+        description: document.getElementById('e-desc').value.trim(),
+        icon: document.getElementById('e-icon').value.trim() || 'target',
+        order: parseInt(document.getElementById('e-order').value, 10) || 0,
+        enabled: document.getElementById('e-enabled').checked
+      };
+      if (!body.title) { showToast('Title is required', 'error'); return; }
+
+      var saveBtn = this;
+      setButtonLoading(saveBtn, true, isEdit ? 'Saving...' : 'Creating...');
+      try {
+        if (isEdit) {
+          await api('/expertise/' + item.id, { method: 'PUT', body: JSON.stringify(body) });
+          showToast('Expertise updated');
+        } else {
+          await api('/expertise', { method: 'POST', body: JSON.stringify(body) });
+          showToast('Expertise created');
+        }
+        invalidateCache('expertise');
+        backdrop.remove();
+        document.removeEventListener('keydown', onEsc);
+        renderExpertise(document.getElementById('page-content'));
       } catch (err) { setButtonLoading(saveBtn, false); }
     });
   }

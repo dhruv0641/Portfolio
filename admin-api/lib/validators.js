@@ -90,6 +90,20 @@ const methodologyCreateSchema = z.object({
 const methodologyUpdateSchema = methodologyCreateSchema.partial();
 
 // ═══════════════════════════════════════════
+// EXPERTISE SCHEMAS
+// ═══════════════════════════════════════════
+const expertiseCreateSchema = z.object({
+  title: safeString.pipe(z.string().min(1, 'Title is required').max(200)),
+  description: safeString.pipe(z.string().max(2000)).optional().default(''),
+  icon: z.string().max(50).optional().default('shield'),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
+  tenantId: z.string().optional(),
+});
+
+const expertiseUpdateSchema = expertiseCreateSchema.partial();
+
+// ═══════════════════════════════════════════
 // TOOLS SCHEMAS
 // ═══════════════════════════════════════════
 const toolCreateSchema = z.object({
@@ -400,6 +414,8 @@ module.exports = {
   serviceUpdateSchema,
   methodologyCreateSchema,
   methodologyUpdateSchema,
+  expertiseCreateSchema,
+  expertiseUpdateSchema,
   toolCreateSchema,
   toolUpdateSchema,
   certificateCreateSchema,

@@ -15,6 +15,7 @@ const { asyncHandler } = require('../lib/errorHandler');
 router.get('/stats', authenticate, asyncHandler(async (req, res) => {
   const projects = await db.projects.getAll();
   const services = await db.services.getAll();
+  const expertise = await db.expertise.getAll();
   const messages = await db.messages.getAll();
   const unreadMessages = messages.filter(m => m.status === 'unread').length;
 
@@ -32,6 +33,7 @@ router.get('/stats', authenticate, asyncHandler(async (req, res) => {
     totalProjects: projects.length,
     featuredProjects: projects.filter(p => p.featured).length,
     totalServices: services.length,
+    totalExpertise: expertise.length,
     totalMessages: messages.length,
     unreadMessages,
     recentMessages,
