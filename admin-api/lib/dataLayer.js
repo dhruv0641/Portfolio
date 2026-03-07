@@ -1,6 +1,7 @@
 /**
  * SQLite-backed async data layer with one-time JSON migration.
- * Database path: admin-api/database/admin.db
+ * Production (Render): /var/data/admin.db (persistent disk)
+ * Local development: admin-api/database/admin.db
  */
 const fs = require('fs/promises');
 const path = require('path');
@@ -11,8 +12,11 @@ const config = require('./config');
 const { logger } = require('./logger');
 
 const DATA_DIR = config.paths.data;
-const DB_DIR = path.join(__dirname, '..', 'database');
-const DB_PATH = path.join(DB_DIR, 'admin.db');
+const IS_RENDER = process.env.RENDER === 'true' || !!process.env.RENDER_SERVICE_ID;
+const DEFAULT_DB_DIR = IS_RENDER ? '/var/data' : path.join(__dirname, '..', 'database');
+const DB_PATH = process.env.SQLITE_DB_PATH || path.join(process.env.SQLITE_DB_DIR || DEFAULT_DB_DIR, 'admin.db');
+const DB_DIR = path.dirname(DB_PATH);
+const JSON_BACKUP_DIR = path.join(DB_DIR, 'json-backups');
 
 let db = null;
 
@@ -195,15 +199,25 @@ async function createSchema() {
 }
 
 async function backupJsonFiles() {
-  const backupDir = path.join(DATA_DIR, `backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  const dataDirExists = await fileExists(DATA_DIR);
+  if (!dataDirExists) {
+    logger.info('JSON backup skipped: data directory not found', { dataDir: DATA_DIR });
+    return;
+  }
+
+  const backupDir = path.join(JSON_BACKUP_DIR, `backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   await ensureDir(backupDir);
   const files = await fs.readdir(DATA_DIR);
+  const jsonFiles = files.filter((f) => f.endsWith('.json'));
+  if (!jsonFiles.length) {
+    logger.info('JSON backup skipped: no JSON files found', { dataDir: DATA_DIR });
+    return;
+  }
+
   await Promise.all(
-    files
-      .filter((f) => f.endsWith('.json'))
-      .map(async (file) => {
-        await fs.copyFile(path.join(DATA_DIR, file), path.join(backupDir, file));
-      })
+    jsonFiles.map(async (file) => {
+      await fs.copyFile(path.join(DATA_DIR, file), path.join(backupDir, file));
+    })
   );
   logger.info('JSON data backup created', { backupDir });
 }
@@ -341,10 +355,10 @@ async function runInitialMigrationIfNeeded() {
 async function initDatabase() {
   if (db) return db;
   await ensureDir(DB_DIR);
-  await ensureDir(DATA_DIR);
   db = await open({ filename: DB_PATH, driver: sqlite3.Database });
   await createSchema();
   await runInitialMigrationIfNeeded();
+  logger.info('SQLite database initialized', { dbPath: DB_PATH, isRender: IS_RENDER });
   return db;
 }
 
