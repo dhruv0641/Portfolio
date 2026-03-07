@@ -151,7 +151,13 @@ router.post('/history/restore/:id', authenticate, asyncHandler(async (req, res) 
   res.json(entry.customization);
 }));
 
-// ─── POST /api/customize/reset (authenticated) ───
+
+// ──────────────────────────────────────────────────────────────
+// POST /api/customize/reset (authenticated)
+// This endpoint ONLY resets UI customization settings (theme, layout, animations, typography, spacing, appearance, etc).
+// It MUST NEVER modify, restore, or delete any content data (projects, services, tools, methodology, certificates, messages, admin, etc).
+// Only the allowed UI customization keys are written. Any other keys are ignored.
+// ──────────────────────────────────────────────────────────────
 router.post('/reset', authenticate, asyncHandler(async (req, res) => {
   const defaultsPath = path.join(config.paths.data, 'customize_defaults.json');
   let defaults = {};
@@ -163,13 +169,23 @@ router.post('/reset', authenticate, asyncHandler(async (req, res) => {
     defaults = JSON.parse(JSON.stringify(CUSTOMIZE_DEFAULTS));
   }
 
-  db.customize.set(defaults);
+  // Only allow these keys to be reset (UI customization only)
+  const ALLOWED_KEYS = [
+    'theme', 'layout', 'animations', 'typography', 'spacing', 'appearance', 'ux', 'dataControl', 'security', 'seo', 'customCode', 'hero', 'sections'
+  ];
+  const filtered = {};
+  for (const key of ALLOWED_KEYS) {
+    if (defaults[key] !== undefined) filtered[key] = defaults[key];
+  }
+
+  // Save only allowed UI customization keys
+  db.customize.set(filtered);
 
   try {
-    logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings reset to defaults' });
+    logAudit({ ...getAuditMeta(req), action: AuditAction.SETTINGS_UPDATE, resourceType: 'customize', details: 'Customization settings reset to defaults (UI only)' });
   } catch (_) { /* audit log failure must not block reset */ }
 
-  res.json(defaults);
+  res.json(filtered);
 }));
 
 module.exports = router;
