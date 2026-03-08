@@ -76,6 +76,51 @@ const serviceCreateSchema = z.object({
 const serviceUpdateSchema = serviceCreateSchema.partial();
 
 // ═══════════════════════════════════════════
+// HERO / ABOUT / CONTACT / FOOTER SCHEMAS
+// ═══════════════════════════════════════════
+const heroCreateSchema = z.object({
+  title: safeString.pipe(z.string().min(1, 'Title is required').max(200)),
+  subtitle: safeString.pipe(z.string().max(200)).optional().default(''),
+  description: safeString.pipe(z.string().max(2000)).optional().default(''),
+  primaryCtaText: safeString.pipe(z.string().max(80)).optional().default(''),
+  primaryCtaLink: z.string().max(300).optional().default(''),
+  secondaryCtaText: safeString.pipe(z.string().max(80)).optional().default(''),
+  secondaryCtaLink: z.string().max(300).optional().default(''),
+  tenantId: z.string().optional(),
+});
+const heroUpdateSchema = heroCreateSchema.partial();
+
+const aboutCreateSchema = z.object({
+  heading: safeString.pipe(z.string().min(1, 'Heading is required').max(300)),
+  description1: safeString.pipe(z.string().max(3000)).optional().default(''),
+  description2: safeString.pipe(z.string().max(3000)).optional().default(''),
+  tenantId: z.string().optional(),
+});
+const aboutUpdateSchema = aboutCreateSchema.partial();
+
+const contactCreateSchema = z.object({
+  email: emailSchema.optional().or(z.literal('')).default(''),
+  location: safeString.pipe(z.string().max(300)).optional().default(''),
+  linkedin: z.string().url().or(z.literal('')).optional().default(''),
+  tenantId: z.string().optional(),
+});
+const contactUpdateSchema = contactCreateSchema.partial();
+
+const footerCreateSchema = z.object({
+  copyright: safeString.pipe(z.string().max(300)).optional().default(''),
+  links: z.array(z.object({
+    label: safeString.pipe(z.string().max(80)),
+    href: z.string().max(300),
+  })).max(20).optional().default([]),
+  socialLinks: z.array(z.object({
+    label: safeString.pipe(z.string().max(80)),
+    href: z.string().max(300),
+  })).max(20).optional().default([]),
+  tenantId: z.string().optional(),
+});
+const footerUpdateSchema = footerCreateSchema.partial();
+
+// ═══════════════════════════════════════════
 // METHODOLOGY SCHEMAS
 // ═══════════════════════════════════════════
 const methodologyCreateSchema = z.object({
@@ -412,6 +457,14 @@ module.exports = {
   projectUpdateSchema,
   serviceCreateSchema,
   serviceUpdateSchema,
+  heroCreateSchema,
+  heroUpdateSchema,
+  aboutCreateSchema,
+  aboutUpdateSchema,
+  contactCreateSchema,
+  contactUpdateSchema,
+  footerCreateSchema,
+  footerUpdateSchema,
   methodologyCreateSchema,
   methodologyUpdateSchema,
   expertiseCreateSchema,

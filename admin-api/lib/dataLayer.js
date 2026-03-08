@@ -15,6 +15,10 @@ const DATABASE_URL = process.env.DATABASE_URL || '';
 let pool = null;
 
 const COLLECTION_TABLES = {
+  hero: 'hero',
+  about: 'about',
+  contact: 'contact',
+  footer: 'footer',
   projects: 'projects',
   services: 'services',
   messages: 'messages',
@@ -146,6 +150,34 @@ async function createSchema() {
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS hero (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS about (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS contact (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS footer (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS services (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
@@ -203,6 +235,10 @@ async function createSchema() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_hero_tenant ON hero(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_about_tenant ON about(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_contact_tenant ON contact(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_footer_tenant ON footer(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_methodology_tenant ON methodology(tenant_id);
@@ -340,6 +376,10 @@ async function runInitialMigrationIfNeeded() {
   try {
     await client.query('BEGIN');
     await migrateCollection('projects.json', 'projects', client);
+    await migrateCollection('hero.json', 'hero', client);
+    await migrateCollection('about.json', 'about', client);
+    await migrateCollection('contact.json', 'contact', client);
+    await migrateCollection('footer.json', 'footer', client);
     await migrateCollection('services.json', 'services', client);
     await migrateCollection('messages.json', 'messages', client);
     await migrateCollection('methodology.json', 'methodology', client);
@@ -642,6 +682,10 @@ module.exports = {
   dbPath: null,
   dataPath: DATA_DIR,
 
+  hero: new Repository(COLLECTION_TABLES.hero),
+  about: new Repository(COLLECTION_TABLES.about),
+  contact: new Repository(COLLECTION_TABLES.contact),
+  footer: new Repository(COLLECTION_TABLES.footer),
   projects: new Repository(COLLECTION_TABLES.projects),
   services: new Repository(COLLECTION_TABLES.services),
   messages: new Repository(COLLECTION_TABLES.messages),

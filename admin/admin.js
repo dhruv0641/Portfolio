@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null };
+  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -466,7 +466,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
+    var valid = ['dashboard', 'hero', 'about', 'contact', 'footer', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -523,6 +523,10 @@
     updateTopbar();
     switch (currentPage) {
       case 'dashboard': renderOverview(pageContent); break;
+      case 'hero': renderHeroCMS(pageContent); break;
+      case 'about': renderAboutCMS(pageContent); break;
+      case 'contact': renderContactCMS(pageContent); break;
+      case 'footer': renderFooterCMS(pageContent); break;
       case 'projects':  renderProjects(pageContent); break;
       case 'services':  renderServices(pageContent); break;
       case 'methodology': renderMethodology(pageContent); break;
@@ -548,7 +552,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
+    var names = { dashboard: 'Dashboard', hero: 'Hero', about: 'About', contact: 'Contact', footer: 'Footer', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -1028,6 +1032,10 @@
   function renderDashboard() {
     var navItems = [
       { page: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+      { page: 'hero', icon: 'zap', label: 'Hero' },
+      { page: 'about', icon: 'user', label: 'About' },
+      { page: 'contact', icon: 'mail', label: 'Contact' },
+      { page: 'footer', icon: 'layout', label: 'Footer' },
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
       { page: 'methodology', icon: 'activity', label: 'Methodology' },
@@ -1223,6 +1231,199 @@
       if (sg) sg.innerHTML = '<p style="color:var(--danger)">Failed to load stats. Is the API server running?</p>';
     }
   }
+
+  /* ═══════════════════════════════════════════
+     MANAGED CONTENT PAGES (Hero/About/Contact/Footer)
+     ═══════════════════════════════════════════ */
+  function sectionToFields(section) {
+    if (section === 'hero') {
+      return [
+        { key: 'title', label: 'Title' },
+        { key: 'subtitle', label: 'Subtitle' },
+        { key: 'description', label: 'Description', textarea: true },
+        { key: 'primaryCtaText', label: 'Primary CTA Text' },
+        { key: 'primaryCtaLink', label: 'Primary CTA Link' },
+        { key: 'secondaryCtaText', label: 'Secondary CTA Text' },
+        { key: 'secondaryCtaLink', label: 'Secondary CTA Link' }
+      ];
+    }
+    if (section === 'about') {
+      return [
+        { key: 'heading', label: 'Heading' },
+        { key: 'description1', label: 'Description 1', textarea: true },
+        { key: 'description2', label: 'Description 2', textarea: true }
+      ];
+    }
+    if (section === 'contact') {
+      return [
+        { key: 'email', label: 'Email' },
+        { key: 'location', label: 'Location' },
+        { key: 'linkedin', label: 'LinkedIn URL' }
+      ];
+    }
+    return [
+      { key: 'copyright', label: 'Copyright' },
+      { key: 'links', label: 'Links JSON', textarea: true, json: true },
+      { key: 'socialLinks', label: 'Social Links JSON', textarea: true, json: true }
+    ];
+  }
+
+  function buildManagedForm(section, item) {
+    var fields = sectionToFields(section);
+    return fields.map(function(f) {
+      var val = item && item[f.key] != null
+        ? (f.json ? JSON.stringify(item[f.key] || [], null, 2) : String(item[f.key]))
+        : (f.json ? '[]' : '');
+      if (f.textarea) {
+        return '<div class="form-group"><label class="form-label">' + escapeHtml(f.label) + '</label><textarea class="form-input form-textarea" id="mng-' + f.key + '">' + escapeHtml(val) + '</textarea></div>';
+      }
+      return '<div class="form-group"><label class="form-label">' + escapeHtml(f.label) + '</label><input class="form-input" id="mng-' + f.key + '" value="' + escapeHtml(val) + '"></div>';
+    }).join('');
+  }
+
+  function collectManagedForm(section) {
+    var body = {};
+    sectionToFields(section).forEach(function(f) {
+      var el = document.getElementById('mng-' + f.key);
+      if (!el) return;
+      var v = (el.value || '').trim();
+      if (f.json) {
+        body[f.key] = v ? JSON.parse(v) : [];
+      } else {
+        body[f.key] = v;
+      }
+    });
+    return body;
+  }
+
+  function showManagedModal(section, title, item, onSave) {
+    var isEdit = !!item;
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' ' + escapeHtml(title) + '</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' + buildManagedForm(section, item || {}) + '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="mng-save-btn">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+    document.getElementById('mng-save-btn').addEventListener('click', async function () {
+      var btn = this;
+      try {
+        var body = collectManagedForm(section);
+        setButtonLoading(btn, true, isEdit ? 'Saving...' : 'Creating...');
+        await onSave(body);
+        backdrop.remove();
+      } catch (e) {
+        showToast('Invalid form data', 'error');
+        setButtonLoading(btn, false);
+      }
+    });
+  }
+
+  async function renderManagedSection(container, cfg) {
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon(cfg.icon, 22) + ' ' + cfg.label + '</h1><p class="page-subtitle">Manage ' + cfg.label.toLowerCase() + ' content</p></div>' +
+        '<div class="page-header-actions"><button class="btn btn-primary" id="add-managed-btn">' + icon('plus', 16) + ' Add</button></div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="managed-list">' + skeleton('cards', 3) + '</div>';
+
+    var items = _cache[cfg.endpoint] || await api('/' + cfg.endpoint);
+    _cache[cfg.endpoint] = items;
+
+    function renderList() {
+      var listEl = document.getElementById('managed-list');
+      if (!listEl) return;
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon(cfg.icon, 36) + '</div><p>No content added yet.</p></div>';
+        return;
+      }
+      listEl.innerHTML = '<div class="item-cards">' + items.map(function(it) {
+        var desc = '';
+        if (cfg.endpoint === 'hero') desc = it.title || '';
+        else if (cfg.endpoint === 'about') desc = it.heading || '';
+        else if (cfg.endpoint === 'contact') desc = it.email || '';
+        else desc = it.copyright || '';
+        return '<div class="item-card">' +
+          '<div class="item-card-header">' +
+            '<span class="item-card-icon">' + icon(cfg.icon, 18) + '</span>' +
+            '<div class="item-card-meta"><h3 class="item-card-title">' + escapeHtml(desc || 'Item') + '</h3><p class="item-card-desc">' + escapeHtml(it.id) + '</p></div>' +
+            '<div class="cms-actions">' +
+              '<button class="btn-icon cms-action-btn view-managed" data-id="' + it.id + '" title="View">' + icon('eye', 15) + '</button>' +
+              '<button class="btn-icon cms-action-btn edit-managed" data-id="' + it.id + '" title="Edit">' + icon('edit', 15) + '</button>' +
+              '<button class="btn-icon cms-action-btn cms-action-danger delete-managed" data-id="' + it.id + '" title="Delete">' + icon('trash', 15) + '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+
+      listEl.querySelectorAll('.view-managed').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var it = items.find(function(x) { return x.id === btn.dataset.id; });
+          if (!it) return;
+          var fields = Object.keys(it).filter(function(k) { return k !== 'id' && k !== 'createdAt' && k !== 'updatedAt' && k !== 'tenantId'; }).map(function(k) {
+            return { label: k, value: typeof it[k] === 'object' ? JSON.stringify(it[k]) : String(it[k] || '\u2014') };
+          });
+          showDetailModal(cfg.label + ' Details', fields);
+        });
+      });
+
+      listEl.querySelectorAll('.edit-managed').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var it = items.find(function(x) { return x.id === btn.dataset.id; });
+          if (!it) return;
+          showManagedModal(cfg.endpoint, cfg.label, it, async function(body) {
+            await api('/' + cfg.endpoint + '/' + it.id, { method: 'PUT', body: JSON.stringify(body) });
+            invalidateCache(cfg.endpoint);
+            renderManagedSection(container, cfg);
+            showToast(cfg.label + ' updated');
+          });
+        });
+      });
+
+      listEl.querySelectorAll('.delete-managed').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var confirmed = await customConfirm('Delete this item?', { title: 'Delete ' + cfg.label, type: 'danger' });
+          if (!confirmed) return;
+          await api('/' + cfg.endpoint + '/' + btn.dataset.id, { method: 'DELETE' });
+          invalidateCache(cfg.endpoint);
+          renderManagedSection(container, cfg);
+          showToast(cfg.label + ' deleted');
+        });
+      });
+    }
+
+    document.getElementById('add-managed-btn').addEventListener('click', function() {
+      showManagedModal(cfg.endpoint, cfg.label, null, async function(body) {
+        await api('/' + cfg.endpoint, { method: 'POST', body: JSON.stringify(body) });
+        invalidateCache(cfg.endpoint);
+        renderManagedSection(container, cfg);
+        showToast(cfg.label + ' created');
+      });
+    });
+
+    renderList();
+  }
+
+  async function renderHeroCMS(container) { return renderManagedSection(container, { endpoint: 'hero', label: 'Hero', icon: 'zap' }); }
+  async function renderAboutCMS(container) { return renderManagedSection(container, { endpoint: 'about', label: 'About', icon: 'user' }); }
+  async function renderContactCMS(container) { return renderManagedSection(container, { endpoint: 'contact', label: 'Contact', icon: 'mail' }); }
+  async function renderFooterCMS(container) { return renderManagedSection(container, { endpoint: 'footer', label: 'Footer', icon: 'layout' }); }
 
   /* ═══════════════════════════════════════════
      PROJECTS PAGE

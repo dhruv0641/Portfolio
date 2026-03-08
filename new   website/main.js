@@ -760,6 +760,97 @@
       .catch(function () { /* keep container empty on error */ });
   }
 
+  function loadManagedContent() {
+    function esc(v) {
+      if (!v) return '';
+      var div = document.createElement('div');
+      div.textContent = String(v);
+      return div.innerHTML;
+    }
+
+    fetch('/api/hero', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        var h = (items && items[0]) || null;
+        if (!h) return;
+        var titleEl = qs('.hero-name');
+        if (titleEl && h.title) titleEl.textContent = h.title;
+        var badge = qs('.hero-badge');
+        if (badge && h.subtitle) {
+          var dot = badge.querySelector('.dot');
+          badge.innerHTML = '';
+          if (dot) badge.appendChild(dot);
+          badge.appendChild(document.createTextNode(' ' + h.subtitle));
+        }
+        var descEl = qs('.hero-desc');
+        if (descEl && h.description) descEl.textContent = h.description;
+        var ctaPrimary = qs('.hero-ctas .btn-primary');
+        if (ctaPrimary) {
+          if (h.primaryCtaText) ctaPrimary.childNodes[0].nodeValue = h.primaryCtaText + ' ';
+          if (h.primaryCtaLink) ctaPrimary.setAttribute('data-scroll-to', h.primaryCtaLink);
+        }
+        var ctaSecondary = qs('.hero-ctas .btn-secondary');
+        if (ctaSecondary) {
+          if (h.secondaryCtaText) ctaSecondary.textContent = h.secondaryCtaText;
+          if (h.secondaryCtaLink) ctaSecondary.setAttribute('data-scroll-to', h.secondaryCtaLink);
+        }
+      })
+      .catch(function () { /* keep defaults */ });
+
+    fetch('/api/about', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        var a = (items && items[0]) || null;
+        if (!a) return;
+        var heading = qs('#about-heading');
+        if (heading && a.heading) heading.textContent = a.heading;
+        var descs = qsa('.about-desc');
+        if (descs[0] && a.description1) descs[0].textContent = a.description1;
+        if (descs[1] && a.description2) descs[1].textContent = a.description2;
+      })
+      .catch(function () { /* keep defaults */ });
+
+    fetch('/api/contact', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        var c = (items && items[0]) || null;
+        if (!c) return;
+        var contactItems = qsa('.contact-items .contact-item .ci-text');
+        if (contactItems[0] && c.email) contactItems[0].innerHTML = '<strong>Email</strong>' + esc(c.email);
+        if (contactItems[1] && c.location) contactItems[1].innerHTML = '<strong>Location</strong>' + esc(c.location);
+        if (c.linkedin) {
+          var linkBtn = qs('.socials a[aria-label=\"LinkedIn profile\"]');
+          if (linkBtn) linkBtn.setAttribute('href', c.linkedin);
+        }
+      })
+      .catch(function () { /* keep defaults */ });
+
+    fetch('/api/footer', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        var f = (items && items[0]) || null;
+        if (!f) return;
+        var copy = qs('.footer-copy');
+        if (copy && f.copyright) copy.textContent = f.copyright;
+        if (Array.isArray(f.links) && f.links.length) {
+          var footerLinks = qs('.footer-links');
+          if (footerLinks) {
+            footerLinks.innerHTML = f.links.map(function (l) {
+              return '<li><a href="' + esc(l.href || '#') + '">' + esc(l.label || 'Link') + '</a></li>';
+            }).join('');
+          }
+        }
+        if (Array.isArray(f.socialLinks) && f.socialLinks.length) {
+          var socials = qsa('.socials a');
+          for (var i = 0; i < socials.length && i < f.socialLinks.length; i++) {
+            socials[i].setAttribute('href', f.socialLinks[i].href || '#');
+            socials[i].setAttribute('aria-label', f.socialLinks[i].label || socials[i].getAttribute('aria-label') || 'Social');
+          }
+        }
+      })
+      .catch(function () { /* keep defaults */ });
+  }
+
   function loadExpertise() {
     var container = qs('#expertise-container');
     if (!container) return;
@@ -939,6 +1030,7 @@
 
   /* ======== INIT AFTER LOADER ======== */
   function initAfterLoad() {
+    loadManagedContent();
     initCharReveal();
     initHeroReveals();
     typeLoop();
