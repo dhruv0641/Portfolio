@@ -729,9 +729,11 @@
   function loadProjects() {
     var container = qs('#projects-container');
     if (!container) return;
-    fetch('/api/projects', { cache: 'no-store' })
+    fetch('/api/projects?visible=true', { cache: 'no-store' })
       .then(function (res) { return res.ok ? res.json() : []; })
       .then(function (projects) {
+        projects = (projects || []).filter(function (p) { return p.enabled !== false; });
+        projects.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         if (!projects || !projects.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Projects coming soon.</p>';
           return;
@@ -746,9 +748,11 @@
   function loadServices() {
     var container = qs('#services-container');
     if (!container) return;
-    fetch('/api/services', { cache: 'no-store' })
+    fetch('/api/services?visible=true', { cache: 'no-store' })
       .then(function (res) { return res.ok ? res.json() : []; })
       .then(function (services) {
+        services = (services || []).filter(function (s) { return s.enabled !== false; });
+        services.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         if (!services || !services.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Services coming soon.</p>';
           return;

@@ -169,6 +169,8 @@ async function initData() {
         impact: 'Detected 15+ attack patterns across simulated enterprise network',
         githubLink: '#',
         featured: true,
+        order: 1,
+        enabled: true,
       },
       {
         title: 'Phishing Email Detection',
@@ -178,6 +180,8 @@ async function initData() {
         impact: '94% accuracy identifying phishing across 500+ test emails',
         githubLink: '#',
         featured: false,
+        order: 2,
+        enabled: true,
       },
       {
         title: 'Network Traffic Analyzer',
@@ -187,6 +191,8 @@ async function initData() {
         impact: 'Identified 8 types of network-based attacks in simulated captures',
         githubLink: '#',
         featured: false,
+        order: 3,
+        enabled: true,
       },
       {
         title: 'AI Threat Report Generator',
@@ -196,6 +202,8 @@ async function initData() {
         impact: 'Reduced manual report generation time by 70%',
         githubLink: '#',
         featured: false,
+        order: 4,
+        enabled: true,
       },
     ];
     for (const p of defaultProjects) await db.projects.create(p);
@@ -203,12 +211,12 @@ async function initData() {
 
   if (!(await db.services.getAll()).length) {
     const defaultServices = [
-      { title: 'Security Log Investigation', icon: '🔍', description: 'Deep-dive SIEM log analysis to identify anomalies and potential security incidents.' },
-      { title: 'SOC Alert Review & Triage', icon: '🚨', description: 'Systematic security alert review and prioritization following NIST frameworks.' },
-      { title: 'Vulnerability Assessment', icon: '🛡️', description: 'Identifying security weaknesses through scanning, analysis, and remediation.' },
-      { title: 'Security Documentation', icon: '📋', description: 'Policies, incident response playbooks, and compliance documentation.' },
-      { title: 'Secure API Development', icon: '💻', description: 'Backend APIs with .NET Core implementing authentication and secure coding.' },
-      { title: 'AI Security Automation', icon: '🤖', description: 'AI/ML for automated threat detection and log correlation.' },
+      { title: 'Security Log Investigation', icon: '🔍', description: 'Deep-dive SIEM log analysis to identify anomalies and potential security incidents.', order: 1, enabled: true },
+      { title: 'SOC Alert Review & Triage', icon: '🚨', description: 'Systematic security alert review and prioritization following NIST frameworks.', order: 2, enabled: true },
+      { title: 'Vulnerability Assessment', icon: '🛡️', description: 'Identifying security weaknesses through scanning, analysis, and remediation.', order: 3, enabled: true },
+      { title: 'Security Documentation', icon: '📋', description: 'Policies, incident response playbooks, and compliance documentation.', order: 4, enabled: true },
+      { title: 'Secure API Development', icon: '💻', description: 'Backend APIs with .NET Core implementing authentication and secure coding.', order: 5, enabled: true },
+      { title: 'AI Security Automation', icon: '🤖', description: 'AI/ML for automated threat detection and log correlation.', order: 6, enabled: true },
     ];
     for (const s of defaultServices) await db.services.create(s);
   }

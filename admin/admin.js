@@ -1819,8 +1819,8 @@
         endpoint: '/projects',
         cacheKey: 'projects',
         icon: 'shield-check',
-        reorder: false,
-        visibilityField: null,
+        reorder: true,
+        visibilityField: 'enabled',
         fields: [
           { key: 'title', label: 'Title', required: true },
           { key: 'description', label: 'Description', textarea: true },
@@ -1829,9 +1829,11 @@
           { key: 'impact', label: 'Impact' },
           { key: 'githubLink', label: 'GitHub Link' },
           { key: 'featured', label: 'Featured', checkbox: true },
+          { key: 'order', label: 'Order', number: true },
+          { key: 'enabled', label: 'Visible', checkbox: true },
         ],
-        buildCreate: function () {
-          return { title: 'New Project', description: '', technologies: [], emoji: '🔒', impact: '', githubLink: '#', featured: false };
+        buildCreate: function (nextOrder) {
+          return { title: 'New Project', description: '', technologies: [], emoji: '🔒', impact: '', githubLink: '#', featured: false, order: nextOrder, enabled: true };
         }
       };
     }
@@ -1842,15 +1844,17 @@
         endpoint: '/services',
         cacheKey: 'services',
         icon: 'server',
-        reorder: false,
-        visibilityField: null,
+        reorder: true,
+        visibilityField: 'enabled',
         fields: [
           { key: 'title', label: 'Title', required: true },
           { key: 'icon', label: 'Icon/Emoji' },
           { key: 'description', label: 'Description', textarea: true },
+          { key: 'order', label: 'Order', number: true },
+          { key: 'enabled', label: 'Visible', checkbox: true },
         ],
-        buildCreate: function () {
-          return { title: 'New Service', icon: '🔒', description: '' };
+        buildCreate: function (nextOrder) {
+          return { title: 'New Service', icon: '🔒', description: '', order: nextOrder, enabled: true };
         }
       };
     }

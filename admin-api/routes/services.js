@@ -14,7 +14,11 @@ const { asyncHandler, ApiError } = require('../lib/errorHandler');
 // GET /api/services — Public
 router.get('/', asyncHandler(async (req, res) => {
   const tenantId = req.query.tenantId || null;
-  res.json(await db.services.getAll(tenantId));
+  const visibleOnly = req.query.visible === 'true';
+  const all = await db.services.getAll(tenantId);
+  const filtered = visibleOnly ? all.filter((s) => s.enabled !== false) : all;
+  filtered.sort((a, b) => (a.order || 0) - (b.order || 0));
+  res.json(filtered);
 }));
 
 // POST /api/services — Auth required
@@ -34,6 +38,34 @@ router.put('/:id', authenticate, validate(serviceUpdateSchema), asyncHandler(asy
   if (!updated) throw new ApiError(404, 'Service not found');
 
   logAudit({ ...meta, action: AuditAction.SERVICE_UPDATE, resourceId: req.params.id, resourceType: 'service' });
+  res.json(updated);
+}));
+
+// PUT /api/services — Bulk reorder
+router.put('/', authenticate, asyncHandler(async (req, res) => {
+  const meta = getAuditMeta(req);
+  const items = req.body;
+  if (!Array.isArray(items)) throw new ApiError(400, 'Expected an array of items with id and order');
+
+  for (const { id, order } of items) {
+    if (id && typeof order === 'number') {
+      await db.services.update(id, { order });
+    }
+  }
+
+  logAudit({ ...meta, action: AuditAction.SERVICE_REORDER, resourceType: 'service' });
+  res.json({ message: 'Order updated' });
+}));
+
+// PATCH /api/services/:id/visibility — Auth required
+router.patch('/:id/visibility', authenticate, asyncHandler(async (req, res) => {
+  const meta = getAuditMeta(req);
+  const enabled = req.body && req.body.enabled;
+  if (typeof enabled !== 'boolean') throw new ApiError(400, 'enabled must be boolean');
+  const updated = await db.services.update(req.params.id, { enabled });
+  if (!updated) throw new ApiError(404, 'Service not found');
+
+  logAudit({ ...meta, action: AuditAction.SERVICE_UPDATE, resourceId: req.params.id, resourceType: 'service', details: { enabled } });
   res.json(updated);
 }));
 

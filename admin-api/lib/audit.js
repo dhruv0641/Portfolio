@@ -19,10 +19,12 @@ const AuditAction = {
   PROJECT_CREATE: 'project.create',
   PROJECT_UPDATE: 'project.update',
   PROJECT_DELETE: 'project.delete',
+  PROJECT_REORDER: 'project.reorder',
 
   SERVICE_CREATE: 'service.create',
   SERVICE_UPDATE: 'service.update',
   SERVICE_DELETE: 'service.delete',
+  SERVICE_REORDER: 'service.reorder',
 
   MESSAGE_READ: 'message.read',
   MESSAGE_DELETE: 'message.delete',

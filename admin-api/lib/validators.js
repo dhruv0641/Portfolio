@@ -58,6 +58,8 @@ const projectCreateSchema = z.object({
   impact: safeString.pipe(z.string().max(500)).optional().default(''),
   githubLink: z.string().url().or(z.literal('#')).or(z.literal('')).optional().default('#'),
   featured: z.boolean().optional().default(false),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
   tenantId: z.string().optional(),
 });
 
@@ -70,6 +72,8 @@ const serviceCreateSchema = z.object({
   title: safeString.pipe(z.string().min(1, 'Title is required').max(200)),
   icon: z.string().max(10).optional().default('🔒'),
   description: safeString.pipe(z.string().max(1000)).optional().default(''),
+  order: z.number().int().min(0).optional().default(0),
+  enabled: z.boolean().optional().default(true),
   tenantId: z.string().optional(),
 });
 
