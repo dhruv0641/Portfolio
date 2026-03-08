@@ -681,6 +681,27 @@
     return div.innerHTML;
   }
 
+  function normalizeCollection(items, orderKey, visibleKey) {
+    var arr = Array.isArray(items) ? items.slice() : [];
+    if (visibleKey) {
+      arr = arr.filter(function (x) { return x[visibleKey] !== false; });
+    }
+    if (orderKey) {
+      arr.sort(function (a, b) { return (a[orderKey] || 0) - (b[orderKey] || 0); });
+    }
+    return arr;
+  }
+
+  function fetchCollection(endpoint, options) {
+    options = options || {};
+    var orderKey = options.orderKey || null;
+    var visibleKey = options.visibleKey || null;
+    return fetch(endpoint, { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) { return normalizeCollection(items, orderKey, visibleKey); })
+      .catch(function () { return []; });
+  }
+
   function renderProjectCard(p, index) {
     var delayClass = 'reveal-delay-' + ((index % 4) + 1);
     var tags = (p.technologies || []).map(function (t) {
@@ -729,11 +750,8 @@
   function loadProjects() {
     var container = qs('#projects-container');
     if (!container) return;
-    fetch('/api/projects?visible=true', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/projects?visible=true', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (projects) {
-        projects = (projects || []).filter(function (p) { return p.enabled !== false; });
-        projects.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         if (!projects || !projects.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Projects coming soon.</p>';
           return;
@@ -741,18 +759,14 @@
         container.innerHTML = projects.map(renderProjectCard).join('');
         initReveals();
         initTiltCards();
-      })
-      .catch(function () { /* keep container empty on error */ });
+      });
   }
 
   function loadServices() {
     var container = qs('#services-container');
     if (!container) return;
-    fetch('/api/services?visible=true', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/services?visible=true', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (services) {
-        services = (services || []).filter(function (s) { return s.enabled !== false; });
-        services.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         if (!services || !services.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Services coming soon.</p>';
           return;
@@ -760,8 +774,7 @@
         container.innerHTML = services.map(renderServiceCard).join('');
         initReveals();
         initTiltCards();
-      })
-      .catch(function () { /* keep container empty on error */ });
+      });
   }
 
   function loadManagedContent() {
@@ -859,28 +872,23 @@
     var textEl = qs('#quote-text');
     var authorEl = qs('#quote-author');
     if (!textEl || !authorEl) return;
-    fetch('/api/quotes?visible=true', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/quotes?visible=true', { orderKey: 'orderIndex', visibleKey: 'visible' })
       .then(function (items) {
         if (!items || !items.length) return;
-        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
         var q = items[0];
         textEl.innerHTML = '&ldquo;' + escapeHTML(q.quoteText || '') + '&rdquo;';
         var by = q.author || 'Anonymous';
         var role = q.role ? ' — ' + q.role : '';
         authorEl.textContent = '— ' + by + role;
-      })
-      .catch(function () { /* fallback stays */ });
+      });
   }
 
   function loadStats() {
     var container = qs('#why-stats-container');
     if (!container) return;
-    fetch('/api/stats?visible=true', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/stats?visible=true', { orderKey: 'orderIndex', visibleKey: 'visible' })
       .then(function (items) {
         if (!items || !items.length) return;
-        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
         container.innerHTML = items.map(function (s) {
           var rawValue = typeof s.value === 'number' ? s.value : parseInt(String(s.value || '0'), 10) || 0;
           var suffix = s.animationType === 'count' ? '+' : '';
@@ -890,8 +898,7 @@
             + '</div>';
         }).join('');
         animateCounters();
-      })
-      .catch(function () { /* fallback stays */ });
+      });
   }
 
   function renderMediaBlock(block, index) {
@@ -916,31 +923,25 @@
     var section = qs('#media-blocks');
     var container = qs('#media-blocks-container');
     if (!section || !container) return;
-    fetch('/api/media-blocks?visible=true', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/media-blocks?visible=true', { orderKey: 'orderIndex', visibleKey: 'visible' })
       .then(function (items) {
         if (!items || !items.length) return;
-        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
         section.style.display = '';
         container.innerHTML = items.map(renderMediaBlock).join('');
         initReveals();
         initTiltCards();
-      })
-      .catch(function () { /* keep hidden on error */ });
+      });
   }
 
   function loadExpertise() {
     var container = qs('#expertise-container');
     if (!container) return;
-    fetch('/api/expertise', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/expertise', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (items) {
-        items = (items || []).filter(function (e) { return e.enabled !== false; });
         if (!items.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Expertise cards coming soon.</p>';
           return;
         }
-        items.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         container.innerHTML = items.map(function (e, i) {
           var delayClass = 'reveal-delay-' + ((i % 4) + 2);
           return '<div class="expertise-card tilt-card reveal ' + delayClass + '">'
@@ -951,8 +952,7 @@
         }).join('');
         initReveals();
         initTiltCards();
-      })
-      .catch(function () { /* keep container empty on error */ });
+      });
   }
 
   /* ─── Frontend Icon Map (subset matching admin ICONS) ─── */
@@ -990,15 +990,12 @@
   function loadMethodology() {
     var container = qs('#methodology-container');
     if (!container) return;
-    fetch('/api/methodology', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/methodology', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (steps) {
-        steps = (steps || []).filter(function (s) { return s.enabled !== false; });
         if (!steps.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center">Methodology steps coming soon.</p>';
           return;
         }
-        steps.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         var lineHTML = '<div class="timeline-line" aria-hidden="true"><div class="timeline-line-fill"></div></div>';
         var stepsHTML = steps.map(function (s, i) {
           return '<div class="timeline-step" data-step="' + (i + 1) + '">'
@@ -1011,22 +1008,18 @@
         container.innerHTML = lineHTML + stepsHTML;
         initTiltCards();
         initTimeline();
-      })
-      .catch(function () { /* keep container as-is on error */ });
+      });
   }
 
   function loadTools() {
     var container = qs('#tools-container');
     if (!container) return;
-    fetch('/api/tools', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/tools', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (tools) {
-        tools = (tools || []).filter(function (t) { return t.enabled !== false; });
         if (!tools.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Tools coming soon.</p>';
           return;
         }
-        tools.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         container.innerHTML = tools.map(function (t) {
           return '<div class="tool-item tilt-card">'
             + '<div class="tool-icon" aria-hidden="true">' + feIcon(t.icon || 'terminal', 22) + '</div>'
@@ -1035,22 +1028,18 @@
             + '</div>';
         }).join('');
         initTiltCards();
-      })
-      .catch(function () { /* keep container as-is on error */ });
+      });
   }
 
   function loadCertificates() {
     var container = qs('#certificates-container');
     if (!container) return;
-    fetch('/api/certificates', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
+    fetchCollection('/api/certificates', { orderKey: 'order', visibleKey: 'enabled' })
       .then(function (certs) {
-        certs = (certs || []).filter(function (c) { return c.enabled !== false; });
         if (!certs.length) {
           container.innerHTML = '<p class="section-subtitle" style="text-align:center;grid-column:1/-1">Certifications coming soon.</p>';
           return;
         }
-        certs.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
         container.innerHTML = certs.map(function (c, i) {
           var delayClass = 'reveal-delay-' + ((i % 3) + 2);
           var linkHTML = c.credentialLink && c.credentialLink !== '#'
@@ -1071,8 +1060,7 @@
         }).join('');
         initReveals();
         initTiltCards();
-      })
-      .catch(function () { /* keep container as-is on error */ });
+      });
   }
 
   function blockInspectorShortcuts() {
