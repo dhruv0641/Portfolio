@@ -1424,15 +1424,95 @@
     renderList();
   }
 
-  async function renderHeroCMS(container) { return renderManagedSection(container, { endpoint: 'hero', label: 'Hero', icon: 'zap' }); }
+  function bindVeDevices(root, frameId) {
+    var frame = root.querySelector('#' + frameId);
+    if (!frame) return;
+    root.querySelectorAll('.ve-device-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        root.querySelectorAll('.ve-device-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        frame.classList.remove('ve-device-desktop', 've-device-tablet', 've-device-mobile');
+        frame.classList.add('ve-device-' + btn.dataset.device);
+      });
+    });
+  }
+
+  async function renderHeroCMS(container) {
+    var items = _cache.hero || await api('/hero');
+    _cache.hero = items;
+    var hero = items && items[0] ? items[0] : null;
+    container.innerHTML =
+      '<div class="page-header"><div><h1 class="page-title">' + icon('zap', 22) + ' Hero Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
+          '<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="hero-title" value="' + escapeHtml((hero && hero.title) || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Subtitle</label><input class="form-input" id="hero-subtitle" value="' + escapeHtml((hero && hero.subtitle) || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Description</label><textarea class="form-input form-textarea" id="hero-description">' + escapeHtml((hero && hero.description) || '') + '</textarea></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Primary CTA Text</label><input class="form-input" id="hero-ptext" value="' + escapeHtml((hero && hero.primaryCtaText) || '') + '"></div><div class="form-group"><label class="form-label">Primary CTA Link</label><input class="form-input" id="hero-plink" value="' + escapeHtml((hero && hero.primaryCtaLink) || '') + '"></div></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Secondary CTA Text</label><input class="form-input" id="hero-stext" value="' + escapeHtml((hero && hero.secondaryCtaText) || '') + '"></div><div class="form-group"><label class="form-label">Secondary CTA Link</label><input class="form-input" id="hero-slink" value="' + escapeHtml((hero && hero.secondaryCtaLink) || '') + '"></div></div>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-hero">' + icon('check', 16) + ' Save Hero</button>' + (hero ? ('<button class="btn btn-danger" id="delete-hero">' + icon('trash', 16) + ' Delete</button>') : '') + '</div>' +
+        '</div>' +
+        '<div class="ve-preview"><div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div><div class="ve-frame ve-device-desktop" id="hero-ve-frame"><div class="ve-preview-card"><div class="hero-badge"><span class="dot"></span> <span id="hero-prev-sub">Subtitle</span></div><h1 class="section-title" id="hero-prev-title">Title</h1><p class="about-desc" id="hero-prev-desc"></p><div class="ve-actions"><a class="btn btn-primary" id="hero-prev-pbtn">Primary</a><a class="btn btn-ghost" id="hero-prev-sbtn">Secondary</a></div></div></div></div>' +
+      '</div>';
+
+    function syncHeroPreview() {
+      var title = (document.getElementById('hero-title').value || '').trim() || 'Hero Title';
+      var sub = (document.getElementById('hero-subtitle').value || '').trim() || 'Subtitle';
+      var desc = (document.getElementById('hero-description').value || '').trim() || 'Hero description';
+      var pt = (document.getElementById('hero-ptext').value || '').trim() || 'Primary';
+      var st = (document.getElementById('hero-stext').value || '').trim() || 'Secondary';
+      document.getElementById('hero-prev-title').textContent = title;
+      document.getElementById('hero-prev-sub').textContent = sub;
+      document.getElementById('hero-prev-desc').textContent = desc;
+      document.getElementById('hero-prev-pbtn').textContent = pt;
+      document.getElementById('hero-prev-sbtn').textContent = st;
+    }
+    ['hero-title', 'hero-subtitle', 'hero-description', 'hero-ptext', 'hero-plink', 'hero-stext', 'hero-slink'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('input', syncHeroPreview);
+      el.addEventListener('change', syncHeroPreview);
+    });
+    bindVeDevices(container, 'hero-ve-frame');
+    syncHeroPreview();
+
+    document.getElementById('save-hero').addEventListener('click', async function () {
+      var btn = this;
+      var body = {
+        title: document.getElementById('hero-title').value.trim(),
+        subtitle: document.getElementById('hero-subtitle').value.trim(),
+        description: document.getElementById('hero-description').value.trim(),
+        primaryCtaText: document.getElementById('hero-ptext').value.trim(),
+        primaryCtaLink: document.getElementById('hero-plink').value.trim(),
+        secondaryCtaText: document.getElementById('hero-stext').value.trim(),
+        secondaryCtaLink: document.getElementById('hero-slink').value.trim(),
+      };
+      setButtonLoading(btn, true, 'Saving...');
+      try {
+        if (hero) await api('/hero/' + hero.id, { method: 'PUT', body: JSON.stringify(body) });
+        else await api('/hero', { method: 'POST', body: JSON.stringify(body) });
+        invalidateCache('hero');
+        renderHeroCMS(container);
+        showToast('Hero saved');
+      } catch (err) {
+        setButtonLoading(btn, false);
+      }
+    });
+    if (hero) {
+      document.getElementById('delete-hero').addEventListener('click', async function () {
+        var ok = await customConfirm('Delete hero content?', { title: 'Delete Hero', type: 'danger' });
+        if (!ok) return;
+        await api('/hero/' + hero.id, { method: 'DELETE' });
+        invalidateCache('hero');
+        renderHeroCMS(container);
+        showToast('Hero deleted');
+      });
+    }
+  }
   async function renderAboutCMS(container) {
     container.innerHTML =
-      '<div class="page-header">' +
-        '<div><h1 class="page-title">' + icon('user', 22) + ' About Section</h1><p class="page-subtitle">Edit icon, title, descriptions, and expertise tags</p></div>' +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="card-header"><h3 class="card-title">' + icon('edit', 18) + ' About Content</h3></div>' +
-        '<div class="card-body">' +
+      '<div class="page-header"><div><h1 class="page-title">' + icon('user', 22) + ' About Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
           '<div class="form-row">' +
             '<div class="form-group"><label class="form-label">Label</label><input class="form-input" id="about-label"></div>' +
             '<div class="form-group"><label class="form-label">Subtitle</label><input class="form-input" id="about-subtitle"></div>' +
@@ -1446,71 +1526,111 @@
           '<div class="form-group"><label class="form-label">Icon SVG</label><textarea class="form-input form-textarea" id="about-icon-svg" placeholder="<svg ...>"></textarea></div>' +
           '<div class="form-group"><label class="form-label">Description 1</label><textarea class="form-input form-textarea" id="about-desc-1"></textarea></div>' +
           '<div class="form-group"><label class="form-label">Description 2</label><textarea class="form-input form-textarea" id="about-desc-2"></textarea></div>' +
-          '<button class="btn btn-primary" id="save-about-section">' + icon('check', 16) + ' Save About</button>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-about-section">' + icon('check', 16) + ' Save About</button><button class="btn btn-ghost" id="clear-about-section">' + icon('refresh', 16) + ' Clear</button></div>' +
+        '</div>' +
+        '<div class="ve-preview">' +
+          '<div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div>' +
+          '<div class="ve-frame ve-device-desktop" id="about-ve-frame">' +
+            '<div class="ve-preview-card">' +
+              '<div class="ve-row">' +
+                '<div>' +
+                  '<div class="about-avatar" id="about-preview-icon"><div class="about-avatar-ring" aria-hidden="true"></div><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="about-shield-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>' +
+                  '<div class="ve-tags" id="about-preview-tags"></div>' +
+                '</div>' +
+                '<div>' +
+                  '<p class="section-label" id="about-preview-label">About Me</p>' +
+                  '<h2 class="section-title" id="about-preview-title">Defending the Digital Frontier</h2>' +
+                  '<p class="about-desc" id="about-preview-desc-1"></p>' +
+                  '<p class="about-desc" id="about-preview-desc-2"></p>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="card" style="margin-top:var(--sp-4)">' +
-        '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">' +
-          '<h3 class="card-title">' + icon('target', 18) + ' Expertise Tags</h3>' +
-          '<button class="btn btn-primary btn-sm" id="add-about-tag">' + icon('plus', 14) + ' Add Tag</button>' +
-        '</div>' +
+        '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><h3 class="card-title">' + icon('target', 18) + ' Expertise Tags</h3><button class="btn btn-primary btn-sm" id="add-about-tag">' + icon('plus', 14) + ' Add Tag</button></div>' +
         '<div class="card-body"><div class="adv-inline-grid" id="about-tags-list">' + skeleton('cards', 3) + '</div><div style="margin-top:12px"><button class="btn btn-sm btn-primary" id="save-about-tags-order" style="display:none">' + icon('check', 14) + ' Save Tag Order</button></div></div>' +
       '</div>';
 
     var aboutResp = _cache.about || await api('/about');
     _cache.about = aboutResp;
-    var section = (aboutResp && aboutResp.section) || null;
+    var section = (aboutResp && aboutResp.section) || {};
     var tags = (aboutResp && aboutResp.expertiseTags) || _cache.aboutTags || [];
     _cache.aboutTags = tags;
 
-    if (section) {
-      document.getElementById('about-label').value = section.label || '';
-      document.getElementById('about-subtitle').value = section.subtitle || '';
-      document.getElementById('about-title').value = section.title || section.heading || '';
-      document.getElementById('about-icon-type').value = section.iconType || 'default';
-      document.getElementById('about-icon-emoji').value = section.iconEmoji || '';
-      document.getElementById('about-icon-image').value = section.iconImage || '';
-      document.getElementById('about-icon-svg').value = section.iconSvg || '';
-      document.getElementById('about-desc-1').value = section.description1 || '';
-      document.getElementById('about-desc-2').value = section.description2 || '';
+    document.getElementById('about-label').value = section.label || '';
+    document.getElementById('about-subtitle').value = section.subtitle || '';
+    document.getElementById('about-title').value = section.title || section.heading || '';
+    document.getElementById('about-icon-type').value = section.iconType || 'default';
+    document.getElementById('about-icon-emoji').value = section.iconEmoji || '';
+    document.getElementById('about-icon-image').value = section.iconImage || '';
+    document.getElementById('about-icon-svg').value = section.iconSvg || '';
+    document.getElementById('about-desc-1').value = section.description1 || '';
+    document.getElementById('about-desc-2').value = section.description2 || '';
+
+    function renderAboutPreview() {
+      var label = (document.getElementById('about-label').value || '').trim() || 'About Me';
+      var subtitle = (document.getElementById('about-subtitle').value || '').trim();
+      var title = (document.getElementById('about-title').value || '').trim() || 'Defending the Digital Frontier';
+      var d1 = (document.getElementById('about-desc-1').value || '').trim();
+      var d2 = (document.getElementById('about-desc-2').value || '').trim();
+      var iconType = document.getElementById('about-icon-type').value;
+      var iconEmoji = (document.getElementById('about-icon-emoji').value || '').trim();
+      var iconImage = (document.getElementById('about-icon-image').value || '').trim();
+      var iconSvg = (document.getElementById('about-icon-svg').value || '').trim();
+      var iconWrap = document.getElementById('about-preview-icon');
+      var labelEl = document.getElementById('about-preview-label');
+      var titleEl = document.getElementById('about-preview-title');
+      var p1 = document.getElementById('about-preview-desc-1');
+      var p2 = document.getElementById('about-preview-desc-2');
+      if (labelEl) labelEl.textContent = subtitle || label;
+      if (titleEl) titleEl.textContent = title;
+      if (p1) p1.textContent = d1;
+      if (p2) p2.textContent = d2;
+      if (iconWrap) {
+        if (iconType === 'image' && iconImage) {
+          iconWrap.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div><img src="' + escapeHtml(iconImage) + '" alt="About icon" style="width:80px;height:80px;object-fit:contain;border-radius:12px;">';
+        } else if (iconType === 'emoji' && iconEmoji) {
+          iconWrap.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div><span style="font-size:52px;line-height:1">' + escapeHtml(iconEmoji) + '</span>';
+        } else if (iconType === 'svg' && iconSvg) {
+          iconWrap.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div>' + iconSvg;
+        } else {
+          iconWrap.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="about-shield-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>';
+        }
+      }
+      var tagsWrap = document.getElementById('about-preview-tags');
+      if (tagsWrap) {
+        var chips = tags.filter(function (t) { return t.visible !== false; }).sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+        tagsWrap.innerHTML = chips.map(function (t) { return '<span class="ve-tag">' + escapeHtml(((t.icon || '') ? ((t.icon || '') + ' ') : '') + (t.tagName || '')) + '</span>'; }).join('');
+      }
     }
 
     function renderTags() {
       var wrap = document.getElementById('about-tags-list');
       if (!wrap) return;
       if (!tags.length) {
-        wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('tag', 30) + '</div><p>No tags yet.</p></div>';
+        wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('target', 30) + '</div><p>No tags yet.</p></div>';
+        renderAboutPreview();
         return;
       }
       tags.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
       wrap.innerHTML = tags.map(function (t) {
         return '<article class="adv-inline-card" data-id="' + t.id + '">' +
           '<div class="adv-inline-meta"><span class="badge ' + (t.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.visible !== false ? 'Visible' : 'Hidden') + '</span><span>' + escapeHtml(t.id) + '</span></div>' +
-          '<div class="form-row">' +
-            '<div class="form-group"><label class="form-label">Tag Name</label><input class="form-input tag-name" data-id="' + t.id + '" value="' + escapeHtml(t.tagName || '') + '"></div>' +
-            '<div class="form-group"><label class="form-label">Icon</label><input class="form-input tag-icon" data-id="' + t.id + '" value="' + escapeHtml(t.icon || '') + '"></div>' +
-          '</div>' +
-          '<div class="form-row">' +
-            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input tag-order" data-id="' + t.id + '" value="' + (t.orderIndex || 0) + '" min="0"></div>' +
-            '<div class="form-group"><label class="form-check"><input type="checkbox" class="tag-visible" data-id="' + t.id + '" ' + (t.visible !== false ? 'checked' : '') + '> Visible</label></div>' +
-          '</div>' +
-          '<div class="adv-inline-actions">' +
-            '<button class="btn btn-sm btn-primary save-tag" data-id="' + t.id + '">' + icon('check', 14) + ' Save</button>' +
-            '<button class="btn btn-sm btn-ghost toggle-tag" data-id="' + t.id + '">' + icon('eye', 14) + ' Toggle</button>' +
-            '<button class="btn btn-sm btn-ghost up-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Up</button>' +
-            '<button class="btn btn-sm btn-ghost down-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Down</button>' +
-            '<button class="btn btn-sm btn-danger delete-tag" data-id="' + t.id + '">' + icon('trash', 14) + ' Delete</button>' +
-          '</div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Tag Name</label><input class="form-input tag-name" data-id="' + t.id + '" value="' + escapeHtml(t.tagName || '') + '"></div><div class="form-group"><label class="form-label">Icon</label><input class="form-input tag-icon" data-id="' + t.id + '" value="' + escapeHtml(t.icon || '') + '"></div></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input tag-order" data-id="' + t.id + '" value="' + (t.orderIndex || 0) + '" min="0"></div><div class="form-group"><label class="form-check"><input type="checkbox" class="tag-visible" data-id="' + t.id + '" ' + (t.visible !== false ? 'checked' : '') + '> Visible</label></div></div>' +
+          '<div class="adv-inline-actions"><button class="btn btn-sm btn-primary save-tag" data-id="' + t.id + '">' + icon('check', 14) + ' Save</button><button class="btn btn-sm btn-ghost toggle-tag" data-id="' + t.id + '">' + icon('eye', 14) + ' Toggle</button><button class="btn btn-sm btn-ghost up-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Up</button><button class="btn btn-sm btn-ghost down-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Down</button><button class="btn btn-sm btn-danger delete-tag" data-id="' + t.id + '">' + icon('trash', 14) + ' Delete</button></div>' +
         '</article>';
       }).join('');
 
-      wrap.querySelectorAll('.tag-order').forEach(function (el) {
-        el.addEventListener('change', function () {
+      wrap.querySelectorAll('.tag-order,.tag-name,.tag-icon,.tag-visible').forEach(function (el) {
+        el.addEventListener('input', function () {
           var btn = document.getElementById('save-about-tags-order');
           if (btn) btn.style.display = '';
         });
+        el.addEventListener('change', renderAboutPreview);
       });
-
       wrap.querySelectorAll('.save-tag').forEach(function (btn) {
         btn.addEventListener('click', async function () {
           var id = btn.dataset.id;
@@ -1528,7 +1648,6 @@
           showToast('Tag saved');
         });
       });
-
       wrap.querySelectorAll('.toggle-tag').forEach(function (btn) {
         btn.addEventListener('click', async function () {
           var id = btn.dataset.id;
@@ -1540,7 +1659,6 @@
           renderAboutCMS(container);
         });
       });
-
       wrap.querySelectorAll('.delete-tag').forEach(function (btn) {
         btn.addEventListener('click', async function () {
           var ok = await customConfirm('Delete this tag?', { title: 'Delete Tag', type: 'danger' });
@@ -1552,7 +1670,6 @@
           showToast('Tag deleted');
         });
       });
-
       function swap(id, delta) {
         tags.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
         var idx = tags.findIndex(function (x) { return x.id === id; });
@@ -1566,15 +1683,21 @@
         if (saveBtn) saveBtn.style.display = '';
         renderTags();
       }
-      wrap.querySelectorAll('.up-tag').forEach(function (btn) {
-        btn.addEventListener('click', function () { swap(btn.dataset.id, -1); });
-      });
-      wrap.querySelectorAll('.down-tag').forEach(function (btn) {
-        btn.addEventListener('click', function () { swap(btn.dataset.id, 1); });
-      });
+      wrap.querySelectorAll('.up-tag').forEach(function (btn) { btn.addEventListener('click', function () { swap(btn.dataset.id, -1); }); });
+      wrap.querySelectorAll('.down-tag').forEach(function (btn) { btn.addEventListener('click', function () { swap(btn.dataset.id, 1); }); });
+      renderAboutPreview();
     }
 
+    ['about-label', 'about-subtitle', 'about-title', 'about-icon-type', 'about-icon-emoji', 'about-icon-image', 'about-icon-svg', 'about-desc-1', 'about-desc-2']
+      .forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', renderAboutPreview);
+        el.addEventListener('change', renderAboutPreview);
+      });
+    bindVeDevices(container, 'about-ve-frame');
     renderTags();
+    renderAboutPreview();
 
     document.getElementById('save-about-section').addEventListener('click', async function () {
       var btn = this;
@@ -1600,7 +1723,13 @@
         setButtonLoading(btn, false);
       }
     });
-
+    document.getElementById('clear-about-section').addEventListener('click', function () {
+      ['about-label', 'about-subtitle', 'about-title', 'about-icon-emoji', 'about-icon-image', 'about-icon-svg', 'about-desc-1', 'about-desc-2'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) el.value = '';
+      });
+      document.getElementById('about-icon-type').value = 'default';
+      renderAboutPreview();
+    });
     document.getElementById('add-about-tag').addEventListener('click', async function () {
       var nextOrder = tags.length ? Math.max.apply(null, tags.map(function (x) { return x.orderIndex || 0; })) + 1 : 1;
       await api('/about/tags', { method: 'POST', body: JSON.stringify({ tagName: 'New Tag', icon: '', orderIndex: nextOrder, visible: true }) });
@@ -1609,12 +1738,9 @@
       renderAboutCMS(container);
       showToast('Tag added');
     });
-
     document.getElementById('save-about-tags-order').addEventListener('click', async function () {
       var btn = this;
-      var payload = tags.slice().sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); }).map(function (t, idx) {
-        return { id: t.id, orderIndex: idx + 1 };
-      });
+      var payload = tags.slice().sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); }).map(function (t, idx) { return { id: t.id, orderIndex: idx + 1 }; });
       setButtonLoading(btn, true, 'Saving...');
       await api('/about/tags/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
       invalidateCache('about');
@@ -1623,8 +1749,142 @@
       showToast('Tag order updated');
     });
   }
-  async function renderContactCMS(container) { return renderManagedSection(container, { endpoint: 'contact', label: 'Contact', icon: 'mail' }); }
-  async function renderFooterCMS(container) { return renderManagedSection(container, { endpoint: 'footer', label: 'Footer', icon: 'layout' }); }
+  async function renderContactCMS(container) {
+    var items = _cache.contact || await api('/contact');
+    _cache.contact = items;
+    var contact = items && items[0] ? items[0] : null;
+    container.innerHTML =
+      '<div class="page-header"><div><h1 class="page-title">' + icon('mail', 22) + ' Contact Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
+          '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="contact-email" value="' + escapeHtml((contact && contact.email) || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Location</label><input class="form-input" id="contact-location" value="' + escapeHtml((contact && contact.location) || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">LinkedIn</label><input class="form-input" id="contact-linkedin" value="' + escapeHtml((contact && contact.linkedin) || '') + '"></div>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-contact">' + icon('check', 16) + ' Save Contact</button>' + (contact ? ('<button class="btn btn-danger" id="delete-contact">' + icon('trash', 16) + ' Delete</button>') : '') + '</div>' +
+        '</div>' +
+        '<div class="ve-preview"><div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div><div class="ve-frame ve-device-desktop" id="contact-ve-frame"><div class="ve-preview-card"><h2 class="section-title">Get In Touch</h2><div class="item-cards item-cards--compact"><div class="item-card item-card--compact"><div class="item-card-meta"><h3 class="item-card-title">Email</h3><p class="item-card-desc" id="contact-prev-email"></p></div></div><div class="item-card item-card--compact"><div class="item-card-meta"><h3 class="item-card-title">Location</h3><p class="item-card-desc" id="contact-prev-location"></p></div></div><div class="item-card item-card--compact"><div class="item-card-meta"><h3 class="item-card-title">LinkedIn</h3><p class="item-card-desc" id="contact-prev-linkedin"></p></div></div></div></div></div></div>' +
+      '</div>';
+
+    function syncContactPreview() {
+      document.getElementById('contact-prev-email').textContent = (document.getElementById('contact-email').value || '').trim() || 'your@email.com';
+      document.getElementById('contact-prev-location').textContent = (document.getElementById('contact-location').value || '').trim() || 'Your Location';
+      document.getElementById('contact-prev-linkedin').textContent = (document.getElementById('contact-linkedin').value || '').trim() || 'https://linkedin.com/in/username';
+    }
+    ['contact-email', 'contact-location', 'contact-linkedin'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('input', syncContactPreview);
+      el.addEventListener('change', syncContactPreview);
+    });
+    bindVeDevices(container, 'contact-ve-frame');
+    syncContactPreview();
+
+    document.getElementById('save-contact').addEventListener('click', async function () {
+      var btn = this;
+      var body = {
+        email: document.getElementById('contact-email').value.trim(),
+        location: document.getElementById('contact-location').value.trim(),
+        linkedin: document.getElementById('contact-linkedin').value.trim(),
+      };
+      setButtonLoading(btn, true, 'Saving...');
+      try {
+        if (contact) await api('/contact/' + contact.id, { method: 'PUT', body: JSON.stringify(body) });
+        else await api('/contact', { method: 'POST', body: JSON.stringify(body) });
+        invalidateCache('contact');
+        renderContactCMS(container);
+        showToast('Contact saved');
+      } catch (err) {
+        setButtonLoading(btn, false);
+      }
+    });
+    if (contact) {
+      document.getElementById('delete-contact').addEventListener('click', async function () {
+        var ok = await customConfirm('Delete contact content?', { title: 'Delete Contact', type: 'danger' });
+        if (!ok) return;
+        await api('/contact/' + contact.id, { method: 'DELETE' });
+        invalidateCache('contact');
+        renderContactCMS(container);
+        showToast('Contact deleted');
+      });
+    }
+  }
+  async function renderFooterCMS(container) {
+    var items = _cache.footer || await api('/footer');
+    _cache.footer = items;
+    var footer = items && items[0] ? items[0] : null;
+    var linksVal = footer && footer.links ? JSON.stringify(footer.links, null, 2) : '[]';
+    var socialVal = footer && footer.socialLinks ? JSON.stringify(footer.socialLinks, null, 2) : '[]';
+    container.innerHTML =
+      '<div class="page-header"><div><h1 class="page-title">' + icon('layout', 22) + ' Footer Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
+          '<div class="form-group"><label class="form-label">Copyright</label><input class="form-input" id="footer-copy" value="' + escapeHtml((footer && footer.copyright) || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Links JSON</label><textarea class="form-input form-textarea" id="footer-links">' + escapeHtml(linksVal) + '</textarea></div>' +
+          '<div class="form-group"><label class="form-label">Social Links JSON</label><textarea class="form-input form-textarea" id="footer-social">' + escapeHtml(socialVal) + '</textarea></div>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-footer">' + icon('check', 16) + ' Save Footer</button>' + (footer ? ('<button class="btn btn-danger" id="delete-footer">' + icon('trash', 16) + ' Delete</button>') : '') + '</div>' +
+        '</div>' +
+        '<div class="ve-preview"><div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div><div class="ve-frame ve-device-desktop" id="footer-ve-frame"><div class="ve-preview-card"><ul class="footer-links" id="footer-prev-links"></ul><div class="ve-tags" id="footer-prev-social"></div><p class="footer-copy" id="footer-prev-copy"></p></div></div></div>' +
+      '</div>';
+
+    function syncFooterPreview() {
+      var copy = (document.getElementById('footer-copy').value || '').trim() || 'Copyright text';
+      var linksRaw = document.getElementById('footer-links').value || '[]';
+      var socialRaw = document.getElementById('footer-social').value || '[]';
+      var links = [], socials = [];
+      try { links = JSON.parse(linksRaw); } catch (_) { links = []; }
+      try { socials = JSON.parse(socialRaw); } catch (_) { socials = []; }
+      document.getElementById('footer-prev-copy').textContent = copy;
+      document.getElementById('footer-prev-links').innerHTML = (Array.isArray(links) ? links : []).map(function (l) {
+        return '<li><a href="#">' + escapeHtml((l && l.label) || 'Link') + '</a></li>';
+      }).join('');
+      document.getElementById('footer-prev-social').innerHTML = (Array.isArray(socials) ? socials : []).map(function (s) {
+        return '<span class="ve-tag">' + escapeHtml((s && s.label) || 'Social') + '</span>';
+      }).join('');
+    }
+    ['footer-copy', 'footer-links', 'footer-social'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('input', syncFooterPreview);
+      el.addEventListener('change', syncFooterPreview);
+    });
+    bindVeDevices(container, 'footer-ve-frame');
+    syncFooterPreview();
+
+    document.getElementById('save-footer').addEventListener('click', async function () {
+      var btn = this;
+      var links, socialLinks;
+      try {
+        links = JSON.parse(document.getElementById('footer-links').value || '[]');
+        socialLinks = JSON.parse(document.getElementById('footer-social').value || '[]');
+      } catch (e) {
+        showToast('Invalid JSON in links/social links', 'error');
+        return;
+      }
+      var body = {
+        copyright: document.getElementById('footer-copy').value.trim(),
+        links: Array.isArray(links) ? links : [],
+        socialLinks: Array.isArray(socialLinks) ? socialLinks : [],
+      };
+      setButtonLoading(btn, true, 'Saving...');
+      try {
+        if (footer) await api('/footer/' + footer.id, { method: 'PUT', body: JSON.stringify(body) });
+        else await api('/footer', { method: 'POST', body: JSON.stringify(body) });
+        invalidateCache('footer');
+        renderFooterCMS(container);
+        showToast('Footer saved');
+      } catch (err) {
+        setButtonLoading(btn, false);
+      }
+    });
+    if (footer) {
+      document.getElementById('delete-footer').addEventListener('click', async function () {
+        var ok = await customConfirm('Delete footer content?', { title: 'Delete Footer', type: 'danger' });
+        if (!ok) return;
+        await api('/footer/' + footer.id, { method: 'DELETE' });
+        invalidateCache('footer');
+        renderFooterCMS(container);
+        showToast('Footer deleted');
+      });
+    }
+  }
   function endpointToCacheKey(endpoint) { return endpoint; }
 
   function advancedSectionConfig(type) {
@@ -1985,8 +2245,243 @@
     renderList();
   }
 
-  async function renderQuotes(container) { return renderAdvancedManager(container, 'quotes'); }
-  async function renderStats(container) { return renderAdvancedManager(container, 'stats'); }
+  async function renderQuotes(container) {
+    var items = _cache.quotes || await api('/quotes');
+    _cache.quotes = items;
+    var selectedId = items[0] ? items[0].id : null;
+    var orderDirty = false;
+
+    container.innerHTML =
+      '<div class="page-header"><div><h1 class="page-title">' + icon('clipboard', 22) + ' Quotes Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
+          '<div class="ve-actions"><button class="btn btn-primary btn-sm" id="add-quote">' + icon('plus', 14) + ' Add</button><button class="btn btn-sm btn-primary" id="save-quotes-order" style="display:none">' + icon('check', 14) + ' Save Order</button></div>' +
+          '<div class="adv-inline-grid" id="quotes-list"></div>' +
+          '<hr style="margin:12px 0;border-color:var(--border)">' +
+          '<div class="form-group"><label class="form-label">Quote Text</label><textarea class="form-input form-textarea" id="quote-text"></textarea></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Author</label><input class="form-input" id="quote-author"></div><div class="form-group"><label class="form-label">Role</label><input class="form-input" id="quote-role"></div></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="quote-order" min="0"></div><div class="form-group"><label class="form-check"><input type="checkbox" id="quote-visible"> Visible</label></div></div>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-quote">' + icon('check', 16) + ' Save Quote</button><button class="btn btn-danger" id="delete-quote">' + icon('trash', 16) + ' Delete</button><button class="btn btn-ghost" id="toggle-quote">' + icon('eye', 16) + ' Toggle</button></div>' +
+        '</div>' +
+        '<div class="ve-preview"><div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div><div class="ve-frame ve-device-desktop" id="quote-ve-frame"><div class="ve-preview-card"><blockquote class="mission-quote"><p id="quote-prev-text"></p><cite id="quote-prev-author"></cite></blockquote></div></div></div>' +
+      '</div>';
+
+    function sortItems() { items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); }); }
+    function selected() { return items.find(function (x) { return x.id === selectedId; }) || null; }
+
+    function renderList() {
+      sortItems();
+      var wrap = document.getElementById('quotes-list');
+      if (!wrap) return;
+      if (!items.length) { wrap.innerHTML = '<div class="empty-state"><p>No quotes yet.</p></div>'; return; }
+      wrap.innerHTML = items.map(function (q) {
+        return '<button class="btn btn-ghost quote-pick' + (q.id === selectedId ? ' active' : '') + '" data-id="' + q.id + '" style="justify-content:flex-start;text-align:left">' +
+          '<span class="badge ' + (q.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (q.visible !== false ? 'Visible' : 'Hidden') + '</span> ' +
+          escapeHtml((q.quoteText || 'Quote').substring(0, 60)) +
+          '</button>';
+      }).join('');
+      wrap.querySelectorAll('.quote-pick').forEach(function (btn) {
+        btn.addEventListener('click', function () { selectedId = btn.dataset.id; fillForm(); renderList(); });
+      });
+    }
+
+    function fillForm() {
+      var q = selected();
+      document.getElementById('quote-text').value = q ? (q.quoteText || '') : '';
+      document.getElementById('quote-author').value = q ? (q.author || '') : '';
+      document.getElementById('quote-role').value = q ? (q.role || '') : '';
+      document.getElementById('quote-order').value = q ? (q.orderIndex || 0) : 0;
+      document.getElementById('quote-visible').checked = q ? (q.visible !== false) : true;
+      syncPreview();
+    }
+
+    function syncPreview() {
+      var t = (document.getElementById('quote-text').value || '').trim() || 'Quote text';
+      var a = (document.getElementById('quote-author').value || '').trim() || 'Author';
+      var r = (document.getElementById('quote-role').value || '').trim();
+      document.getElementById('quote-prev-text').textContent = '"' + t + '"';
+      document.getElementById('quote-prev-author').textContent = '— ' + a + (r ? (' — ' + r) : '');
+    }
+
+    ['quote-text', 'quote-author', 'quote-role', 'quote-order', 'quote-visible'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('input', syncPreview);
+      el.addEventListener('change', syncPreview);
+    });
+    bindVeDevices(container, 'quote-ve-frame');
+    renderList();
+    fillForm();
+
+    document.getElementById('add-quote').addEventListener('click', async function () {
+      var nextOrder = items.length ? Math.max.apply(null, items.map(function (x) { return x.orderIndex || 0; })) + 1 : 1;
+      var created = await api('/quotes', { method: 'POST', body: JSON.stringify({ quoteText: 'New quote', author: 'Author', role: '', visible: true, orderIndex: nextOrder }) });
+      invalidateCache('quotes');
+      _cache.quotes = null;
+      items.push(created);
+      selectedId = created.id;
+      renderList();
+      fillForm();
+      orderDirty = true;
+      var sob = document.getElementById('save-quotes-order'); if (sob) sob.style.display = '';
+    });
+    document.getElementById('save-quote').addEventListener('click', async function () {
+      var q = selected(); if (!q) return;
+      var body = {
+        quoteText: document.getElementById('quote-text').value.trim(),
+        author: document.getElementById('quote-author').value.trim(),
+        role: document.getElementById('quote-role').value.trim(),
+        orderIndex: parseInt(document.getElementById('quote-order').value || '0', 10) || 0,
+        visible: !!document.getElementById('quote-visible').checked,
+      };
+      await api('/quotes/' + q.id, { method: 'PUT', body: JSON.stringify(body) });
+      invalidateCache('quotes');
+      renderQuotes(container);
+      showToast('Quote saved');
+    });
+    document.getElementById('delete-quote').addEventListener('click', async function () {
+      var q = selected(); if (!q) return;
+      var ok = await customConfirm('Delete selected quote?', { title: 'Delete Quote', type: 'danger' });
+      if (!ok) return;
+      await api('/quotes/' + q.id, { method: 'DELETE' });
+      invalidateCache('quotes');
+      renderQuotes(container);
+      showToast('Quote deleted');
+    });
+    document.getElementById('toggle-quote').addEventListener('click', async function () {
+      var q = selected(); if (!q) return;
+      await api('/quotes/' + q.id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(q.visible !== false) }) });
+      invalidateCache('quotes');
+      renderQuotes(container);
+    });
+    document.getElementById('quote-order').addEventListener('change', function () {
+      orderDirty = true;
+      var sob = document.getElementById('save-quotes-order'); if (sob) sob.style.display = '';
+    });
+    document.getElementById('save-quotes-order').addEventListener('click', async function () {
+      if (!orderDirty) return;
+      var payload = items.map(function (q) { return { id: q.id, orderIndex: q.id === selectedId ? (parseInt(document.getElementById('quote-order').value || '0', 10) || 0) : (q.orderIndex || 0) }; })
+        .sort(function (a, b) { return a.orderIndex - b.orderIndex; })
+        .map(function (x, i) { return { id: x.id, orderIndex: i + 1 }; });
+      await api('/quotes/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
+      invalidateCache('quotes');
+      renderQuotes(container);
+      showToast('Quote order updated');
+    });
+  }
+  async function renderStats(container) {
+    var items = _cache.stats || await api('/stats');
+    _cache.stats = items;
+    var selectedId = items[0] ? items[0].id : null;
+    var orderDirty = false;
+    container.innerHTML =
+      '<div class="page-header"><div><h1 class="page-title">' + icon('activity', 22) + ' Stats Visual Editor</h1><p class="page-subtitle">Form + Real layout preview</p></div></div>' +
+      '<div class="ve-shell">' +
+        '<div class="ve-form">' +
+          '<div class="ve-actions"><button class="btn btn-primary btn-sm" id="add-stat">' + icon('plus', 14) + ' Add</button><button class="btn btn-sm btn-primary" id="save-stats-order" style="display:none">' + icon('check', 14) + ' Save Order</button></div>' +
+          '<div class="adv-inline-grid" id="stats-list"></div>' +
+          '<hr style="margin:12px 0;border-color:var(--border)">' +
+          '<div class="form-group"><label class="form-label">Label</label><input class="form-input" id="stat-label"></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Value</label><input type="number" class="form-input" id="stat-value" min="0"></div><div class="form-group"><label class="form-label">Icon</label><input class="form-input" id="stat-icon"></div></div>' +
+          '<div class="form-row"><div class="form-group"><label class="form-label">Animation Type</label><select class="form-input" id="stat-animation"><option value="count">count</option><option value="static">static</option></select></div><div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input" id="stat-order" min="0"></div></div>' +
+          '<div class="form-group"><label class="form-check"><input type="checkbox" id="stat-visible"> Visible</label></div>' +
+          '<div class="ve-actions"><button class="btn btn-primary" id="save-stat">' + icon('check', 16) + ' Save Stat</button><button class="btn btn-danger" id="delete-stat">' + icon('trash', 16) + ' Delete</button><button class="btn btn-ghost" id="toggle-stat">' + icon('eye', 16) + ' Toggle</button></div>' +
+        '</div>' +
+        '<div class="ve-preview"><div class="ve-toolbar"><span class="badge badge-green">Live Preview</span><div class="ve-devices"><button class="ve-device-btn active" data-device="desktop">Desktop</button><button class="ve-device-btn" data-device="tablet">Tablet</button><button class="ve-device-btn" data-device="mobile">Mobile</button></div></div><div class="ve-frame ve-device-desktop" id="stats-ve-frame"><div class="ve-preview-card"><div class="why-stats"><div class="why-stat"><div class="why-num" id="stat-prev-value">0</div><div class="why-label" id="stat-prev-label">Label</div></div></div></div></div></div>' +
+      '</div>';
+
+    function sortItems() { items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); }); }
+    function selected() { return items.find(function (x) { return x.id === selectedId; }) || null; }
+    function renderList() {
+      sortItems();
+      var wrap = document.getElementById('stats-list');
+      if (!wrap) return;
+      if (!items.length) { wrap.innerHTML = '<div class="empty-state"><p>No stats yet.</p></div>'; return; }
+      wrap.innerHTML = items.map(function (s) {
+        return '<button class="btn btn-ghost stat-pick' + (s.id === selectedId ? ' active' : '') + '" data-id="' + s.id + '" style="justify-content:flex-start;text-align:left"><span class="badge ' + (s.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (s.visible !== false ? 'Visible' : 'Hidden') + '</span> ' + escapeHtml((s.label || 'Stat')) + '</button>';
+      }).join('');
+      wrap.querySelectorAll('.stat-pick').forEach(function (btn) { btn.addEventListener('click', function () { selectedId = btn.dataset.id; fillForm(); renderList(); }); });
+    }
+    function fillForm() {
+      var s = selected();
+      document.getElementById('stat-label').value = s ? (s.label || '') : '';
+      document.getElementById('stat-value').value = s ? (s.value || 0) : 0;
+      document.getElementById('stat-icon').value = s ? (s.icon || '') : '';
+      document.getElementById('stat-animation').value = s ? (s.animationType || 'count') : 'count';
+      document.getElementById('stat-order').value = s ? (s.orderIndex || 0) : 0;
+      document.getElementById('stat-visible').checked = s ? (s.visible !== false) : true;
+      syncPreview();
+    }
+    function syncPreview() {
+      var label = (document.getElementById('stat-label').value || '').trim() || 'Label';
+      var value = parseInt(document.getElementById('stat-value').value || '0', 10) || 0;
+      document.getElementById('stat-prev-label').textContent = label;
+      document.getElementById('stat-prev-value').textContent = String(value);
+    }
+    ['stat-label', 'stat-value', 'stat-icon', 'stat-animation', 'stat-order', 'stat-visible'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('input', syncPreview);
+      el.addEventListener('change', syncPreview);
+    });
+    bindVeDevices(container, 'stats-ve-frame');
+    renderList();
+    fillForm();
+    document.getElementById('add-stat').addEventListener('click', async function () {
+      var nextOrder = items.length ? Math.max.apply(null, items.map(function (x) { return x.orderIndex || 0; })) + 1 : 1;
+      var created = await api('/stats', { method: 'POST', body: JSON.stringify({ label: 'New Stat', value: 0, icon: 'target', animationType: 'count', visible: true, orderIndex: nextOrder }) });
+      invalidateCache('stats');
+      _cache.stats = null;
+      items.push(created);
+      selectedId = created.id;
+      renderList();
+      fillForm();
+      orderDirty = true;
+      var sob = document.getElementById('save-stats-order'); if (sob) sob.style.display = '';
+    });
+    document.getElementById('save-stat').addEventListener('click', async function () {
+      var s = selected(); if (!s) return;
+      var body = {
+        label: document.getElementById('stat-label').value.trim(),
+        value: parseInt(document.getElementById('stat-value').value || '0', 10) || 0,
+        icon: document.getElementById('stat-icon').value.trim(),
+        animationType: document.getElementById('stat-animation').value,
+        orderIndex: parseInt(document.getElementById('stat-order').value || '0', 10) || 0,
+        visible: !!document.getElementById('stat-visible').checked,
+      };
+      await api('/stats/' + s.id, { method: 'PUT', body: JSON.stringify(body) });
+      invalidateCache('stats');
+      renderStats(container);
+      showToast('Stat saved');
+    });
+    document.getElementById('delete-stat').addEventListener('click', async function () {
+      var s = selected(); if (!s) return;
+      var ok = await customConfirm('Delete selected stat?', { title: 'Delete Stat', type: 'danger' });
+      if (!ok) return;
+      await api('/stats/' + s.id, { method: 'DELETE' });
+      invalidateCache('stats');
+      renderStats(container);
+      showToast('Stat deleted');
+    });
+    document.getElementById('toggle-stat').addEventListener('click', async function () {
+      var s = selected(); if (!s) return;
+      await api('/stats/' + s.id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(s.visible !== false) }) });
+      invalidateCache('stats');
+      renderStats(container);
+    });
+    document.getElementById('stat-order').addEventListener('change', function () {
+      orderDirty = true;
+      var sob = document.getElementById('save-stats-order'); if (sob) sob.style.display = '';
+    });
+    document.getElementById('save-stats-order').addEventListener('click', async function () {
+      if (!orderDirty) return;
+      var payload = items.map(function (s) { return { id: s.id, orderIndex: s.id === selectedId ? (parseInt(document.getElementById('stat-order').value || '0', 10) || 0) : (s.orderIndex || 0) }; })
+        .sort(function (a, b) { return a.orderIndex - b.orderIndex; })
+        .map(function (x, i) { return { id: x.id, orderIndex: i + 1 }; });
+      await api('/stats/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
+      invalidateCache('stats');
+      renderStats(container);
+      showToast('Stats order updated');
+    });
+  }
 
   function inlineConfigFor(section) {
     if (section === 'projects') {

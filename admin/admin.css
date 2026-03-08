@@ -2749,6 +2749,90 @@ body.menu-open {
   gap: var(--sp-2);
 }
 
+/* Visual editor split layout */
+.ve-shell {
+  display: grid;
+  grid-template-columns: minmax(360px, 460px) 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+.ve-form {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  padding: var(--sp-4);
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+.ve-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(5,11,22,0.98), rgba(8,16,30,0.92));
+  padding: var(--sp-4);
+}
+.ve-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-3);
+  gap: var(--sp-2);
+}
+.ve-devices {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ve-device-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  min-height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+.ve-device-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.ve-frame {
+  margin: 0 auto;
+  width: 100%;
+  transition: width .2s ease;
+}
+.ve-frame.ve-device-tablet { width: 860px; max-width: 100%; }
+.ve-frame.ve-device-mobile { width: 390px; max-width: 100%; }
+.ve-preview-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(8,16,30,0.75);
+  padding: var(--sp-4);
+}
+.ve-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+.ve-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ve-tag {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+  background: rgba(255,255,255,0.03);
+}
+.ve-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-top: var(--sp-3);
+}
+
 .overflow-menu-trigger:hover,
 .overflow-menu-trigger:active {
   background: var(--bg-hover);
@@ -2869,6 +2953,12 @@ body.menu-open {
 
 /* Responsive customize */
 @media (max-width: 768px) {
+  .ve-shell { grid-template-columns: 1fr; }
+  .ve-form { max-height: none; }
+  .ve-toolbar { flex-direction: column; align-items: stretch; }
+  .ve-devices { width: 100%; }
+  .ve-device-btn { flex: 1; }
+
   /* Replace tabs with dropdown */
   .cuz-tabs { display: none; }
   .cuz-mobile-select { display: block; }
