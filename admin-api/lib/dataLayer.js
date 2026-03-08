@@ -19,6 +19,9 @@ const COLLECTION_TABLES = {
   about: 'about',
   contact: 'contact',
   footer: 'footer',
+  quotes: 'quotes',
+  stats: 'stats',
+  mediaBlocks: 'media_blocks',
   projects: 'projects',
   services: 'services',
   messages: 'messages',
@@ -178,6 +181,27 @@ async function createSchema() {
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS quotes (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS stats (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS media_blocks (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS services (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
@@ -239,6 +263,9 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_about_tenant ON about(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_contact_tenant ON contact(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_footer_tenant ON footer(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_quotes_tenant ON quotes(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_stats_tenant ON stats(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_media_blocks_tenant ON media_blocks(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_methodology_tenant ON methodology(tenant_id);
@@ -380,6 +407,10 @@ async function runInitialMigrationIfNeeded() {
     await migrateCollection('about.json', 'about', client);
     await migrateCollection('contact.json', 'contact', client);
     await migrateCollection('footer.json', 'footer', client);
+    await migrateCollection('quotes.json', 'quotes', client);
+    await migrateCollection('stats.json', 'stats', client);
+    await migrateCollection('media_blocks.json', 'media_blocks', client);
+    await migrateCollection('mediaBlocks.json', 'media_blocks', client);
     await migrateCollection('services.json', 'services', client);
     await migrateCollection('messages.json', 'messages', client);
     await migrateCollection('methodology.json', 'methodology', client);
@@ -686,6 +717,9 @@ module.exports = {
   about: new Repository(COLLECTION_TABLES.about),
   contact: new Repository(COLLECTION_TABLES.contact),
   footer: new Repository(COLLECTION_TABLES.footer),
+  quotes: new Repository(COLLECTION_TABLES.quotes),
+  stats: new Repository(COLLECTION_TABLES.stats),
+  mediaBlocks: new Repository(COLLECTION_TABLES.mediaBlocks),
   projects: new Repository(COLLECTION_TABLES.projects),
   services: new Repository(COLLECTION_TABLES.services),
   messages: new Repository(COLLECTION_TABLES.messages),

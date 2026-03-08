@@ -121,6 +121,45 @@ const footerCreateSchema = z.object({
 const footerUpdateSchema = footerCreateSchema.partial();
 
 // ═══════════════════════════════════════════
+// QUOTES / STATS / MEDIA BLOCKS SCHEMAS
+// ═══════════════════════════════════════════
+const quoteCreateSchema = z.object({
+  quoteText: safeString.pipe(z.string().min(1, 'Quote text is required').max(3000)),
+  author: safeString.pipe(z.string().max(200)).optional().default(''),
+  role: safeString.pipe(z.string().max(200)).optional().default(''),
+  visible: z.boolean().optional().default(true),
+  orderIndex: z.number().int().min(0).optional().default(0),
+  tenantId: z.string().optional(),
+});
+const quoteUpdateSchema = quoteCreateSchema.partial();
+
+const statCreateSchema = z.object({
+  label: safeString.pipe(z.string().min(1, 'Label is required').max(200)),
+  value: z.number().int().min(0).max(1000000000),
+  icon: z.string().max(50).optional().default('target'),
+  animationType: z.enum(['count', 'static']).optional().default('count'),
+  visible: z.boolean().optional().default(true),
+  orderIndex: z.number().int().min(0).optional().default(0),
+  tenantId: z.string().optional(),
+});
+const statUpdateSchema = statCreateSchema.partial();
+
+const mediaBlockCreateSchema = z.object({
+  section: safeString.pipe(z.string().min(1, 'Section is required').max(120)),
+  type: z.enum(['text', 'image', 'video', 'icon', 'stat', 'card', 'grid', 'timeline', 'cta', 'markdown', 'embed']),
+  title: safeString.pipe(z.string().max(300)).optional().default(''),
+  content: safeString.pipe(z.string().max(10000)).optional().default(''),
+  mediaUrl: z.string().max(2000).optional().default(''),
+  icon: z.string().max(50).optional().default(''),
+  link: z.string().max(2000).optional().default(''),
+  metadataJson: z.record(z.string(), z.any()).optional().default({}),
+  visible: z.boolean().optional().default(true),
+  orderIndex: z.number().int().min(0).optional().default(0),
+  tenantId: z.string().optional(),
+});
+const mediaBlockUpdateSchema = mediaBlockCreateSchema.partial();
+
+// ═══════════════════════════════════════════
 // METHODOLOGY SCHEMAS
 // ═══════════════════════════════════════════
 const methodologyCreateSchema = z.object({
@@ -465,6 +504,12 @@ module.exports = {
   contactUpdateSchema,
   footerCreateSchema,
   footerUpdateSchema,
+  quoteCreateSchema,
+  quoteUpdateSchema,
+  statCreateSchema,
+  statUpdateSchema,
+  mediaBlockCreateSchema,
+  mediaBlockUpdateSchema,
   methodologyCreateSchema,
   methodologyUpdateSchema,
   expertiseCreateSchema,

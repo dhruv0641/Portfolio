@@ -851,6 +851,80 @@
       .catch(function () { /* keep defaults */ });
   }
 
+  function loadQuote() {
+    var textEl = qs('#quote-text');
+    var authorEl = qs('#quote-author');
+    if (!textEl || !authorEl) return;
+    fetch('/api/quotes?visible=true', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        if (!items || !items.length) return;
+        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+        var q = items[0];
+        textEl.innerHTML = '&ldquo;' + escapeHTML(q.quoteText || '') + '&rdquo;';
+        var by = q.author || 'Anonymous';
+        var role = q.role ? ' — ' + q.role : '';
+        authorEl.textContent = '— ' + by + role;
+      })
+      .catch(function () { /* fallback stays */ });
+  }
+
+  function loadStats() {
+    var container = qs('#why-stats-container');
+    if (!container) return;
+    fetch('/api/stats?visible=true', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        if (!items || !items.length) return;
+        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+        container.innerHTML = items.map(function (s) {
+          var rawValue = typeof s.value === 'number' ? s.value : parseInt(String(s.value || '0'), 10) || 0;
+          var suffix = s.animationType === 'count' ? '+' : '';
+          return '<div class="why-stat">'
+            + '<div class="why-num" data-count="' + rawValue + '" data-suffix="' + suffix + '">0</div>'
+            + '<div class="why-label">' + escapeHTML(s.label || 'Metric') + '</div>'
+            + '</div>';
+        }).join('');
+        animateCounters();
+      })
+      .catch(function () { /* fallback stays */ });
+  }
+
+  function renderMediaBlock(block, index) {
+    var title = block.title ? '<h3 class="service-name">' + escapeHTML(block.title) + '</h3>' : '';
+    var content = block.content ? '<p class="service-desc">' + escapeHTML(block.content) + '</p>' : '';
+    var iconHtml = block.icon ? '<div class="service-icon" aria-hidden="true">' + feIcon(block.icon, 22) + '</div>' : '';
+    var media = '';
+    if (block.type === 'image' && block.mediaUrl) {
+      media = '<img src="' + escapeHTML(block.mediaUrl) + '" alt="' + escapeHTML(block.title || 'Media') + '" style="width:100%;border-radius:var(--r-md);margin-bottom:12px;object-fit:cover;">';
+    } else if ((block.type === 'video' || block.type === 'embed') && block.mediaUrl) {
+      media = '<iframe src="' + escapeHTML(block.mediaUrl) + '" title="' + escapeHTML(block.title || 'Embedded media') + '" loading="lazy" style="width:100%;min-height:220px;border:0;border-radius:var(--r-md);margin-bottom:12px;"></iframe>';
+    }
+    var link = block.link
+      ? '<a href="' + escapeHTML(block.link) + '" class="project-link" target="_blank" rel="noopener noreferrer">Open</a>'
+      : '';
+    return '<article class="service-card tilt-card reveal reveal-delay-' + ((index % 3) + 1) + '">'
+      + iconHtml + media + title + content + link
+      + '</article>';
+  }
+
+  function loadMediaBlocks() {
+    var section = qs('#media-blocks');
+    var container = qs('#media-blocks-container');
+    if (!section || !container) return;
+    fetch('/api/media-blocks?visible=true', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (items) {
+        if (!items || !items.length) return;
+        items.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+        section.style.display = '';
+        container.innerHTML = items.map(renderMediaBlock).join('');
+        initReveals();
+        initTiltCards();
+      })
+      .catch(function () { /* keep hidden on error */ });
+  }
+
   function loadExpertise() {
     var container = qs('#expertise-container');
     if (!container) return;
@@ -1031,6 +1105,9 @@
   /* ======== INIT AFTER LOADER ======== */
   function initAfterLoad() {
     loadManagedContent();
+    loadQuote();
+    loadStats();
+    loadMediaBlocks();
     initCharReveal();
     initHeroReveals();
     typeLoop();

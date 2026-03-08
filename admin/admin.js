@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null };
+  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null, quotes: null, stats: null, mediaBlocks: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; _cache.quotes = null; _cache.stats = null; _cache.mediaBlocks = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -466,7 +466,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'hero', 'about', 'contact', 'footer', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
+    var valid = ['dashboard', 'hero', 'about', 'contact', 'footer', 'quotes', 'stats', 'media-blocks', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -527,6 +527,9 @@
       case 'about': renderAboutCMS(pageContent); break;
       case 'contact': renderContactCMS(pageContent); break;
       case 'footer': renderFooterCMS(pageContent); break;
+      case 'quotes': renderQuotes(pageContent); break;
+      case 'stats': renderStats(pageContent); break;
+      case 'media-blocks': renderMediaBlocks(pageContent); break;
       case 'projects':  renderProjects(pageContent); break;
       case 'services':  renderServices(pageContent); break;
       case 'methodology': renderMethodology(pageContent); break;
@@ -552,7 +555,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', hero: 'Hero', about: 'About', contact: 'Contact', footer: 'Footer', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
+    var names = { dashboard: 'Dashboard', hero: 'Hero', about: 'About', contact: 'Contact', footer: 'Footer', quotes: 'Quotes', stats: 'Stats', 'media-blocks': 'Media Blocks', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -1036,6 +1039,9 @@
       { page: 'about', icon: 'user', label: 'About' },
       { page: 'contact', icon: 'mail', label: 'Contact' },
       { page: 'footer', icon: 'layout', label: 'Footer' },
+      { page: 'quotes', icon: 'clipboard', label: 'Quotes' },
+      { page: 'stats', icon: 'activity', label: 'Stats' },
+      { page: 'media-blocks', icon: 'monitor', label: 'Media Blocks' },
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
       { page: 'methodology', icon: 'activity', label: 'Methodology' },
@@ -1424,6 +1430,333 @@
   async function renderAboutCMS(container) { return renderManagedSection(container, { endpoint: 'about', label: 'About', icon: 'user' }); }
   async function renderContactCMS(container) { return renderManagedSection(container, { endpoint: 'contact', label: 'Contact', icon: 'mail' }); }
   async function renderFooterCMS(container) { return renderManagedSection(container, { endpoint: 'footer', label: 'Footer', icon: 'layout' }); }
+  function endpointToCacheKey(endpoint) { return endpoint === 'media-blocks' ? 'mediaBlocks' : endpoint; }
+
+  function advancedSectionConfig(type) {
+    if (type === 'quotes') {
+      return {
+        endpoint: 'quotes',
+        cacheKey: 'quotes',
+        label: 'Quotes',
+        icon: 'clipboard',
+        fields: [
+          { key: 'quoteText', label: 'Quote Text', textarea: true, required: true },
+          { key: 'author', label: 'Author' },
+          { key: 'role', label: 'Role' },
+          { key: 'orderIndex', label: 'Order', number: true },
+          { key: 'visible', label: 'Visible', checkbox: true }
+        ]
+      };
+    }
+    if (type === 'stats') {
+      return {
+        endpoint: 'stats',
+        cacheKey: 'stats',
+        label: 'Stats',
+        icon: 'activity',
+        fields: [
+          { key: 'label', label: 'Label', required: true },
+          { key: 'value', label: 'Value', number: true, required: true },
+          { key: 'icon', label: 'Icon' },
+          { key: 'animationType', label: 'Animation Type', select: ['count', 'static'] },
+          { key: 'orderIndex', label: 'Order', number: true },
+          { key: 'visible', label: 'Visible', checkbox: true }
+        ]
+      };
+    }
+    return {
+      endpoint: 'media-blocks',
+      cacheKey: 'mediaBlocks',
+      label: 'Media Blocks',
+      icon: 'monitor',
+      fields: [
+        { key: 'section', label: 'Section', required: true },
+        { key: 'type', label: 'Type', select: ['text', 'image', 'video', 'icon', 'stat', 'card', 'grid', 'timeline', 'cta', 'markdown', 'embed'], required: true },
+        { key: 'title', label: 'Title' },
+        { key: 'content', label: 'Content', textarea: true },
+        { key: 'mediaUrl', label: 'Media URL' },
+        { key: 'icon', label: 'Icon' },
+        { key: 'link', label: 'Link URL' },
+        { key: 'metadataJson', label: 'Metadata JSON', textarea: true, json: true },
+        { key: 'orderIndex', label: 'Order', number: true },
+        { key: 'visible', label: 'Visible', checkbox: true }
+      ]
+    };
+  }
+
+  function buildAdvancedForm(cfg, item) {
+    item = item || {};
+    return cfg.fields.map(function(f) {
+      var id = 'adv-' + f.key;
+      if (f.checkbox) {
+        var checked = item[f.key] !== false ? 'checked' : '';
+        return '<div class="form-group"><label class="form-check"><input type="checkbox" id="' + id + '" ' + checked + '> ' + escapeHtml(f.label) + '</label></div>';
+      }
+      if (f.select) {
+        var current = item[f.key] || f.select[0];
+        return '<div class="form-group"><label class="form-label">' + escapeHtml(f.label) + '</label><select class="form-input" id="' + id + '">' + f.select.map(function(opt) {
+          return '<option value="' + escapeHtml(opt) + '"' + (String(current) === opt ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>';
+        }).join('') + '</select></div>';
+      }
+      var val = item[f.key] != null ? item[f.key] : '';
+      if (f.json) val = JSON.stringify(val || {}, null, 2);
+      if (f.textarea) {
+        return '<div class="form-group"><label class="form-label">' + escapeHtml(f.label) + '</label><textarea class="form-input form-textarea" id="' + id + '">' + escapeHtml(String(val)) + '</textarea></div>';
+      }
+      return '<div class="form-group"><label class="form-label">' + escapeHtml(f.label) + '</label><input class="form-input" id="' + id + '" type="' + (f.number ? 'number' : 'text') + '" value="' + escapeHtml(String(val)) + '"></div>';
+    }).join('');
+  }
+
+  function collectAdvancedForm(cfg) {
+    var body = {};
+    cfg.fields.forEach(function(f) {
+      var el = document.getElementById('adv-' + f.key);
+      if (!el) return;
+      if (f.checkbox) {
+        body[f.key] = !!el.checked;
+        return;
+      }
+      var value = (el.value || '').trim();
+      if (f.required && !value) throw new Error(f.label + ' is required');
+      if (f.number) {
+        body[f.key] = value ? (parseInt(value, 10) || 0) : 0;
+        return;
+      }
+      if (f.json) {
+        body[f.key] = value ? JSON.parse(value) : {};
+        return;
+      }
+      body[f.key] = value;
+    });
+    return body;
+  }
+
+  function showAdvancedModal(cfg, item, onSave) {
+    var isEdit = !!item;
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">' + icon(isEdit ? 'edit' : 'plus', 18) + ' ' + (isEdit ? 'Edit' : 'Add') + ' ' + escapeHtml(cfg.label.slice(0, -1) || cfg.label) + '</h3>' +
+          '<button class="btn-icon modal-close">' + icon('x', 18) + '</button>' +
+        '</div>' +
+        '<div class="modal-body">' + buildAdvancedForm(cfg, item || {}) + '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="adv-save-btn">' + (isEdit ? 'Save' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+    backdrop.querySelector('.modal-close').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    trapFocus(backdrop);
+    enableModalInputScroll(backdrop);
+    document.getElementById('adv-save-btn').addEventListener('click', async function () {
+      var btn = this;
+      try {
+        var body = collectAdvancedForm(cfg);
+        setButtonLoading(btn, true, isEdit ? 'Saving...' : 'Creating...');
+        await onSave(body);
+        backdrop.remove();
+      } catch (e) {
+        setButtonLoading(btn, false);
+        showToast(e.message || 'Invalid form data', 'error');
+      }
+    });
+  }
+
+  async function renderAdvancedManager(container, type) {
+    var cfg = advancedSectionConfig(type);
+    var _searchTerm = '';
+    var _statusFilter = 'all';
+    var _page = 1;
+    var PER_PAGE = 15;
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon(cfg.icon, 22) + ' ' + cfg.label + '</h1><p class="page-subtitle">Manage ' + cfg.label.toLowerCase() + '</p></div>' +
+        '<div class="page-header-actions"><button class="btn btn-primary" id="add-adv-btn">' + icon('plus', 16) + ' Add</button></div>' +
+      '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="adv-search" placeholder="Search..." type="text"></div>' +
+          '<select class="form-input cms-filter" id="adv-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right"><button class="btn btn-sm btn-primary" id="save-adv-order" style="display:none">' + icon('check', 14) + ' Save Order</button><span class="cms-count" id="adv-count"></span></div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper" id="adv-list">' + skeleton('cards', 3) + '</div>' +
+      '<div id="adv-pagination"></div>';
+
+    var cacheKey = cfg.cacheKey || endpointToCacheKey(cfg.endpoint);
+    var items = _cache[cacheKey] || await api('/' + cfg.endpoint);
+    _cache[cacheKey] = items;
+    items.sort(function(a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+
+    function getFiltered() {
+      return items.filter(function(it) {
+        if (_statusFilter === 'visible' && it.visible === false) return false;
+        if (_statusFilter === 'hidden' && it.visible !== false) return false;
+        if (!_searchTerm) return true;
+        var term = _searchTerm.toLowerCase();
+        return (it.title || it.label || it.author || it.section || it.quoteText || '').toLowerCase().indexOf(term) !== -1 ||
+               (it.content || '').toLowerCase().indexOf(term) !== -1;
+      });
+    }
+
+    function markOrderDirty() {
+      var btn = document.getElementById('save-adv-order');
+      if (btn) btn.style.display = '';
+    }
+
+    function renderList() {
+      var listEl = document.getElementById('adv-list');
+      if (!listEl) return;
+      var filtered = getFiltered();
+      var countEl = document.getElementById('adv-count');
+      if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' items';
+      if (!filtered.length) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon(cfg.icon, 36) + '</div><p>No items found.</p></div>';
+        var pe = document.getElementById('adv-pagination');
+        if (pe) pe.innerHTML = '';
+        return;
+      }
+
+      var totalPages = Math.ceil(filtered.length / PER_PAGE);
+      if (_page > totalPages) _page = totalPages;
+      var start = (_page - 1) * PER_PAGE;
+      var pageItems = filtered.slice(start, start + PER_PAGE);
+
+      listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function(it) {
+        var title = it.title || it.label || it.author || it.section || 'Item';
+        var desc = it.quoteText || it.content || it.role || '';
+        return '<div class="item-card cms-mobile-card" data-id="' + it.id + '">' +
+          '<button class="overflow-menu-trigger" data-id="' + it.id + '" aria-label="Open actions">' + icon('menu', 16) + '</button>' +
+          '<div class="item-card-header">' +
+            '<span class="item-card-icon">' + icon(cfg.icon, 18) + '</span>' +
+            '<div class="item-card-meta"><h3 class="item-card-title">' + escapeHtml(title) + '</h3><p class="item-card-desc">' + escapeHtml((desc || '').substring(0, 120)) + '</p></div>' +
+            '<span class="badge ' + (it.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (it.visible !== false ? 'Visible' : 'Hidden') + '</span>' +
+          '</div>' +
+          '<div class="cms-mobile-card-footer" style="justify-content:space-between">' +
+            '<span>Order: <input type="number" class="cms-order-input" data-id="' + it.id + '" value="' + (it.orderIndex || 0) + '" min="0"></span>' +
+            '<div class="cms-actions">' +
+              '<button class="btn btn-sm btn-ghost view-adv" data-id="' + it.id + '">' + icon('eye', 14) + ' View</button>' +
+              '<button class="btn btn-sm btn-ghost edit-adv" data-id="' + it.id + '">' + icon('edit', 14) + ' Edit</button>' +
+              '<button class="btn btn-sm btn-danger delete-adv" data-id="' + it.id + '">' + icon('trash', 14) + ' Delete</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+
+      renderPagination('adv-pagination', _page, totalPages, filtered.length, 'item', function(pg) { _page = pg; renderList(); });
+
+      listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
+        inp.addEventListener('change', markOrderDirty);
+      });
+
+      listEl.querySelectorAll('.view-adv').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var it = items.find(function(x) { return x.id === btn.dataset.id; });
+          if (!it) return;
+          var details = Object.keys(it).filter(function(k) { return k !== 'id' && k !== 'tenantId' && k !== 'createdAt' && k !== 'updatedAt'; }).map(function(k) {
+            return { label: k, value: typeof it[k] === 'object' ? JSON.stringify(it[k]) : String(it[k] || '\u2014') };
+          });
+          showDetailModal(cfg.label + ' Details', details);
+        });
+      });
+
+      listEl.querySelectorAll('.edit-adv').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var it = items.find(function(x) { return x.id === btn.dataset.id; });
+          if (!it) return;
+          showAdvancedModal(cfg, it, async function(body) {
+            await api('/' + cfg.endpoint + '/' + it.id, { method: 'PUT', body: JSON.stringify(body) });
+            invalidateCache(cacheKey);
+            renderAdvancedManager(container, type);
+            showToast(cfg.label.slice(0, -1) + ' updated');
+          });
+        });
+      });
+
+      listEl.querySelectorAll('.delete-adv').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var ok = await customConfirm('Delete this item?', { title: 'Delete', type: 'danger' });
+          if (!ok) return;
+          await api('/' + cfg.endpoint + '/' + btn.dataset.id, { method: 'DELETE' });
+          invalidateCache(cacheKey);
+          renderAdvancedManager(container, type);
+          showToast('Item deleted');
+        });
+      });
+
+      listEl.querySelectorAll('.overflow-menu-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          var it = items.find(function(x) { return x.id === btn.dataset.id; });
+          if (!it) return;
+          showOverflowMenu(btn, [
+            { label: 'View', icon: 'eye', action: function() { btn.closest('.item-card').querySelector('.view-adv').click(); } },
+            { label: it.visible !== false ? 'Hide' : 'Show', icon: it.visible !== false ? 'eye-off' : 'eye', action: async function() {
+              await api('/' + cfg.endpoint + '/' + it.id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(it.visible !== false) }) });
+              invalidateCache(cacheKey);
+              renderAdvancedManager(container, type);
+            } },
+            { label: 'Edit', icon: 'edit', action: function() { btn.closest('.item-card').querySelector('.edit-adv').click(); } },
+            { label: 'Delete', icon: 'trash', danger: true, action: async function() {
+              await api('/' + cfg.endpoint + '/' + it.id, { method: 'DELETE' });
+              invalidateCache(cacheKey);
+              renderAdvancedManager(container, type);
+            } }
+          ]);
+        });
+      });
+    }
+
+    document.getElementById('add-adv-btn').addEventListener('click', function() {
+      showAdvancedModal(cfg, null, async function(body) {
+        await api('/' + cfg.endpoint, { method: 'POST', body: JSON.stringify(body) });
+        invalidateCache(cacheKey);
+        renderAdvancedManager(container, type);
+        showToast(cfg.label.slice(0, -1) + ' created');
+      });
+    });
+    document.getElementById('adv-search').addEventListener('input', function(e) {
+      _searchTerm = e.target.value.trim();
+      _page = 1;
+      renderList();
+    });
+    document.getElementById('adv-status-filter').addEventListener('change', function(e) {
+      _statusFilter = e.target.value;
+      _page = 1;
+      renderList();
+    });
+    document.getElementById('save-adv-order').addEventListener('click', async function() {
+      var btn = this;
+      var payload = [];
+      var seen = {};
+      document.querySelectorAll('#adv-list .cms-order-input').forEach(function(inp) {
+        if (seen[inp.dataset.id]) return;
+        seen[inp.dataset.id] = true;
+        payload.push({ id: inp.dataset.id, orderIndex: parseInt(inp.value, 10) || 0 });
+      });
+      payload.sort(function(a, b) { return a.orderIndex - b.orderIndex; });
+      payload.forEach(function(p, idx) { p.orderIndex = idx + 1; });
+      setButtonLoading(btn, true, 'Saving...');
+      await api('/' + cfg.endpoint + '/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
+      invalidateCache(cacheKey);
+      renderAdvancedManager(container, type);
+      showToast('Order updated');
+    });
+
+    renderList();
+  }
+
+  async function renderQuotes(container) { return renderAdvancedManager(container, 'quotes'); }
+  async function renderStats(container) { return renderAdvancedManager(container, 'stats'); }
+  async function renderMediaBlocks(container) { return renderAdvancedManager(container, 'media-blocks'); }
 
   /* ═══════════════════════════════════════════
      PROJECTS PAGE

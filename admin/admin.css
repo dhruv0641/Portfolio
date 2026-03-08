@@ -2686,7 +2686,8 @@ body.menu-open {
   flex-shrink: 0;
   position: absolute;
   top: var(--sp-4);
-  right: var(--sp-4);
+  left: var(--sp-4);
+  right: auto;
   z-index: 2;
 }
 
@@ -2697,6 +2698,10 @@ body.menu-open {
 }
 
 .cms-mobile-card .expertise-overflow-btn + .cms-mobile-card-header {
+  padding-left: 48px;
+}
+
+.cms-mobile-card .overflow-menu-trigger + .cms-mobile-card-header {
   padding-left: 48px;
 }
 
