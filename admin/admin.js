@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null, quotes: null, stats: null, mediaBlocks: null };
+  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null, quotes: null, stats: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; _cache.quotes = null; _cache.stats = null; _cache.mediaBlocks = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; _cache.quotes = null; _cache.stats = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -466,7 +466,7 @@
 
   function getPageFromHash() {
     var hash = window.location.hash.replace('#', '');
-    var valid = ['dashboard', 'hero', 'about', 'contact', 'footer', 'quotes', 'stats', 'media-blocks', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
+    var valid = ['dashboard', 'hero', 'about', 'contact', 'footer', 'quotes', 'stats', 'projects', 'services', 'methodology', 'expertise', 'tools', 'certificates', 'messages', 'audit', 'settings', 'customize'];
     return valid.indexOf(hash) !== -1 ? hash : 'dashboard';
   }
 
@@ -529,7 +529,6 @@
       case 'footer': renderFooterCMS(pageContent); break;
       case 'quotes': renderQuotes(pageContent); break;
       case 'stats': renderStats(pageContent); break;
-      case 'media-blocks': renderMediaBlocks(pageContent); break;
       case 'projects':  renderProjectsInline(pageContent); break;
       case 'services':  renderServicesInline(pageContent); break;
       case 'methodology': renderMethodologyInline(pageContent); break;
@@ -555,7 +554,7 @@
   }
 
   function updateTopbar() {
-    var names = { dashboard: 'Dashboard', hero: 'Hero', about: 'About', contact: 'Contact', footer: 'Footer', quotes: 'Quotes', stats: 'Stats', 'media-blocks': 'Media Blocks', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
+    var names = { dashboard: 'Dashboard', hero: 'Hero', about: 'About', contact: 'Contact', footer: 'Footer', quotes: 'Quotes', stats: 'Stats', projects: 'Projects', services: 'Services', methodology: 'Methodology', expertise: 'Expertise', tools: 'Tools', certificates: 'Certificates', messages: 'Messages', audit: 'Audit Log', settings: 'Settings', customize: 'Customize' };
     var title = names[currentPage] || 'Dashboard';
     var el = document.getElementById('topbar-title');
     if (el) el.textContent = title;
@@ -1041,7 +1040,6 @@
       { page: 'footer', icon: 'layout', label: 'Footer' },
       { page: 'quotes', icon: 'clipboard', label: 'Quotes' },
       { page: 'stats', icon: 'activity', label: 'Stats' },
-      { page: 'media-blocks', icon: 'monitor', label: 'Media Blocks' },
       { page: 'projects',  icon: 'shield-check', label: 'Projects' },
       { page: 'services',  icon: 'server', label: 'Services' },
       { page: 'methodology', icon: 'activity', label: 'Methodology' },
@@ -1430,7 +1428,7 @@
   async function renderAboutCMS(container) { return renderManagedSection(container, { endpoint: 'about', label: 'About', icon: 'user' }); }
   async function renderContactCMS(container) { return renderManagedSection(container, { endpoint: 'contact', label: 'Contact', icon: 'mail' }); }
   async function renderFooterCMS(container) { return renderManagedSection(container, { endpoint: 'footer', label: 'Footer', icon: 'layout' }); }
-  function endpointToCacheKey(endpoint) { return endpoint === 'media-blocks' ? 'mediaBlocks' : endpoint; }
+  function endpointToCacheKey(endpoint) { return endpoint; }
 
   function advancedSectionConfig(type) {
     if (type === 'quotes') {
@@ -1464,24 +1462,7 @@
         ]
       };
     }
-    return {
-      endpoint: 'media-blocks',
-      cacheKey: 'mediaBlocks',
-      label: 'Media Blocks',
-      icon: 'monitor',
-      fields: [
-        { key: 'section', label: 'Section', required: true },
-        { key: 'type', label: 'Type', select: ['text', 'image', 'video', 'icon', 'stat', 'card', 'grid', 'timeline', 'cta', 'markdown', 'embed'], required: true },
-        { key: 'title', label: 'Title' },
-        { key: 'content', label: 'Content', textarea: true },
-        { key: 'mediaUrl', label: 'Media URL' },
-        { key: 'icon', label: 'Icon' },
-        { key: 'link', label: 'Link URL' },
-        { key: 'metadataJson', label: 'Metadata JSON', textarea: true, json: true },
-        { key: 'orderIndex', label: 'Order', number: true },
-        { key: 'visible', label: 'Visible', checkbox: true }
-      ]
-    };
+    return null;
   }
 
   function buildAdvancedForm(cfg, item) {
@@ -1809,7 +1790,6 @@
 
   async function renderQuotes(container) { return renderAdvancedManager(container, 'quotes'); }
   async function renderStats(container) { return renderAdvancedManager(container, 'stats'); }
-  async function renderMediaBlocks(container) { return renderAdvancedManager(container, 'media-blocks'); }
 
   function inlineConfigFor(section) {
     if (section === 'projects') {

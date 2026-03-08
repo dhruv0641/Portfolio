@@ -125,7 +125,7 @@ const footerCreateSchema = z.object({
 const footerUpdateSchema = footerCreateSchema.partial();
 
 // ═══════════════════════════════════════════
-// QUOTES / STATS / MEDIA BLOCKS SCHEMAS
+// QUOTES / STATS SCHEMAS
 // ═══════════════════════════════════════════
 const quoteCreateSchema = z.object({
   quoteText: safeString.pipe(z.string().min(1, 'Quote text is required').max(3000)),
@@ -147,21 +147,6 @@ const statCreateSchema = z.object({
   tenantId: z.string().optional(),
 });
 const statUpdateSchema = statCreateSchema.partial();
-
-const mediaBlockCreateSchema = z.object({
-  section: safeString.pipe(z.string().min(1, 'Section is required').max(120)),
-  type: z.enum(['text', 'image', 'video', 'icon', 'stat', 'card', 'grid', 'timeline', 'cta', 'markdown', 'embed']),
-  title: safeString.pipe(z.string().max(300)).optional().default(''),
-  content: safeString.pipe(z.string().max(10000)).optional().default(''),
-  mediaUrl: z.string().max(2000).optional().default(''),
-  icon: z.string().max(50).optional().default(''),
-  link: z.string().max(2000).optional().default(''),
-  metadataJson: z.record(z.string(), z.any()).optional().default({}),
-  visible: z.boolean().optional().default(true),
-  orderIndex: z.number().int().min(0).optional().default(0),
-  tenantId: z.string().optional(),
-});
-const mediaBlockUpdateSchema = mediaBlockCreateSchema.partial();
 
 // ═══════════════════════════════════════════
 // METHODOLOGY SCHEMAS
@@ -512,8 +497,6 @@ module.exports = {
   quoteUpdateSchema,
   statCreateSchema,
   statUpdateSchema,
-  mediaBlockCreateSchema,
-  mediaBlockUpdateSchema,
   methodologyCreateSchema,
   methodologyUpdateSchema,
   expertiseCreateSchema,

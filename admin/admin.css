@@ -2705,7 +2705,7 @@ body.menu-open {
   padding-left: 48px;
 }
 
-/* Inline layout editing for quotes/stats/media blocks */
+/* Inline layout editing for content cards */
 .adv-inline-wrap {
   padding: var(--sp-4);
 }

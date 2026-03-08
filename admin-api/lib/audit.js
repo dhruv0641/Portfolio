@@ -60,11 +60,6 @@ const AuditAction = {
   STAT_UPDATE: 'stat.update',
   STAT_DELETE: 'stat.delete',
   STAT_REORDER: 'stat.reorder',
-
-  MEDIA_BLOCK_CREATE: 'media_block.create',
-  MEDIA_BLOCK_UPDATE: 'media_block.update',
-  MEDIA_BLOCK_DELETE: 'media_block.delete',
-  MEDIA_BLOCK_REORDER: 'media_block.reorder',
 };
 
 async function readAuditLogs() {
