@@ -901,37 +901,6 @@
       });
   }
 
-  function renderMediaBlock(block, index) {
-    var title = block.title ? '<h3 class="service-name">' + escapeHTML(block.title) + '</h3>' : '';
-    var content = block.content ? '<p class="service-desc">' + escapeHTML(block.content) + '</p>' : '';
-    var iconHtml = block.icon ? '<div class="service-icon" aria-hidden="true">' + feIcon(block.icon, 22) + '</div>' : '';
-    var media = '';
-    if (block.type === 'image' && block.mediaUrl) {
-      media = '<img src="' + escapeHTML(block.mediaUrl) + '" alt="' + escapeHTML(block.title || 'Media') + '" style="width:100%;border-radius:var(--r-md);margin-bottom:12px;object-fit:cover;">';
-    } else if ((block.type === 'video' || block.type === 'embed') && block.mediaUrl) {
-      media = '<iframe src="' + escapeHTML(block.mediaUrl) + '" title="' + escapeHTML(block.title || 'Embedded media') + '" loading="lazy" style="width:100%;min-height:220px;border:0;border-radius:var(--r-md);margin-bottom:12px;"></iframe>';
-    }
-    var link = block.link
-      ? '<a href="' + escapeHTML(block.link) + '" class="project-link" target="_blank" rel="noopener noreferrer">Open</a>'
-      : '';
-    return '<article class="service-card tilt-card reveal reveal-delay-' + ((index % 3) + 1) + '">'
-      + iconHtml + media + title + content + link
-      + '</article>';
-  }
-
-  function loadMediaBlocks() {
-    var section = qs('#media-blocks');
-    var container = qs('#media-blocks-container');
-    if (!section || !container) return;
-    fetchCollection('/api/media-blocks?visible=true', { orderKey: 'orderIndex', visibleKey: 'visible' })
-      .then(function (items) {
-        if (!items || !items.length) return;
-        section.style.display = '';
-        container.innerHTML = items.map(renderMediaBlock).join('');
-        initReveals();
-        initTiltCards();
-      });
-  }
 
   function loadExpertise() {
     var container = qs('#expertise-container');
@@ -1099,7 +1068,6 @@
     loadManagedContent();
     loadQuote();
     loadStats();
-    loadMediaBlocks();
     initCharReveal();
     initHeroReveals();
     typeLoop();
