@@ -95,12 +95,28 @@ const heroCreateSchema = z.object({
 const heroUpdateSchema = heroCreateSchema.partial();
 
 const aboutCreateSchema = z.object({
-  heading: safeString.pipe(z.string().min(1, 'Heading is required').max(300)),
+  heading: safeString.pipe(z.string().max(300)).optional().default(''),
+  title: safeString.pipe(z.string().max(300)).optional().default(''),
+  subtitle: safeString.pipe(z.string().max(300)).optional().default(''),
+  label: safeString.pipe(z.string().max(100)).optional().default(''),
+  iconType: z.enum(['default', 'svg', 'image', 'emoji']).optional().default('default'),
+  iconImage: z.string().max(2000).optional().default(''),
+  iconSvg: z.string().max(20000).optional().default(''),
+  iconEmoji: z.string().max(20).optional().default(''),
   description1: safeString.pipe(z.string().max(3000)).optional().default(''),
   description2: safeString.pipe(z.string().max(3000)).optional().default(''),
   tenantId: z.string().optional(),
 });
 const aboutUpdateSchema = aboutCreateSchema.partial();
+
+const aboutTagCreateSchema = z.object({
+  tagName: safeString.pipe(z.string().min(1, 'Tag name is required').max(120)),
+  icon: safeString.pipe(z.string().max(80)).optional().default(''),
+  orderIndex: z.number().int().min(0).optional().default(0),
+  visible: z.boolean().optional().default(true),
+  tenantId: z.string().optional(),
+});
+const aboutTagUpdateSchema = aboutTagCreateSchema.partial();
 
 const contactCreateSchema = z.object({
   email: emailSchema.optional().or(z.literal('')).default(''),
@@ -489,6 +505,8 @@ module.exports = {
   heroUpdateSchema,
   aboutCreateSchema,
   aboutUpdateSchema,
+  aboutTagCreateSchema,
+  aboutTagUpdateSchema,
   contactCreateSchema,
   contactUpdateSchema,
   footerCreateSchema,

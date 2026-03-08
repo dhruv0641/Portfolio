@@ -234,10 +234,10 @@
   /* ═══════════════════════════════════════════
      DATA CACHE
      ═══════════════════════════════════════════ */
-  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, contact: null, footer: null, quotes: null, stats: null };
+  var _cache = { projects: null, services: null, methodology: null, expertise: null, tools: null, certificates: null, messages: null, hero: null, about: null, aboutTags: null, contact: null, footer: null, quotes: null, stats: null };
   function invalidateCache(key) {
     if (key) _cache[key] = null;
-    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.contact = null; _cache.footer = null; _cache.quotes = null; _cache.stats = null; }
+    else { _cache.projects = null; _cache.services = null; _cache.methodology = null; _cache.expertise = null; _cache.tools = null; _cache.certificates = null; _cache.messages = null; _cache.hero = null; _cache.about = null; _cache.aboutTags = null; _cache.contact = null; _cache.footer = null; _cache.quotes = null; _cache.stats = null; }
   }
 
   /* ═══════════════════════════════════════════
@@ -1425,7 +1425,204 @@
   }
 
   async function renderHeroCMS(container) { return renderManagedSection(container, { endpoint: 'hero', label: 'Hero', icon: 'zap' }); }
-  async function renderAboutCMS(container) { return renderManagedSection(container, { endpoint: 'about', label: 'About', icon: 'user' }); }
+  async function renderAboutCMS(container) {
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon('user', 22) + ' About Section</h1><p class="page-subtitle">Edit icon, title, descriptions, and expertise tags</p></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="card-header"><h3 class="card-title">' + icon('edit', 18) + ' About Content</h3></div>' +
+        '<div class="card-body">' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Label</label><input class="form-input" id="about-label"></div>' +
+            '<div class="form-group"><label class="form-label">Subtitle</label><input class="form-input" id="about-subtitle"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="about-title"></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Icon Type</label><select class="form-input" id="about-icon-type"><option value="default">Default Shield</option><option value="emoji">Emoji</option><option value="image">Image URL</option><option value="svg">SVG Markup</option></select></div>' +
+            '<div class="form-group"><label class="form-label">Icon Emoji</label><input class="form-input" id="about-icon-emoji" placeholder="🛡️"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Icon Image URL</label><input class="form-input" id="about-icon-image" placeholder="https://..."></div>' +
+          '<div class="form-group"><label class="form-label">Icon SVG</label><textarea class="form-input form-textarea" id="about-icon-svg" placeholder="<svg ...>"></textarea></div>' +
+          '<div class="form-group"><label class="form-label">Description 1</label><textarea class="form-input form-textarea" id="about-desc-1"></textarea></div>' +
+          '<div class="form-group"><label class="form-label">Description 2</label><textarea class="form-input form-textarea" id="about-desc-2"></textarea></div>' +
+          '<button class="btn btn-primary" id="save-about-section">' + icon('check', 16) + ' Save About</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card" style="margin-top:var(--sp-4)">' +
+        '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<h3 class="card-title">' + icon('target', 18) + ' Expertise Tags</h3>' +
+          '<button class="btn btn-primary btn-sm" id="add-about-tag">' + icon('plus', 14) + ' Add Tag</button>' +
+        '</div>' +
+        '<div class="card-body"><div class="adv-inline-grid" id="about-tags-list">' + skeleton('cards', 3) + '</div><div style="margin-top:12px"><button class="btn btn-sm btn-primary" id="save-about-tags-order" style="display:none">' + icon('check', 14) + ' Save Tag Order</button></div></div>' +
+      '</div>';
+
+    var aboutResp = _cache.about || await api('/about');
+    _cache.about = aboutResp;
+    var section = (aboutResp && aboutResp.section) || null;
+    var tags = (aboutResp && aboutResp.expertiseTags) || _cache.aboutTags || [];
+    _cache.aboutTags = tags;
+
+    if (section) {
+      document.getElementById('about-label').value = section.label || '';
+      document.getElementById('about-subtitle').value = section.subtitle || '';
+      document.getElementById('about-title').value = section.title || section.heading || '';
+      document.getElementById('about-icon-type').value = section.iconType || 'default';
+      document.getElementById('about-icon-emoji').value = section.iconEmoji || '';
+      document.getElementById('about-icon-image').value = section.iconImage || '';
+      document.getElementById('about-icon-svg').value = section.iconSvg || '';
+      document.getElementById('about-desc-1').value = section.description1 || '';
+      document.getElementById('about-desc-2').value = section.description2 || '';
+    }
+
+    function renderTags() {
+      var wrap = document.getElementById('about-tags-list');
+      if (!wrap) return;
+      if (!tags.length) {
+        wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('tag', 30) + '</div><p>No tags yet.</p></div>';
+        return;
+      }
+      tags.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+      wrap.innerHTML = tags.map(function (t) {
+        return '<article class="adv-inline-card" data-id="' + t.id + '">' +
+          '<div class="adv-inline-meta"><span class="badge ' + (t.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (t.visible !== false ? 'Visible' : 'Hidden') + '</span><span>' + escapeHtml(t.id) + '</span></div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Tag Name</label><input class="form-input tag-name" data-id="' + t.id + '" value="' + escapeHtml(t.tagName || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Icon</label><input class="form-input tag-icon" data-id="' + t.id + '" value="' + escapeHtml(t.icon || '') + '"></div>' +
+          '</div>' +
+          '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Order</label><input type="number" class="form-input tag-order" data-id="' + t.id + '" value="' + (t.orderIndex || 0) + '" min="0"></div>' +
+            '<div class="form-group"><label class="form-check"><input type="checkbox" class="tag-visible" data-id="' + t.id + '" ' + (t.visible !== false ? 'checked' : '') + '> Visible</label></div>' +
+          '</div>' +
+          '<div class="adv-inline-actions">' +
+            '<button class="btn btn-sm btn-primary save-tag" data-id="' + t.id + '">' + icon('check', 14) + ' Save</button>' +
+            '<button class="btn btn-sm btn-ghost toggle-tag" data-id="' + t.id + '">' + icon('eye', 14) + ' Toggle</button>' +
+            '<button class="btn btn-sm btn-ghost up-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Up</button>' +
+            '<button class="btn btn-sm btn-ghost down-tag" data-id="' + t.id + '">' + icon('chevron-down', 14) + ' Down</button>' +
+            '<button class="btn btn-sm btn-danger delete-tag" data-id="' + t.id + '">' + icon('trash', 14) + ' Delete</button>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+
+      wrap.querySelectorAll('.tag-order').forEach(function (el) {
+        el.addEventListener('change', function () {
+          var btn = document.getElementById('save-about-tags-order');
+          if (btn) btn.style.display = '';
+        });
+      });
+
+      wrap.querySelectorAll('.save-tag').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var id = btn.dataset.id;
+          var body = {
+            tagName: (wrap.querySelector('.tag-name[data-id="' + id + '"]').value || '').trim(),
+            icon: (wrap.querySelector('.tag-icon[data-id="' + id + '"]').value || '').trim(),
+            orderIndex: parseInt((wrap.querySelector('.tag-order[data-id="' + id + '"]').value || '0'), 10) || 0,
+            visible: !!wrap.querySelector('.tag-visible[data-id="' + id + '"]').checked,
+          };
+          if (!body.tagName) { showToast('Tag name is required', 'error'); return; }
+          await api('/about/tags/' + id, { method: 'PUT', body: JSON.stringify(body) });
+          invalidateCache('about');
+          invalidateCache('aboutTags');
+          renderAboutCMS(container);
+          showToast('Tag saved');
+        });
+      });
+
+      wrap.querySelectorAll('.toggle-tag').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var id = btn.dataset.id;
+          var t = tags.find(function (x) { return x.id === id; });
+          if (!t) return;
+          await api('/about/tags/' + id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(t.visible !== false) }) });
+          invalidateCache('about');
+          invalidateCache('aboutTags');
+          renderAboutCMS(container);
+        });
+      });
+
+      wrap.querySelectorAll('.delete-tag').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var ok = await customConfirm('Delete this tag?', { title: 'Delete Tag', type: 'danger' });
+          if (!ok) return;
+          await api('/about/tags/' + btn.dataset.id, { method: 'DELETE' });
+          invalidateCache('about');
+          invalidateCache('aboutTags');
+          renderAboutCMS(container);
+          showToast('Tag deleted');
+        });
+      });
+
+      function swap(id, delta) {
+        tags.sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+        var idx = tags.findIndex(function (x) { return x.id === id; });
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= tags.length) return;
+        var a = tags[idx], b = tags[target];
+        var temp = a.orderIndex || 0;
+        a.orderIndex = b.orderIndex || 0;
+        b.orderIndex = temp;
+        var saveBtn = document.getElementById('save-about-tags-order');
+        if (saveBtn) saveBtn.style.display = '';
+        renderTags();
+      }
+      wrap.querySelectorAll('.up-tag').forEach(function (btn) {
+        btn.addEventListener('click', function () { swap(btn.dataset.id, -1); });
+      });
+      wrap.querySelectorAll('.down-tag').forEach(function (btn) {
+        btn.addEventListener('click', function () { swap(btn.dataset.id, 1); });
+      });
+    }
+
+    renderTags();
+
+    document.getElementById('save-about-section').addEventListener('click', async function () {
+      var btn = this;
+      var body = {
+        label: document.getElementById('about-label').value.trim(),
+        subtitle: document.getElementById('about-subtitle').value.trim(),
+        title: document.getElementById('about-title').value.trim(),
+        heading: document.getElementById('about-title').value.trim(),
+        iconType: document.getElementById('about-icon-type').value,
+        iconEmoji: document.getElementById('about-icon-emoji').value.trim(),
+        iconImage: document.getElementById('about-icon-image').value.trim(),
+        iconSvg: document.getElementById('about-icon-svg').value.trim(),
+        description1: document.getElementById('about-desc-1').value.trim(),
+        description2: document.getElementById('about-desc-2').value.trim(),
+      };
+      setButtonLoading(btn, true, 'Saving...');
+      try {
+        await api('/about', { method: 'PUT', body: JSON.stringify(body) });
+        invalidateCache('about');
+        renderAboutCMS(container);
+        showToast('About section updated');
+      } catch (err) {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    document.getElementById('add-about-tag').addEventListener('click', async function () {
+      var nextOrder = tags.length ? Math.max.apply(null, tags.map(function (x) { return x.orderIndex || 0; })) + 1 : 1;
+      await api('/about/tags', { method: 'POST', body: JSON.stringify({ tagName: 'New Tag', icon: '', orderIndex: nextOrder, visible: true }) });
+      invalidateCache('about');
+      invalidateCache('aboutTags');
+      renderAboutCMS(container);
+      showToast('Tag added');
+    });
+
+    document.getElementById('save-about-tags-order').addEventListener('click', async function () {
+      var btn = this;
+      var payload = tags.slice().sort(function (a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); }).map(function (t, idx) {
+        return { id: t.id, orderIndex: idx + 1 };
+      });
+      setButtonLoading(btn, true, 'Saving...');
+      await api('/about/tags/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
+      invalidateCache('about');
+      invalidateCache('aboutTags');
+      renderAboutCMS(container);
+      showToast('Tag order updated');
+    });
+  }
   async function renderContactCMS(container) { return renderManagedSection(container, { endpoint: 'contact', label: 'Contact', icon: 'mail' }); }
   async function renderFooterCMS(container) { return renderManagedSection(container, { endpoint: 'footer', label: 'Footer', icon: 'layout' }); }
   function endpointToCacheKey(endpoint) { return endpoint; }

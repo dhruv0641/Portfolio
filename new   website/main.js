@@ -815,15 +815,43 @@
       .catch(function () { /* keep defaults */ });
 
     fetch('/api/about', { cache: 'no-store' })
-      .then(function (res) { return res.ok ? res.json() : []; })
-      .then(function (items) {
-        var a = (items && items[0]) || null;
-        if (!a) return;
-        var heading = qs('#about-heading');
-        if (heading && a.heading) heading.textContent = a.heading;
-        var descs = qsa('.about-desc');
-        if (descs[0] && a.description1) descs[0].textContent = a.description1;
-        if (descs[1] && a.description2) descs[1].textContent = a.description2;
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (payload) {
+        if (!payload) return;
+        var a = payload.section || (Array.isArray(payload) ? payload[0] : null);
+        if (a) {
+          var labelEl = qs('.about-right .section-label');
+          if (labelEl && (a.label || a.subtitle)) labelEl.textContent = a.label || a.subtitle;
+          var heading = qs('#about-heading');
+          if (heading && (a.title || a.heading)) heading.textContent = a.title || a.heading;
+          var descs = qsa('.about-desc');
+          if (descs[0] && a.description1) descs[0].textContent = a.description1;
+          if (descs[1] && a.description2) descs[1].textContent = a.description2;
+
+          var avatar = qs('.about-avatar');
+          if (avatar) {
+            if (a.iconType === 'image' && a.iconImage) {
+              avatar.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div><img src="' + esc(a.iconImage) + '" alt="About icon" style="width:80px;height:80px;object-fit:contain;border-radius:12px;">';
+            } else if (a.iconType === 'emoji' && a.iconEmoji) {
+              avatar.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div><span style="font-size:52px;line-height:1">' + esc(a.iconEmoji) + '</span>';
+            } else if (a.iconType === 'svg' && a.iconSvg) {
+              avatar.innerHTML = '<div class="about-avatar-ring" aria-hidden="true"></div>' + a.iconSvg;
+            }
+          }
+        }
+
+        if (payload.expertiseTags && Array.isArray(payload.expertiseTags)) {
+          var tagsWrap = qs('.about-tech-stack');
+          if (tagsWrap && payload.expertiseTags.length) {
+            tagsWrap.innerHTML = payload.expertiseTags
+              .filter(function (t) { return t.visible !== false; })
+              .sort(function (x, y) { return (x.orderIndex || 0) - (y.orderIndex || 0); })
+              .map(function (t) {
+                var text = (t.icon ? (esc(t.icon) + ' ') : '') + esc(t.tagName || '');
+                return '<span class="tech-tag">' + text + '</span>';
+              }).join('');
+          }
+        }
       })
       .catch(function () { /* keep defaults */ });
 

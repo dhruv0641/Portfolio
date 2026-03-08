@@ -17,6 +17,7 @@ let pool = null;
 const COLLECTION_TABLES = {
   hero: 'hero',
   about: 'about',
+  aboutTags: 'about_tags',
   contact: 'contact',
   footer: 'footer',
   quotes: 'quotes',
@@ -166,6 +167,13 @@ async function createSchema() {
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS about_tags (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS contact (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
@@ -261,6 +269,7 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_hero_tenant ON hero(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_about_tenant ON about(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_about_tags_tenant ON about_tags(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_contact_tenant ON contact(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_footer_tenant ON footer(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_quotes_tenant ON quotes(tenant_id);
@@ -406,6 +415,8 @@ async function runInitialMigrationIfNeeded() {
     await migrateCollection('projects.json', 'projects', client);
     await migrateCollection('hero.json', 'hero', client);
     await migrateCollection('about.json', 'about', client);
+    await migrateCollection('about_tags.json', 'about_tags', client);
+    await migrateCollection('aboutTags.json', 'about_tags', client);
     await migrateCollection('contact.json', 'contact', client);
     await migrateCollection('footer.json', 'footer', client);
     await migrateCollection('quotes.json', 'quotes', client);
@@ -776,6 +787,7 @@ module.exports = {
 
   hero: new Repository(COLLECTION_TABLES.hero),
   about: new Repository(COLLECTION_TABLES.about),
+  aboutTags: new Repository(COLLECTION_TABLES.aboutTags),
   contact: new Repository(COLLECTION_TABLES.contact),
   footer: new Repository(COLLECTION_TABLES.footer),
   quotes: new Repository(COLLECTION_TABLES.quotes),
