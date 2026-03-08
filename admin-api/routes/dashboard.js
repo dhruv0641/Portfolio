@@ -63,4 +63,19 @@ router.get('/audit-logs', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
+// GET /api/dashboard/content-versions — Auth required
+router.get('/content-versions', authenticate, asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit || '200', 10);
+  const tableName = String(req.query.table || '').trim();
+  const entityId = String(req.query.entityId || '').trim();
+  const items = await db.contentVersions.list(limit, tableName, entityId);
+  res.json({
+    total: items.length,
+    limit,
+    table: tableName || null,
+    entityId: entityId || null,
+    items,
+  });
+}));
+
 module.exports = router;

@@ -257,6 +257,14 @@ async function createSchema() {
       details JSONB,
       request_id TEXT
     );
+    CREATE TABLE IF NOT EXISTS content_versions (
+      id TEXT PRIMARY KEY,
+      timestamp TIMESTAMPTZ NOT NULL,
+      table_name TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      payload JSONB
+    );
 
     CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_hero_tenant ON hero(tenant_id);
@@ -275,6 +283,8 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_customize_history_ts ON customize_history(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_ts ON audit_logs(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_content_versions_ts ON content_versions(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_content_versions_table_entity ON content_versions(table_name, entity_id);
   `);
 }
 
@@ -468,6 +478,29 @@ class Repository {
     this.tableName = tableName;
   }
 
+  async recordVersion(entityId, operation, payload) {
+    try {
+      await pool.query(
+        `INSERT INTO content_versions (id, timestamp, table_name, entity_id, operation, payload)
+         VALUES ($1, $2::timestamptz, $3, $4, $5, $6::jsonb)`,
+        [
+          crypto.randomUUID(),
+          new Date().toISOString(),
+          this.tableName,
+          entityId,
+          operation,
+          JSON.stringify(payload || null),
+        ]
+      );
+      await pool.query(
+        `DELETE FROM content_versions
+         WHERE id NOT IN (SELECT id FROM content_versions ORDER BY timestamp DESC LIMIT 50000)`
+      );
+    } catch (err) {
+      logger.error('Failed to record content version', { table: this.tableName, entityId, operation, error: err.message });
+    }
+  }
+
   async getAll(tenantId = null) {
     const q = tenantId
       ? `${baseSelect(this.tableName)} WHERE tenant_id = $1`
@@ -503,7 +536,9 @@ class Repository {
        RETURNING id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [id, rowTenantId, JSON.stringify(data), createdAt, updatedAt]
     );
-    return toEntity(rows[0]);
+    const entity = toEntity(rows[0]);
+    await this.recordVersion(entity.id, 'create', entity);
+    return entity;
   }
 
   async update(id, updates, tenantId = null) {
@@ -530,15 +565,21 @@ class Repository {
        RETURNING id, tenant_id AS "tenantId", data, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [JSON.stringify(data), merged.updatedAt, id]
     );
-    return toEntity(rows[0]);
+    const entity = toEntity(rows[0]);
+    await this.recordVersion(id, 'update', { before: current, after: entity });
+    return entity;
   }
 
   async delete(id, tenantId = null) {
+    const existing = await this.getById(id, tenantId);
     const q = tenantId
       ? `DELETE FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`
       : `DELETE FROM ${this.tableName} WHERE id = $1`;
     const vals = tenantId ? [id, tenantId] : [id];
     const result = await pool.query(q, vals);
+    if (result.rowCount > 0) {
+      await this.recordVersion(id, 'delete', existing || null);
+    }
     return result.rowCount > 0;
   }
 
@@ -707,6 +748,37 @@ const systemState = {
   },
 };
 
+const contentVersions = {
+  async list(limit = 200, tableName = '', entityId = '') {
+    const lim = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 1000);
+    const where = [];
+    const vals = [];
+    if (tableName) {
+      vals.push(tableName);
+      where.push(`table_name = $${vals.length}`);
+    }
+    if (entityId) {
+      vals.push(entityId);
+      where.push(`entity_id = $${vals.length}`);
+    }
+    vals.push(lim);
+    const filter = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const { rows } = await pool.query(
+      `SELECT id, timestamp, table_name AS "tableName", entity_id AS "entityId", operation, payload
+       FROM content_versions
+       ${filter}
+       ORDER BY timestamp DESC
+       LIMIT $${vals.length}`,
+      vals
+    );
+    return rows.map((r) => ({
+      ...r,
+      timestamp: toIso(r.timestamp),
+      payload: parseJsonMaybe(r.payload, null),
+    }));
+  },
+};
+
 module.exports = {
   initDatabase,
   closeDatabase,
@@ -734,6 +806,7 @@ module.exports = {
 
   customizeHistory,
   auditLogs,
+  contentVersions,
   systemState,
 
   readJSON,
