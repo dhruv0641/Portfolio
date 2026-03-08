@@ -59,7 +59,7 @@ const config = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
     max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
-    authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
+    authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '20', 10),
   },
 
   // Brute Force Protection

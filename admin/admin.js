@@ -1354,7 +1354,12 @@
       var listEl = document.getElementById('managed-list');
       if (!listEl) return;
       if (!items.length) {
-        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon(cfg.icon, 36) + '</div><p>No content added yet.</p></div>';
+        listEl.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon">' + icon(cfg.icon, 36) + '</div>' +
+            '<p>You haven\'t added any ' + cfg.label.toLowerCase() + ' content yet.</p>' +
+            '<p style="margin-top:6px;color:var(--muted)">Use the <strong>Add</strong> button above to create your first item.</p>' +
+          '</div>';
         return;
       }
       listEl.innerHTML = '<div class="item-cards">' + items.map(function(it) {
@@ -2273,7 +2278,15 @@
       sortItems();
       var wrap = document.getElementById('quotes-list');
       if (!wrap) return;
-      if (!items.length) { wrap.innerHTML = '<div class="empty-state"><p>No quotes yet.</p></div>'; return; }
+      if (!items.length) {
+        wrap.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon">' + icon('clipboard', 28) + '</div>' +
+            '<p>You haven\'t added any quotes yet.</p>' +
+            '<p style="margin-top:6px;color:var(--muted)">Click <strong>Add</strong> to create your first quote.</p>' +
+          '</div>';
+        return;
+      }
       wrap.innerHTML = items.map(function (q) {
         return '<button class="btn btn-ghost quote-pick' + (q.id === selectedId ? ' active' : '') + '" data-id="' + q.id + '" style="justify-content:flex-start;text-align:left">' +
           '<span class="badge ' + (q.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (q.visible !== false ? 'Visible' : 'Hidden') + '</span> ' +
@@ -2395,7 +2408,15 @@
       sortItems();
       var wrap = document.getElementById('stats-list');
       if (!wrap) return;
-      if (!items.length) { wrap.innerHTML = '<div class="empty-state"><p>No stats yet.</p></div>'; return; }
+      if (!items.length) {
+        wrap.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon">' + icon('activity', 28) + '</div>' +
+            '<p>You haven\'t added any stats yet.</p>' +
+            '<p style="margin-top:6px;color:var(--muted)">Click <strong>Add</strong> to create your first stat.</p>' +
+          '</div>';
+        return;
+      }
       wrap.innerHTML = items.map(function (s) {
         return '<button class="btn btn-ghost stat-pick' + (s.id === selectedId ? ' active' : '') + '" data-id="' + s.id + '" style="justify-content:flex-start;text-align:left"><span class="badge ' + (s.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (s.visible !== false ? 'Visible' : 'Hidden') + '</span> ' + escapeHtml((s.label || 'Stat')) + '</button>';
       }).join('');

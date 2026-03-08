@@ -39,21 +39,30 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const { username, password } = req.validatedBody;
   const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const meta = getAuditMeta(req);
+  const lockoutMinutes = config.bruteForce.lockoutMinutes;
+
+  if (isLockedOut(ip, username)) {
+    logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'locked_out' } });
+    return res.status(429).json({ error: 'Too many failed attempts. Try again later.', lockoutMinutes });
+  }
 
   const admin = await db.admin.get();
   if (!admin || admin.username !== username) {
+    recordFailedLogin(ip, username);
     logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'invalid_username' } });
     throw new ApiError(401, 'Invalid credentials');
   }
 
   const validPassword = await bcrypt.compare(password, admin.passwordHash);
   if (!validPassword) {
+    recordFailedLogin(ip, username);
     logAudit({ ...meta, action: AuditAction.LOGIN_FAILED, details: { username, reason: 'invalid_password' } });
     throw new ApiError(401, 'Invalid credentials');
   }
 
   // Check if 2FA is enabled
   if (admin.totpSecret && await isEnabled('two_factor_auth')) {
+    clearLoginAttempts(ip, username);
     // Return partial auth — client must verify TOTP next
     const tempToken = generateAccessToken({ username: admin.username, role: admin.role || 'admin', pending2FA: true });
     return res.json({
@@ -318,8 +327,22 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 // POST /api/auth/logout
 // ═══════════════════════════════════════════
 router.post('/logout', (req, res) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const refreshToken = req.cookies?.refresh_token;
   if (refreshToken) revokeRefreshToken(refreshToken);
+
+  // Best-effort login attempt reset for this user on explicit logout.
+  try {
+    const jwt = require('jsonwebtoken');
+    const token =
+      req.cookies?.access_token ||
+      (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
+        ? req.headers.authorization.split(' ')[1]
+        : null);
+    const decoded = token ? jwt.decode(token) : null;
+    if (decoded && decoded.username) clearLoginAttempts(ip, decoded.username);
+  } catch {}
+
   clearTokenCookies(res);
   res.json({ message: 'Logged out successfully' });
 });

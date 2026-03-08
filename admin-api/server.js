@@ -104,8 +104,21 @@ const globalLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  // Keep login throttling separate and more precise.
+  skip: (req) => req.path === '/auth/login',
 });
 app.use('/api', globalLimiter);
+
+// Dedicated login limiter: blocks brute-force while allowing normal usage.
+const authLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: config.rateLimit.authMax,
+  message: { error: 'Too many login attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+app.use('/api/auth/login', authLoginLimiter);
 
 // ═══════════════════════════════════════════
 // DATA INITIALIZATION
