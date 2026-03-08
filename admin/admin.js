@@ -530,12 +530,12 @@
       case 'quotes': renderQuotes(pageContent); break;
       case 'stats': renderStats(pageContent); break;
       case 'media-blocks': renderMediaBlocks(pageContent); break;
-      case 'projects':  renderProjects(pageContent); break;
-      case 'services':  renderServices(pageContent); break;
-      case 'methodology': renderMethodology(pageContent); break;
+      case 'projects':  renderProjectsInline(pageContent); break;
+      case 'services':  renderServicesInline(pageContent); break;
+      case 'methodology': renderMethodologyInline(pageContent); break;
       case 'expertise': renderExpertise(pageContent); break;
-      case 'tools':     renderTools(pageContent); break;
-      case 'certificates': renderCertificates(pageContent); break;
+      case 'tools':     renderToolsInline(pageContent); break;
+      case 'certificates': renderCertificatesInline(pageContent); break;
       case 'messages':  renderMessages(pageContent); break;
       case 'audit':     renderAuditLog(pageContent); break;
       case 'settings':  renderSettings(pageContent); break;
@@ -1810,6 +1810,368 @@
   async function renderQuotes(container) { return renderAdvancedManager(container, 'quotes'); }
   async function renderStats(container) { return renderAdvancedManager(container, 'stats'); }
   async function renderMediaBlocks(container) { return renderAdvancedManager(container, 'media-blocks'); }
+
+  function inlineConfigFor(section) {
+    if (section === 'projects') {
+      return {
+        title: 'Projects',
+        subtitle: 'Inline editing in website-like card layout',
+        endpoint: '/projects',
+        cacheKey: 'projects',
+        icon: 'shield-check',
+        reorder: false,
+        visibilityField: null,
+        fields: [
+          { key: 'title', label: 'Title', required: true },
+          { key: 'description', label: 'Description', textarea: true },
+          { key: 'technologies', label: 'Technologies (comma separated)', csv: true },
+          { key: 'emoji', label: 'Emoji' },
+          { key: 'impact', label: 'Impact' },
+          { key: 'githubLink', label: 'GitHub Link' },
+          { key: 'featured', label: 'Featured', checkbox: true },
+        ],
+        buildCreate: function () {
+          return { title: 'New Project', description: '', technologies: [], emoji: '🔒', impact: '', githubLink: '#', featured: false };
+        }
+      };
+    }
+    if (section === 'services') {
+      return {
+        title: 'Services',
+        subtitle: 'Inline editing in website-like card layout',
+        endpoint: '/services',
+        cacheKey: 'services',
+        icon: 'server',
+        reorder: false,
+        visibilityField: null,
+        fields: [
+          { key: 'title', label: 'Title', required: true },
+          { key: 'icon', label: 'Icon/Emoji' },
+          { key: 'description', label: 'Description', textarea: true },
+        ],
+        buildCreate: function () {
+          return { title: 'New Service', icon: '🔒', description: '' };
+        }
+      };
+    }
+    if (section === 'methodology') {
+      return {
+        title: 'Methodology',
+        subtitle: 'Inline editing with ordering and visibility',
+        endpoint: '/methodology',
+        cacheKey: 'methodology',
+        icon: 'activity',
+        reorder: true,
+        visibilityField: 'enabled',
+        fields: [
+          { key: 'title', label: 'Step Title', required: true },
+          { key: 'description', label: 'Description', textarea: true },
+          { key: 'icon', label: 'Icon' },
+          { key: 'order', label: 'Order', number: true },
+          { key: 'enabled', label: 'Visible', checkbox: true },
+        ],
+        buildCreate: function (nextOrder) {
+          return { title: 'New Step', description: '', icon: 'activity', order: nextOrder, enabled: true };
+        }
+      };
+    }
+    if (section === 'tools') {
+      return {
+        title: 'Tools',
+        subtitle: 'Inline editing with ordering and visibility',
+        endpoint: '/tools',
+        cacheKey: 'tools',
+        icon: 'terminal',
+        reorder: true,
+        visibilityField: 'enabled',
+        fields: [
+          { key: 'name', label: 'Tool Name', required: true },
+          { key: 'category', label: 'Category' },
+          { key: 'icon', label: 'Icon' },
+          { key: 'order', label: 'Order', number: true },
+          { key: 'enabled', label: 'Visible', checkbox: true },
+        ],
+        buildCreate: function (nextOrder) {
+          return { name: 'New Tool', category: '', icon: 'terminal', order: nextOrder, enabled: true };
+        }
+      };
+    }
+    return {
+      title: 'Certificates',
+      subtitle: 'Inline editing with ordering and visibility',
+      endpoint: '/certificates',
+      cacheKey: 'certificates',
+      icon: 'star',
+      reorder: true,
+      visibilityField: 'enabled',
+      fields: [
+        { key: 'title', label: 'Title', required: true },
+        { key: 'issuer', label: 'Issuer' },
+        { key: 'date', label: 'Date' },
+        { key: 'credentialLink', label: 'Credential Link' },
+        { key: 'badgeIcon', label: 'Badge Icon' },
+        { key: 'order', label: 'Order', number: true },
+        { key: 'enabled', label: 'Visible', checkbox: true },
+      ],
+      buildCreate: function (nextOrder) {
+        return { title: 'New Certificate', issuer: '', date: '', credentialLink: '#', badgeIcon: 'shield-check', order: nextOrder, enabled: true };
+      }
+    };
+  }
+
+  function inlineInputHtml(item, f, section) {
+    var id = 'inl-' + section + '-' + item.id + '-' + f.key;
+    var value = item[f.key];
+    if (f.checkbox) {
+      return '<label class="form-check"><input type="checkbox" id="' + id + '" ' + (value !== false ? 'checked' : '') + '> ' + escapeHtml(f.label) + '</label>';
+    }
+    if (f.textarea) {
+      return '<label class="form-label">' + escapeHtml(f.label) + '</label><textarea class="form-input form-textarea adv-inline-textarea" id="' + id + '">' + escapeHtml(String(value || '')) + '</textarea>';
+    }
+    var type = f.number ? 'number' : 'text';
+    if (f.csv) value = Array.isArray(value) ? value.join(', ') : (value || '');
+    return '<label class="form-label">' + escapeHtml(f.label) + '</label><input type="' + type + '" class="form-input" id="' + id + '" value="' + escapeHtml(String(value || '')) + '">';
+  }
+
+  function readInlineValue(itemId, section, f) {
+    var id = 'inl-' + section + '-' + itemId + '-' + f.key;
+    var el = document.getElementById(id);
+    if (!el) return undefined;
+    if (f.checkbox) return !!el.checked;
+    var raw = (el.value || '').trim();
+    if (f.number) return parseInt(raw, 10) || 0;
+    if (f.csv) return raw ? raw.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [];
+    return raw;
+  }
+
+  function findOrderField(cfg) {
+    return cfg.fields.find(function (f) { return f.key === 'order'; }) || null;
+  }
+
+  async function renderInlineEntityManager(container, section) {
+    var cfg = inlineConfigFor(section);
+    var _searchTerm = '';
+    var _statusFilter = 'all';
+    var _orderDirty = false;
+    var orderField = findOrderField(cfg);
+
+    container.innerHTML =
+      '<div class="page-header">' +
+        '<div><h1 class="page-title">' + icon(cfg.icon, 22) + ' ' + cfg.title + '</h1><p class="page-subtitle">' + cfg.subtitle + '</p></div>' +
+        '<div class="page-header-actions"><button class="btn btn-primary" id="add-inline-btn">' + icon('plus', 16) + ' Add</button></div>' +
+      '</div>' +
+      '<div class="cms-toolbar">' +
+        '<div class="cms-toolbar-left">' +
+          '<div class="search-bar"><span class="search-icon">' + icon('search', 16) + '</span><input class="form-input" id="inline-search" placeholder="Search..." type="text"></div>' +
+          '<select class="form-input cms-filter" id="inline-status-filter"><option value="all">All Status</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>' +
+        '</div>' +
+        '<div class="cms-toolbar-right">' + (cfg.reorder ? ('<button class="btn btn-sm btn-primary" id="save-inline-order" style="display:none">' + icon('check', 14) + ' Save Order</button>') : '') + '<span class="cms-count" id="inline-count"></span></div>' +
+      '</div>' +
+      '<div class="cms-table-wrapper adv-inline-wrap" id="inline-list">' + skeleton('cards', 3) + '</div>';
+
+    var items = _cache[cfg.cacheKey] || await api(cfg.endpoint);
+    _cache[cfg.cacheKey] = items;
+
+    function getOrder(item) {
+      return orderField ? (item[orderField.key] || 0) : 0;
+    }
+
+    function sortItems() {
+      if (orderField) items.sort(function (a, b) { return (a[orderField.key] || 0) - (b[orderField.key] || 0); });
+    }
+    sortItems();
+
+    function visibleValue(item) {
+      if (!cfg.visibilityField) return true;
+      return item[cfg.visibilityField] !== false;
+    }
+
+    function getFiltered() {
+      return items.filter(function (it) {
+        if (_statusFilter === 'visible' && !visibleValue(it)) return false;
+        if (_statusFilter === 'hidden' && visibleValue(it)) return false;
+        if (!_searchTerm) return true;
+        var blob = JSON.stringify(it).toLowerCase();
+        return blob.indexOf(_searchTerm.toLowerCase()) !== -1;
+      });
+    }
+
+    function itemPrimary(it) {
+      return it.title || it.name || it.label || 'Item';
+    }
+
+    function itemSecondary(it) {
+      return it.description || it.category || it.issuer || it.impact || '';
+    }
+
+    function markOrderDirty() {
+      if (!cfg.reorder) return;
+      _orderDirty = true;
+      var btn = document.getElementById('save-inline-order');
+      if (btn) btn.style.display = '';
+    }
+
+    function renderList() {
+      sortItems();
+      var filtered = getFiltered();
+      var listEl = document.getElementById('inline-list');
+      var countEl = document.getElementById('inline-count');
+      if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' items';
+      if (!filtered.length) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon(cfg.icon, 36) + '</div><p>No items found.</p></div>';
+        return;
+      }
+
+      listEl.innerHTML = '<div class="adv-inline-grid">' + filtered.map(function (it) {
+        var body = cfg.fields.map(function (f) {
+          return '<div class="form-group">' + inlineInputHtml(it, f, section) + '</div>';
+        }).join('');
+        return '<article class="adv-inline-card service-card" data-id="' + it.id + '">' +
+          '<div class="adv-inline-meta">' +
+            '<span class="badge ' + (visibleValue(it) ? 'badge-green' : 'badge-cyan') + '">' + (visibleValue(it) ? 'Visible' : 'Hidden') + '</span>' +
+            '<span class="cms-title">' + escapeHtml(itemPrimary(it)) + '</span>' +
+          '</div>' +
+          (itemSecondary(it) ? ('<p class="item-card-desc" style="margin-bottom:10px">' + escapeHtml(itemSecondary(it)) + '</p>') : '') +
+          body +
+          '<div class="adv-inline-actions">' +
+            '<button class="btn btn-sm btn-primary inline-save" data-id="' + it.id + '">' + icon('check', 14) + ' Save</button>' +
+            (cfg.visibilityField ? ('<button class="btn btn-sm btn-ghost inline-toggle" data-id="' + it.id + '">' + icon('eye', 14) + ' Toggle</button>') : '') +
+            (cfg.reorder ? ('<button class="btn btn-sm btn-ghost inline-up" data-id="' + it.id + '">' + icon('chevron-down', 14) + ' Up</button><button class="btn btn-sm btn-ghost inline-down" data-id="' + it.id + '">' + icon('chevron-down', 14) + ' Down</button>') : '') +
+            '<button class="btn btn-sm btn-ghost inline-view" data-id="' + it.id + '">' + icon('eye', 14) + ' View</button>' +
+            '<button class="btn btn-sm btn-danger inline-delete" data-id="' + it.id + '">' + icon('trash', 14) + ' Delete</button>' +
+          '</div>' +
+        '</article>';
+      }).join('') + '</div>';
+
+      listEl.querySelectorAll('.inline-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var id = btn.dataset.id;
+          var item = items.find(function (x) { return x.id === id; });
+          if (!item) return;
+          var body = {};
+          cfg.fields.forEach(function (f) {
+            var v = readInlineValue(id, section, f);
+            if (typeof v !== 'undefined') body[f.key] = v;
+          });
+          var missing = cfg.fields.find(function (f) { return f.required && !String(body[f.key] || '').trim(); });
+          if (missing) { showToast(missing.label + ' is required', 'error'); return; }
+          setButtonLoading(btn, true, 'Saving...');
+          try {
+            await api(cfg.endpoint + '/' + id, { method: 'PUT', body: JSON.stringify(body) });
+            invalidateCache(cfg.cacheKey);
+            showToast('Saved');
+            renderInlineEntityManager(container, section);
+          } catch (err) {
+            setButtonLoading(btn, false);
+          }
+        });
+      });
+
+      listEl.querySelectorAll('.inline-view').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var item = items.find(function (x) { return x.id === btn.dataset.id; });
+          if (!item) return;
+          var fields = Object.keys(item).filter(function (k) { return ['id', 'createdAt', 'updatedAt', 'tenantId'].indexOf(k) === -1; }).map(function (k) {
+            return { label: k, value: typeof item[k] === 'object' ? JSON.stringify(item[k]) : String(item[k] || '\u2014') };
+          });
+          showDetailModal(cfg.title + ' Details', fields);
+        });
+      });
+
+      listEl.querySelectorAll('.inline-delete').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var ok = await customConfirm('Delete this item?', { title: 'Delete ' + cfg.title.slice(0, -1), type: 'danger' });
+          if (!ok) return;
+          await api(cfg.endpoint + '/' + btn.dataset.id, { method: 'DELETE' });
+          invalidateCache(cfg.cacheKey);
+          renderInlineEntityManager(container, section);
+          showToast('Deleted');
+        });
+      });
+
+      if (cfg.visibilityField) {
+        listEl.querySelectorAll('.inline-toggle').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var id = btn.dataset.id;
+            var item = items.find(function (x) { return x.id === id; });
+            if (!item) return;
+            var payload = {};
+            payload[cfg.visibilityField] = !(item[cfg.visibilityField] !== false);
+            await api(cfg.endpoint + '/' + id, { method: 'PUT', body: JSON.stringify(payload) });
+            invalidateCache(cfg.cacheKey);
+            renderInlineEntityManager(container, section);
+          });
+        });
+      }
+
+      if (cfg.reorder && orderField) {
+        function swapOrder(id, delta) {
+          var visibleItems = filtered.slice().sort(function (a, b) { return getOrder(a) - getOrder(b); });
+          var idx = visibleItems.findIndex(function (x) { return x.id === id; });
+          var targetIdx = idx + delta;
+          if (idx < 0 || targetIdx < 0 || targetIdx >= visibleItems.length) return;
+          var a = visibleItems[idx];
+          var b = visibleItems[targetIdx];
+          var temp = getOrder(a);
+          a[orderField.key] = getOrder(b);
+          b[orderField.key] = temp;
+          markOrderDirty();
+          renderList();
+        }
+        listEl.querySelectorAll('.inline-up').forEach(function (btn) {
+          btn.addEventListener('click', function () { swapOrder(btn.dataset.id, -1); });
+        });
+        listEl.querySelectorAll('.inline-down').forEach(function (btn) {
+          btn.addEventListener('click', function () { swapOrder(btn.dataset.id, 1); });
+        });
+      }
+    }
+
+    document.getElementById('inline-search').addEventListener('input', function (e) {
+      _searchTerm = e.target.value.trim();
+      renderList();
+    });
+    document.getElementById('inline-status-filter').addEventListener('change', function (e) {
+      _statusFilter = e.target.value;
+      renderList();
+    });
+    document.getElementById('add-inline-btn').addEventListener('click', async function () {
+      var maxOrder = orderField ? Math.max(0, items.reduce(function (m, x) { return Math.max(m, x[orderField.key] || 0); }, 0)) : 0;
+      var body = cfg.buildCreate(maxOrder + 1);
+      await api(cfg.endpoint, { method: 'POST', body: JSON.stringify(body) });
+      invalidateCache(cfg.cacheKey);
+      renderInlineEntityManager(container, section);
+      showToast('Added');
+    });
+
+    if (cfg.reorder) {
+      var saveOrderBtn = document.getElementById('save-inline-order');
+      if (saveOrderBtn) {
+        saveOrderBtn.addEventListener('click', async function () {
+          if (!_orderDirty || !orderField) return;
+          var payload = items.slice().sort(function (a, b) { return getOrder(a) - getOrder(b); }).map(function (it, idx) {
+            var obj = { id: it.id };
+            obj[orderField.key] = idx + 1;
+            return obj;
+          });
+          setButtonLoading(saveOrderBtn, true, 'Saving...');
+          await api(cfg.endpoint, { method: 'PUT', body: JSON.stringify(payload) });
+          invalidateCache(cfg.cacheKey);
+          _orderDirty = false;
+          renderInlineEntityManager(container, section);
+          showToast('Order updated');
+        });
+      }
+    }
+
+    renderList();
+  }
+
+  async function renderProjectsInline(container) { return renderInlineEntityManager(container, 'projects'); }
+  async function renderServicesInline(container) { return renderInlineEntityManager(container, 'services'); }
+  async function renderMethodologyInline(container) { return renderInlineEntityManager(container, 'methodology'); }
+  async function renderToolsInline(container) { return renderInlineEntityManager(container, 'tools'); }
+  async function renderCertificatesInline(container) { return renderInlineEntityManager(container, 'certificates'); }
 
   /* ═══════════════════════════════════════════
      PROJECTS PAGE
