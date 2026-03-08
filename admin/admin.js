@@ -1573,8 +1573,7 @@
     var cfg = advancedSectionConfig(type);
     var _searchTerm = '';
     var _statusFilter = 'all';
-    var _page = 1;
-    var PER_PAGE = 15;
+    var _orderDirty = false;
 
     container.innerHTML =
       '<div class="page-header">' +
@@ -1588,8 +1587,7 @@
         '</div>' +
         '<div class="cms-toolbar-right"><button class="btn btn-sm btn-primary" id="save-adv-order" style="display:none">' + icon('check', 14) + ' Save Order</button><span class="cms-count" id="adv-count"></span></div>' +
       '</div>' +
-      '<div class="cms-table-wrapper" id="adv-list">' + skeleton('cards', 3) + '</div>' +
-      '<div id="adv-pagination"></div>';
+      '<div class="cms-table-wrapper adv-inline-wrap" id="adv-list">' + skeleton('cards', 3) + '</div>';
 
     var cacheKey = cfg.cacheKey || endpointToCacheKey(cfg.endpoint);
     var items = _cache[cacheKey] || await api('/' + cfg.endpoint);
@@ -1608,8 +1606,26 @@
     }
 
     function markOrderDirty() {
+      _orderDirty = true;
       var btn = document.getElementById('save-adv-order');
       if (btn) btn.style.display = '';
+    }
+
+    function inlineFormValue(id, def) {
+      var el = document.getElementById(id);
+      if (!el) return def;
+      if (el.type === 'checkbox') return !!el.checked;
+      return (el.value || '').trim();
+    }
+
+    function cardActionsHtml(id) {
+      return '<div class="adv-inline-actions">' +
+        '<button class="btn btn-sm btn-primary save-adv-inline" data-id="' + id + '">' + icon('check', 14) + ' Save</button>' +
+        '<button class="btn btn-sm btn-ghost toggle-adv-inline" data-id="' + id + '">' + icon('eye', 14) + ' Toggle</button>' +
+        '<button class="btn btn-sm btn-ghost up-adv-inline" data-id="' + id + '">' + icon('chevron-right', 14) + ' Up</button>' +
+        '<button class="btn btn-sm btn-ghost down-adv-inline" data-id="' + id + '">' + icon('chevron-down', 14) + ' Down</button>' +
+        '<button class="btn btn-sm btn-danger delete-adv-inline" data-id="' + id + '">' + icon('trash', 14) + ' Delete</button>' +
+      '</div>';
     }
 
     function renderList() {
@@ -1620,124 +1636,160 @@
       if (countEl) countEl.textContent = filtered.length + ' of ' + items.length + ' items';
       if (!filtered.length) {
         listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon(cfg.icon, 36) + '</div><p>No items found.</p></div>';
-        var pe = document.getElementById('adv-pagination');
-        if (pe) pe.innerHTML = '';
         return;
       }
 
-      var totalPages = Math.ceil(filtered.length / PER_PAGE);
-      if (_page > totalPages) _page = totalPages;
-      var start = (_page - 1) * PER_PAGE;
-      var pageItems = filtered.slice(start, start + PER_PAGE);
-
-      listEl.innerHTML = '<div class="item-cards">' + pageItems.map(function(it) {
-        var title = it.title || it.label || it.author || it.section || 'Item';
-        var desc = it.quoteText || it.content || it.role || '';
-        return '<div class="item-card cms-mobile-card" data-id="' + it.id + '">' +
-          '<button class="overflow-menu-trigger" data-id="' + it.id + '" aria-label="Open actions">' + icon('menu', 16) + '</button>' +
-          '<div class="item-card-header">' +
-            '<span class="item-card-icon">' + icon(cfg.icon, 18) + '</span>' +
-            '<div class="item-card-meta"><h3 class="item-card-title">' + escapeHtml(title) + '</h3><p class="item-card-desc">' + escapeHtml((desc || '').substring(0, 120)) + '</p></div>' +
-            '<span class="badge ' + (it.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (it.visible !== false ? 'Visible' : 'Hidden') + '</span>' +
-          '</div>' +
-          '<div class="cms-mobile-card-footer" style="justify-content:space-between">' +
-            '<span>Order: <input type="number" class="cms-order-input" data-id="' + it.id + '" value="' + (it.orderIndex || 0) + '" min="0"></span>' +
-            '<div class="cms-actions">' +
-              '<button class="btn btn-sm btn-ghost view-adv" data-id="' + it.id + '">' + icon('eye', 14) + ' View</button>' +
-              '<button class="btn btn-sm btn-ghost edit-adv" data-id="' + it.id + '">' + icon('edit', 14) + ' Edit</button>' +
-              '<button class="btn btn-sm btn-danger delete-adv" data-id="' + it.id + '">' + icon('trash', 14) + ' Delete</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('') + '</div>';
-
-      renderPagination('adv-pagination', _page, totalPages, filtered.length, 'item', function(pg) { _page = pg; renderList(); });
-
-      listEl.querySelectorAll('.cms-order-input').forEach(function(inp) {
-        inp.addEventListener('change', markOrderDirty);
-      });
-
-      listEl.querySelectorAll('.view-adv').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var it = items.find(function(x) { return x.id === btn.dataset.id; });
-          if (!it) return;
-          var details = Object.keys(it).filter(function(k) { return k !== 'id' && k !== 'tenantId' && k !== 'createdAt' && k !== 'updatedAt'; }).map(function(k) {
-            return { label: k, value: typeof it[k] === 'object' ? JSON.stringify(it[k]) : String(it[k] || '\u2014') };
-          });
-          showDetailModal(cfg.label + ' Details', details);
+      if (type === 'quotes') {
+        listEl.innerHTML = '<div class="adv-inline-grid">' + filtered.map(function(it) {
+          return '<blockquote class="mission-quote adv-inline-card" data-id="' + it.id + '">' +
+            '<div class="adv-inline-meta"><span class="badge ' + (it.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (it.visible !== false ? 'Visible' : 'Hidden') + '</span><label>Order <input type="number" class="form-input adv-order-input" data-id="' + it.id + '" value="' + (it.orderIndex || 0) + '" min="0"></label></div>' +
+            '<textarea id="adv-quoteText-' + it.id + '" class="form-input form-textarea adv-inline-textarea">' + escapeHtml(it.quoteText || '') + '</textarea>' +
+            '<div class="form-row"><input id="adv-author-' + it.id + '" class="form-input" placeholder="Author" value="' + escapeHtml(it.author || '') + '"><input id="adv-role-' + it.id + '" class="form-input" placeholder="Role" value="' + escapeHtml(it.role || '') + '"></div>' +
+            cardActionsHtml(it.id) +
+          '</blockquote>';
+        }).join('') + '</div>';
+      } else if (type === 'stats') {
+        listEl.innerHTML = '<div class="why-stats adv-inline-grid">' + filtered.map(function(it) {
+          return '<div class="why-stat adv-inline-card" data-id="' + it.id + '">' +
+            '<div class="adv-inline-meta"><span class="badge ' + (it.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (it.visible !== false ? 'Visible' : 'Hidden') + '</span><label>Order <input type="number" class="form-input adv-order-input" data-id="' + it.id + '" value="' + (it.orderIndex || 0) + '" min="0"></label></div>' +
+            '<div class="why-num"><input id="adv-value-' + it.id + '" type="number" class="form-input" value="' + (it.value || 0) + '" min="0"></div>' +
+            '<input id="adv-label-' + it.id + '" class="form-input" placeholder="Label" value="' + escapeHtml(it.label || '') + '">' +
+            '<div class="form-row"><input id="adv-icon-' + it.id + '" class="form-input" placeholder="Icon name" value="' + escapeHtml(it.icon || 'target') + '"><select id="adv-animationType-' + it.id + '" class="form-input"><option value="count"' + ((it.animationType || 'count') === 'count' ? ' selected' : '') + '>count</option><option value="static"' + ((it.animationType || 'count') === 'static' ? ' selected' : '') + '>static</option></select></div>' +
+            cardActionsHtml(it.id) +
+          '</div>';
+        }).join('') + '</div>';
+      } else {
+        listEl.innerHTML = '<div class="services-grid adv-inline-grid">' + filtered.map(function(it) {
+          return '<article class="service-card adv-inline-card" data-id="' + it.id + '">' +
+            '<div class="adv-inline-meta"><span class="badge ' + (it.visible !== false ? 'badge-green' : 'badge-cyan') + '">' + (it.visible !== false ? 'Visible' : 'Hidden') + '</span><label>Order <input type="number" class="form-input adv-order-input" data-id="' + it.id + '" value="' + (it.orderIndex || 0) + '" min="0"></label></div>' +
+            '<div class="form-row"><input id="adv-section-' + it.id + '" class="form-input" placeholder="Section" value="' + escapeHtml(it.section || '') + '"><select id="adv-type-' + it.id + '" class="form-input"><option value="text">text</option><option value="image">image</option><option value="video">video</option><option value="icon">icon</option><option value="stat">stat</option><option value="card">card</option><option value="grid">grid</option><option value="timeline">timeline</option><option value="cta">cta</option><option value="markdown">markdown</option><option value="embed">embed</option></select></div>' +
+            '<input id="adv-title-' + it.id + '" class="form-input" placeholder="Title" value="' + escapeHtml(it.title || '') + '">' +
+            '<textarea id="adv-content-' + it.id + '" class="form-input form-textarea adv-inline-textarea" placeholder="Content">' + escapeHtml(it.content || '') + '</textarea>' +
+            '<div class="form-row"><input id="adv-mediaUrl-' + it.id + '" class="form-input" placeholder="Media URL" value="' + escapeHtml(it.mediaUrl || '') + '"><input id="adv-link-' + it.id + '" class="form-input" placeholder="Link URL" value="' + escapeHtml(it.link || '') + '"></div>' +
+            '<div class="form-row"><input id="adv-icon-' + it.id + '" class="form-input" placeholder="Icon" value="' + escapeHtml(it.icon || '') + '"><textarea id="adv-metadataJson-' + it.id + '" class="form-input form-textarea" placeholder="Metadata JSON">{' + escapeHtml(JSON.stringify(it.metadataJson || {}, null, 2).slice(1, -1)) + '}</textarea></div>' +
+            cardActionsHtml(it.id) +
+          '</article>';
+        }).join('') + '</div>';
+        filtered.forEach(function(it) {
+          var sel = document.getElementById('adv-type-' + it.id);
+          if (sel) sel.value = it.type || 'text';
         });
-      });
+      }
 
-      listEl.querySelectorAll('.edit-adv').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var it = items.find(function(x) { return x.id === btn.dataset.id; });
-          if (!it) return;
-          showAdvancedModal(cfg, it, async function(body) {
-            await api('/' + cfg.endpoint + '/' + it.id, { method: 'PUT', body: JSON.stringify(body) });
+      listEl.querySelectorAll('.adv-order-input').forEach(function(inp) { inp.addEventListener('change', markOrderDirty); });
+
+      listEl.querySelectorAll('.save-adv-inline').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var id = btn.dataset.id;
+          var body = {};
+          if (type === 'quotes') {
+            body.quoteText = inlineFormValue('adv-quoteText-' + id, '');
+            body.author = inlineFormValue('adv-author-' + id, '');
+            body.role = inlineFormValue('adv-role-' + id, '');
+            body.orderIndex = parseInt((document.querySelector('.adv-order-input[data-id="' + id + '"]') || {}).value || '0', 10) || 0;
+          } else if (type === 'stats') {
+            body.label = inlineFormValue('adv-label-' + id, '');
+            body.value = parseInt(inlineFormValue('adv-value-' + id, '0'), 10) || 0;
+            body.icon = inlineFormValue('adv-icon-' + id, 'target');
+            body.animationType = inlineFormValue('adv-animationType-' + id, 'count');
+            body.orderIndex = parseInt((document.querySelector('.adv-order-input[data-id="' + id + '"]') || {}).value || '0', 10) || 0;
+          } else {
+            var metadataRaw = inlineFormValue('adv-metadataJson-' + id, '').trim();
+            body.section = inlineFormValue('adv-section-' + id, '');
+            body.type = inlineFormValue('adv-type-' + id, 'text');
+            body.title = inlineFormValue('adv-title-' + id, '');
+            body.content = inlineFormValue('adv-content-' + id, '');
+            body.mediaUrl = inlineFormValue('adv-mediaUrl-' + id, '');
+            body.icon = inlineFormValue('adv-icon-' + id, '');
+            body.link = inlineFormValue('adv-link-' + id, '');
+            body.metadataJson = metadataRaw ? JSON.parse(metadataRaw[0] === '{' ? metadataRaw : ('{' + metadataRaw + '}')) : {};
+            body.orderIndex = parseInt((document.querySelector('.adv-order-input[data-id="' + id + '"]') || {}).value || '0', 10) || 0;
+          }
+          setButtonLoading(btn, true, 'Saving...');
+          try {
+            await api('/' + cfg.endpoint + '/' + id, { method: 'PUT', body: JSON.stringify(body) });
             invalidateCache(cacheKey);
+            showToast('Saved');
             renderAdvancedManager(container, type);
-            showToast(cfg.label.slice(0, -1) + ' updated');
-          });
+          } catch (e) {
+            setButtonLoading(btn, false);
+            showToast(e.message || 'Save failed', 'error');
+          }
         });
       });
 
-      listEl.querySelectorAll('.delete-adv').forEach(function(btn) {
+      listEl.querySelectorAll('.toggle-adv-inline').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var id = btn.dataset.id;
+          var item = items.find(function(x) { return x.id === id; });
+          if (!item) return;
+          await api('/' + cfg.endpoint + '/' + id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(item.visible !== false) }) });
+          invalidateCache(cacheKey);
+          renderAdvancedManager(container, type);
+        });
+      });
+
+      listEl.querySelectorAll('.delete-adv-inline').forEach(function(btn) {
         btn.addEventListener('click', async function() {
           var ok = await customConfirm('Delete this item?', { title: 'Delete', type: 'danger' });
           if (!ok) return;
           await api('/' + cfg.endpoint + '/' + btn.dataset.id, { method: 'DELETE' });
           invalidateCache(cacheKey);
           renderAdvancedManager(container, type);
-          showToast('Item deleted');
+          showToast('Deleted');
         });
       });
 
-      listEl.querySelectorAll('.overflow-menu-trigger').forEach(function(btn) {
-        btn.addEventListener('click', function(ev) {
-          ev.stopPropagation();
-          var it = items.find(function(x) { return x.id === btn.dataset.id; });
-          if (!it) return;
-          showOverflowMenu(btn, [
-            { label: 'View', icon: 'eye', action: function() { btn.closest('.item-card').querySelector('.view-adv').click(); } },
-            { label: it.visible !== false ? 'Hide' : 'Show', icon: it.visible !== false ? 'eye-off' : 'eye', action: async function() {
-              await api('/' + cfg.endpoint + '/' + it.id + '/visibility', { method: 'PATCH', body: JSON.stringify({ visible: !(it.visible !== false) }) });
-              invalidateCache(cacheKey);
-              renderAdvancedManager(container, type);
-            } },
-            { label: 'Edit', icon: 'edit', action: function() { btn.closest('.item-card').querySelector('.edit-adv').click(); } },
-            { label: 'Delete', icon: 'trash', danger: true, action: async function() {
-              await api('/' + cfg.endpoint + '/' + it.id, { method: 'DELETE' });
-              invalidateCache(cacheKey);
-              renderAdvancedManager(container, type);
-            } }
-          ]);
-        });
+      function swapOrder(id, dir) {
+        var idx = filtered.findIndex(function(x) { return x.id === id; });
+        var targetIdx = idx + dir;
+        if (idx < 0 || targetIdx < 0 || targetIdx >= filtered.length) return;
+        var a = filtered[idx];
+        var b = filtered[targetIdx];
+        var temp = a.orderIndex || 0;
+        a.orderIndex = b.orderIndex || 0;
+        b.orderIndex = temp;
+        markOrderDirty();
+        renderList();
+      }
+      listEl.querySelectorAll('.up-adv-inline').forEach(function(btn) {
+        btn.addEventListener('click', function() { swapOrder(btn.dataset.id, -1); });
+      });
+      listEl.querySelectorAll('.down-adv-inline').forEach(function(btn) {
+        btn.addEventListener('click', function() { swapOrder(btn.dataset.id, 1); });
       });
     }
 
     document.getElementById('add-adv-btn').addEventListener('click', function() {
-      showAdvancedModal(cfg, null, async function(body) {
-        await api('/' + cfg.endpoint, { method: 'POST', body: JSON.stringify(body) });
+      var nextOrder = items.length ? Math.max.apply(null, items.map(function(x) { return x.orderIndex || 0; })) + 1 : 1;
+      var body;
+      if (type === 'quotes') {
+        body = { quoteText: 'New quote', author: 'Author', role: '', visible: true, orderIndex: nextOrder };
+      } else if (type === 'stats') {
+        body = { label: 'New stat', value: 0, icon: 'target', animationType: 'count', visible: true, orderIndex: nextOrder };
+      } else {
+        body = { section: 'general', type: 'text', title: 'New block', content: '', mediaUrl: '', icon: '', link: '', metadataJson: {}, visible: true, orderIndex: nextOrder };
+      }
+      api('/' + cfg.endpoint, { method: 'POST', body: JSON.stringify(body) }).then(function() {
         invalidateCache(cacheKey);
         renderAdvancedManager(container, type);
-        showToast(cfg.label.slice(0, -1) + ' created');
+        showToast('Added');
       });
     });
     document.getElementById('adv-search').addEventListener('input', function(e) {
       _searchTerm = e.target.value.trim();
-      _page = 1;
       renderList();
     });
     document.getElementById('adv-status-filter').addEventListener('change', function(e) {
       _statusFilter = e.target.value;
-      _page = 1;
       renderList();
     });
     document.getElementById('save-adv-order').addEventListener('click', async function() {
       var btn = this;
+      if (!_orderDirty) return;
       var payload = [];
       var seen = {};
-      document.querySelectorAll('#adv-list .cms-order-input').forEach(function(inp) {
+      document.querySelectorAll('#adv-list .adv-order-input').forEach(function(inp) {
         if (seen[inp.dataset.id]) return;
         seen[inp.dataset.id] = true;
         payload.push({ id: inp.dataset.id, orderIndex: parseInt(inp.value, 10) || 0 });
@@ -1747,6 +1799,7 @@
       setButtonLoading(btn, true, 'Saving...');
       await api('/' + cfg.endpoint + '/reorder', { method: 'PATCH', body: JSON.stringify(payload) });
       invalidateCache(cacheKey);
+      _orderDirty = false;
       renderAdvancedManager(container, type);
       showToast('Order updated');
     });
